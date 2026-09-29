@@ -50,6 +50,8 @@ async function freePort(): Promise<number> {
 export async function startIdentity(urls: {
   databaseUrl: string;
   rabbitmqUrl: string;
+  /** Extra env, e.g. GOOGLE_* pointing at a FakeOidcProvider. */
+  env?: Record<string, string>;
 }): Promise<IdentityHarness> {
   const { publicKey, privateKey } = generateKeyPairSync('ed25519', {
     publicKeyEncoding: { type: 'spki', format: 'pem' },
@@ -70,6 +72,7 @@ export async function startIdentity(urls: {
     JWT_PUBLIC_KEY: keys.publicKeyPem,
     JWT_PRIVATE_KEY: keys.privateKeyPem,
     JWT_KEY_ID: keys.keyId,
+    ...urls.env,
   });
 
   // ConfigModule.forRoot validates env when app.module is first imported,

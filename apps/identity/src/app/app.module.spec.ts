@@ -124,6 +124,20 @@ describe('Identity AppModule (integration)', () => {
     }
   });
 
+  it('starts without Google configured and says so on a Google sign-in', async () => {
+    await expect(
+      identity.send('identity.google.exchange', {
+        code: 'c',
+        codeVerifier: 'v'.repeat(43),
+        nonce: 'n',
+        redirectUri: 'http://localhost:4200/api/auth/google/callback',
+      }),
+    ).rejects.toEqual({
+      code: 'OAUTH_EXCHANGE_FAILED',
+      message: 'Google sign-in is not configured',
+    });
+  });
+
   it('answers unexpected failures with a generic INTERNAL error', async () => {
     await identity.dataSource.query(`ALTER TABLE users RENAME TO users_tmp`);
     try {

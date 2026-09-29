@@ -8,6 +8,7 @@ import { validateConfig, type IdentityConfig } from './config';
 import { DatabaseModule } from './database/database.module';
 import { EventsModule } from './events/events.module';
 import { MeModule } from './users/me.module';
+import { GoogleAuthModule } from './oauth/google-auth.module';
 import {
   IdentityRpcExceptionFilter,
   rpcValidationPipe,
@@ -38,6 +39,7 @@ export const configModule = ConfigModule.forRoot({
     }),
     PasswordAuthModule,
     MeModule,
+    GoogleAuthModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: rpcValidationPipe },

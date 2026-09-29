@@ -17,6 +17,29 @@ describe('validateConfig', () => {
     expect(config.DB_MIGRATIONS_RUN).toBe(false);
   });
 
+  it('keeps Google sign-in optional, but needs the secret with the client id', () => {
+    const config = validateConfig(valid);
+    expect(config.GOOGLE_ISSUER).toBe('https://accounts.google.com');
+    expect(config.GOOGLE_CLIENT_ID).toBeUndefined();
+    expect(
+      validateConfig({
+        ...valid,
+        GOOGLE_CLIENT_ID: '',
+        GOOGLE_CLIENT_SECRET: '',
+      }).GOOGLE_CLIENT_ID,
+    ).toBeUndefined();
+    expect(() =>
+      validateConfig({ ...valid, GOOGLE_CLIENT_ID: 'id.apps.example' }),
+    ).toThrow(/GOOGLE_CLIENT_SECRET/);
+    expect(
+      validateConfig({
+        ...valid,
+        GOOGLE_CLIENT_ID: 'id.apps.example',
+        GOOGLE_CLIENT_SECRET: 'secret-value',
+      }).GOOGLE_CLIENT_ID,
+    ).toBe('id.apps.example');
+  });
+
   it('parses port and boolean strings from env', () => {
     const config = validateConfig({
       ...valid,

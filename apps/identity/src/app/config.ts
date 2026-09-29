@@ -3,10 +3,12 @@ import {
   IsBoolean,
   IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
   Matches,
   Max,
   Min,
+  ValidateIf,
   validateSync,
 } from 'class-validator';
 
@@ -53,6 +55,25 @@ export class IdentityConfig {
   @IsString()
   @IsNotEmpty()
   JWT_KEY_ID!: string;
+
+  /** OIDC issuer for Google sign-in. Only tests point this elsewhere (a local fake provider). */
+  @Matches(/^https?:\/\//, { message: 'GOOGLE_ISSUER must be a URL' })
+  GOOGLE_ISSUER = 'https://accounts.google.com';
+
+  /** Google sign-in is disabled unless both are set. Empty (`GOOGLE_CLIENT_ID=`) counts as unset. */
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  GOOGLE_CLIENT_ID?: string;
+
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @ValidateIf((c: IdentityConfig) => c.GOOGLE_CLIENT_ID !== undefined)
+  @IsString()
+  @IsNotEmpty({
+    message: 'GOOGLE_CLIENT_SECRET is required with GOOGLE_CLIENT_ID',
+  })
+  GOOGLE_CLIENT_SECRET?: string;
 }
 
 /** For `ConfigModule.forRoot({ validate })`. Error messages name variables, never values. */
