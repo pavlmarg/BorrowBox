@@ -1,0 +1,32 @@
+{
+  "name": "@borrowbox/source",
+  "version": "0.0.0",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "infra:up": "docker compose -f infra/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/docker-compose.yml down",
+    "affected": "nx affected -t lint test build",
+    "format": "nx format:write",
+    "format:check": "nx format:check"
+  },
+  "devDependencies": {
+    "@nx/eslint": "^23.2.1",
+    "@nx/jest": "^23.2.1",
+    "@nx/js": "^23.2.1",
+    "@nx/workspace": "^23.2.1",
+    "@types/node": "^22.20.4",
+    "eslint": "^9.8.0",
+    "jest": "~30.3.0",
+    "nx": "^23.2.1",
+    "prettier": "^3.9.9",
+    "tslib": "^2.8.1",
+    "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "smol-toml": "^1.7.1"
+  }
+}
