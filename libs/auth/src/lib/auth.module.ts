@@ -7,7 +7,11 @@ import {
   createAccessTokenVerifier,
   type AccessTokenVerifierOptions,
 } from './access-token';
-import { ACCESS_TOKEN_VERIFIER, JwtAuthGuard } from './jwt-auth.guard';
+import {
+  ACCESS_TOKEN_VERIFIER,
+  JwtAuthGuard,
+  RpcJwtAuthGuard,
+} from './jwt-auth.guard';
 
 export interface AuthModuleOptions {
   /** Usually reads `JWT_PUBLIC_KEY` (via `pemFromEnv`) and `JWT_KEY_ID` from config. */
@@ -17,7 +21,7 @@ export interface AuthModuleOptions {
   inject?: InjectionToken[];
 }
 
-/** Provides the access-token verifier and `JwtAuthGuard`. Verify-only: signing lives in Identity. */
+/** Provides the access-token verifier, `JwtAuthGuard` (HTTP) and `RpcJwtAuthGuard` (services). Verify-only: signing lives in Identity. */
 @Module({})
 export class AuthModule {
   static forRoot(options: AuthModuleOptions): DynamicModule {
@@ -32,8 +36,9 @@ export class AuthModule {
           inject: options.inject ?? [],
         },
         JwtAuthGuard,
+        RpcJwtAuthGuard,
       ],
-      exports: [ACCESS_TOKEN_VERIFIER, JwtAuthGuard],
+      exports: [ACCESS_TOKEN_VERIFIER, JwtAuthGuard, RpcJwtAuthGuard],
     };
   }
 }

@@ -15,12 +15,19 @@ export default [
         {
           enforceBuildableLibDependency: true,
           allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
-          depConstraints: [
+          depConstraints: [{ sourceTag: '*', onlyDependOnLibsWithTags: ['*'] }],
+        },
+      ],
+      // Test helpers (Testcontainers etc.) must never ship in runtime code.
+      // A direct-import ban rather than Nx's notDependOnLibsWithTags, which is
+      // transitive and would flag every app using a lib whose *specs* use them.
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
             {
-              sourceTag: '*',
-              onlyDependOnLibsWithTags: ['*'],
-              // Test helpers (Testcontainers etc.) must never ship in runtime code.
-              notDependOnLibsWithTags: ['type:testing'],
+              name: '@borrowbox/testing',
+              message: 'Test helpers are for *.spec.ts / *.test.ts files only.',
             },
           ],
         },
@@ -39,6 +46,7 @@ export default [
           depConstraints: [{ sourceTag: '*', onlyDependOnLibsWithTags: ['*'] }],
         },
       ],
+      'no-restricted-imports': 'off',
     },
   },
   {

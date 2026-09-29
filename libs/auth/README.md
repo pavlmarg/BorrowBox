@@ -42,8 +42,11 @@ AuthModule.forRoot({
 me(@CurrentUser() user: AuthUser) { … }
 ```
 
-`JwtAuthGuard` currently supports HTTP (`Authorization: Bearer …`). The RPC
-variant, which reads `RpcRequest.accessToken`, is added with the first service.
+- `JwtAuthGuard`: HTTP (gateway), reads `Authorization: Bearer …`.
+- `RpcJwtAuthGuard`: services (NestJS TCP), re-verifies `RpcRequest.accessToken`
+  and rejects with `RpcErrorBody { code: 'UNAUTHENTICATED' }`.
+
+`@CurrentUser()` works with both.
 
 `jose` is ESM-only. Node 22 loads it from CommonJS natively; Jest needs the
 `transformIgnorePatterns` entry in `jest.config.cts`.
