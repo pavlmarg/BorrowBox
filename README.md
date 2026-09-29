@@ -44,7 +44,7 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
 ## 🗺 Roadmap
 
 *   [x] System architecture defined
-*   [ ] **Phase 0 – Foundation:** Nx workspace, Docker Compose (Postgres/PostGIS, RabbitMQ, Redis, SeaweedFS, Mailpit), shared libs, CI
+*   [x] **Phase 0 – Foundation:** Nx workspace, Docker Compose (Postgres/PostGIS, RabbitMQ, Redis, SeaweedFS, Mailpit), shared libs, CI
 *   [ ] **Phase 1 – Identity & Gateway:** register / login / refresh, profile, Angular auth screens
 *   [ ] **Phase 2 – Catalog:** item CRUD, photo upload, geo search + map, fuzzed locations
 *   [ ] **Phase 3 – Bookings:** availability, request / accept / decline, state machine, email notifications
@@ -53,6 +53,31 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
 *   [ ] **Phase 6 – Trust & Social:** chat, reviews, trust score, ID verification
 *   [ ] **Phase 7 – Hardening:** observability stack, e2e tests, GDPR endpoints, VPS deployment
 
-## 🚀 Getting Started (Coming Soon)
+## 🚀 Getting Started
 
-Instructions for running the local development environment using Docker Compose will be added here as the microservices are initialized.
+**Prerequisites:** Node.js 22 (see `.nvmrc`), Docker (Docker Desktop on Windows/macOS).
+
+```sh
+npm ci
+
+# Local infrastructure: Postgres+PostGIS, RabbitMQ, Redis, SeaweedFS (S3), Mailpit
+cp infra/.env.example infra/.env      # then change the passwords
+docker compose -f infra/docker-compose.yml up -d --wait
+
+# Lint, test and build what changed (integration tests start their own containers)
+npx nx affected -t lint test build
+```
+
+| Service | Default address |
+|---|---|
+| Postgres | `localhost:5432` (one role + schema per service, see `infra/postgres/init`) |
+| RabbitMQ | `localhost:5672`, management UI http://localhost:15672 |
+| Redis | `localhost:6379` |
+| S3 (SeaweedFS) | http://localhost:8333 |
+| Mailpit | SMTP `localhost:1025`, UI http://localhost:8025 |
+
+Ports can be changed in `infra/.env` if they clash with something already running.
+
+**Shared libraries** (`libs/`):
+`contracts` (event envelope + versioned event types), `messaging` (RabbitMQ bus with retry queues and DLQ),
+`outbox` (transactional outbox, relay, idempotent consumers on TypeORM) and `testing` (Testcontainers helpers).

@@ -16,7 +16,7 @@ ADRs — read the relevant one before touching that area:
 
 ## Current phase
 
-**Phase 0 – Foundation** (update this line as phases complete; see roadmap in `README.md`).
+**Phase 1 – Identity & Gateway** (update this line as phases complete; see roadmap in `README.md`).
 
 - Only build what the current phase needs. If a task seems to require a later-phase feature, stop and ask.
 - Messaging and Reviews start as modules inside `apps/bookings` until their event contracts settle.
@@ -32,11 +32,19 @@ ADRs — read the relevant one before touching that area:
 
 ## Commands
 
-<!-- TODO: fill in once Phase 0 exists; keep this list accurate -->
-- Start infra: `docker compose -f infra/docker-compose.yml up -d`
-- Affected checks: `npx nx affected -t lint test build`
+- First time: `npm ci`, then `cp infra/.env.example infra/.env` (host ports are overridable there)
+- Start infra: `docker compose -f infra/docker-compose.yml up -d --wait`
+- Affected checks: `npx nx affected -t lint test build` (Docker must be running: integration tests use Testcontainers)
 - Single project: `npx nx test <project>`, `npx nx serve <project>`
-- Observability profile: `infra/docker-compose.observability.yml`
+- Formatting: `npx nx format:write` (Markdown is excluded on purpose)
+- Observability profile: `infra/docker-compose.observability.yml` — not created yet (Phase 7)
+
+## Shared libs (use these, don't re-implement)
+
+- `@borrowbox/contracts` — `defineEvent`, `createEnvelope`, `EVENTS_EXCHANGE`; one definition per event version.
+- `@borrowbox/outbox` — `addToOutbox(tx, envelope)`, `OutboxRelay`, `handleOnce(ds, consumer, envelope, fn)`, `CreateOutboxTables…` migration.
+- `@borrowbox/messaging` — `EventBus` (subscribe with retry queues + DLQ; `publish` only from the relay).
+- `@borrowbox/testing` — `startPostgres()` (real per-service roles), `startRabbitMq()`. Spec files only (lint-enforced).
 
 ## Non-negotiable invariants
 
