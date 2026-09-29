@@ -46,6 +46,7 @@ ADRs — read the relevant one before touching that area:
 - `@borrowbox/contracts` — `defineEvent`, `createEnvelope`, `EVENTS_EXCHANGE`; one definition per event version.
 - `@borrowbox/outbox` — `addToOutbox(tx, envelope)`, `OutboxRelay`, `handleOnce(ds, consumer, envelope, fn)`, `CreateOutboxTables…` migration.
 - `@borrowbox/messaging` — `EventBus` (subscribe with retry queues + DLQ; `publish` only from the relay).
+- `@borrowbox/auth` — `createAccessTokenSigner` (Identity only), `createAccessTokenVerifier`, `AuthModule`, `JwtAuthGuard`, `@CurrentUser()`. Keys: `node tools/gen-jwt-keys.mjs`.
 - `@borrowbox/testing` — `startPostgres()` (real per-service roles), `startRabbitMq()`. Spec files only (lint-enforced).
 
 ## Non-negotiable invariants
