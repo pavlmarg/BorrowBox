@@ -78,11 +78,47 @@ flowchart TB
 
 **Media** is a shared library, not a service. It issues presigned upload URLs to object storage and runs a BullMQ worker that resizes and strips EXIF data with `sharp`. Stripping EXIF matters because photo GPS data would leak home locations.
 
+### Gateway
+- REST under `/api`, calling services through typed clients (e.g. `IdentityClient`) over NestJS TCP ([ADR-0005](adr/0005-gateway-service-transport-tcp.md)). It forwards the caller's access token and an `X-Request-Id` correlation id with every call.
+- Phase 1 endpoints:
+  - `POST /api/auth/register`, `/login`, `/refresh`, `/logout`
+  - `GET /api/auth/google` and `/google/callback`
+  - `GET` / `PATCH` / `DELETE /api/me`, `GET /api/me/export`
+  - `GET /api/health`
+- **Cookies:**
+  - The refresh token is set only as `bb_refresh` (httpOnly, Secure, SameSite=Strict, `Path=/api/auth`) and never appears in a response body.
+  - Google sign-in keeps its state, nonce and PKCE verifier in a signed, 10-minute `bb_oauth` cookie. It is SameSite=Lax because Google's redirect back is a cross-site navigation.
+- **Security:**
+  - Helmet, a CORS allow-list, a 100 kB body limit and `class-validator` DTOs.
+  - Redis-backed rate limits per IP: 10/min for login, register and Google, 30/min for refresh, 120/min otherwise.
+  - Every error has the shape `{ statusCode, code, message }` and never echoes the request body.
+- **OpenAPI:** `apps/gateway/openapi.json` is committed and regenerated with `nx run gateway:openapi`. A test fails if it drifts from the code. The PWA's API client is generated from it with `nx run web:api-client`.
+
 ### Identity
-- Email + password (argon2id), plus Google OAuth.
-- JWT access token (15 min, signed with an asymmetric key so services can verify it with the public key) and a rotating refresh token in an httpOnly, SameSite=strict cookie, with reuse detection.
+- **Passwords:**
+  - Email + password: 8–64 characters with at least one letter and one digit. The rule is shared in `libs/contracts`, so the PWA, the gateway and Identity all check the same thing.
+  - Hashed with argon2id at m=19 MiB, t=2, p=1 (the OWASP minimum), and rehashed on login if the parameters change.
+  - Login failures take the same work and return the same error whatever the cause.
+- **Access token:**
+  - A JWT signed with Ed25519 (`EdDSA`), valid for 15 minutes, carrying `iss`, `aud`, `sub`, `jti`, `sid` and a `kid` header.
+  - `sid` is the sign-in session (the refresh-token family).
+  - Identity alone holds the private key; the gateway and services verify with the public key (`libs/auth`).
+- **Refresh token:**
+  - An opaque 256-bit value, stored only as a SHA-256 hash.
+  - Each use rotates it within its family, and the family expires 30 days after sign-in; rotation never extends it.
+  - Presenting a rotated or revoked token revokes the whole family (reuse detection).
+- **Google sign-in (OIDC):**
+  - Authorization code + PKCE + nonce, exchanged by Identity (`openid-client`). Accounts are matched on Google's `sub`, never on the email alone.
+  - A verified Google email **auto-links** to an existing account with that email.
+  - If that account's email was never verified, Google's proof is treated as the first real proof of ownership: the password is cleared and every session revoked. This defeats account pre-hijacking.
+  - An email already linked to a different Google account is refused.
+  - Unverified Google emails are rejected.
 - Lender ID verification through **Stripe Identity**, required before listing items above a deposit threshold.
-- GDPR: `GET /me/export` builds a data export, and `DELETE /me` emits `user.deletion_requested`. Every service anonymises or deletes its own data. Financial records are kept as long as the law requires.
+- **GDPR:**
+  - `GET /me/export` returns everything Identity holds, without hashes or tokens.
+  - `DELETE /me` requires re-authentication: the password, or for accounts without one, a sign-in less than 5 minutes old, on a session that is still live.
+  - In one transaction it anonymises the user row, deletes OAuth identities and refresh tokens, redacts the stored `user.registered` outbox payload, and emits `user.deletion_requested`.
+  - Every other service anonymises or deletes its own data. Financial records are kept as long as the law requires.
 
 ### Catalog
 - `items.location geography(Point, 4326)` with a GiST index. Search uses `ST_DWithin(location, :point, :radius)` combined with a `tsvector` full-text index and category/price filters.
@@ -188,6 +224,13 @@ See [ADR-0003](adr/0003-stripe-separate-charges-transfers.md).
 ## 7. Frontend (Angular PWA)
 
 - **Structure:** standalone components, lazy-loaded feature routes, NgRx SignalStore per feature, and a typed API client generated from the gateway's OpenAPI spec.
+- **Session handling:**
+  - The access token lives in memory only (`AuthStore`), never in web storage. The refresh token is the httpOnly cookie, so page loads restore the session with `POST /api/auth/refresh`.
+  - Refresh is single-flight: one per tab, serialised across tabs with a Web Lock, with tabs sharing sign-ins and sign-outs over `BroadcastChannel`. Refresh tokens are single-use, so two tabs refreshing at once would otherwise look like reuse.
+  - An interceptor adds the bearer token and retries once after a refresh on `401 UNAUTHENTICATED`.
+  - Google sign-in is a full-page redirect through the gateway, which returns the browser to `/auth/callback`. No token ever appears in a URL.
+- **Dev:** `nx serve web` on port 4200 proxies `/api` to the gateway on 3000, so cookies stay same-origin, as they are behind Caddy in production.
+- **Fonts and icons:** system fonts, and no fonts or icon fonts from Google's CDN, which would share visitors' IPs with Google (a GDPR issue).
 - **Features:** `auth`, `explore` (map + list), `item-detail`, `listing-wizard`, `bookings` (renter/lender tabs), `handoff` (show/scan QR, condition photos), `chat`, `notifications`, `profile` (verification, Stripe onboarding, payouts), `admin` (disputes).
 - **Map:** MapLibre GL with clustered markers at fuzzed locations and radius search.
 - **PWA:** `@angular/pwa` service worker, installable, offline shell, Web Push (VAPID). iOS supports push only for installed PWAs (16.4+), so email is always the fallback.

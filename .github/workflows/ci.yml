@@ -34,5 +34,12 @@ jobs:
 
       - run: npx nx format:check
 
+      # The PWA's API client is generated from apps/gateway/openapi.json (whose own
+      # drift is caught by a gateway test); fail if it wasn't regenerated.
+      - name: API client is up to date
+        run: |
+          npx nx run web:api-client --skip-nx-cache
+          git diff --exit-code -- apps/web/src/app/api
+
       # Integration tests use Testcontainers; the Ubuntu runner provides Docker.
       - run: npx nx affected -t lint test build --parallel=3

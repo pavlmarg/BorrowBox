@@ -6,5 +6,6 @@
   "ignoreUnusedModels": false,
   "enumStyle": "alias",
   "indexFile": true,
-  "silent": true
+  "silent": true,
+  "endOfLineStyle": "lf"
 }
