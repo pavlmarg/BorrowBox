@@ -19,7 +19,7 @@ Launch market: **Greece / EU** (GDPR, PSD2/SCA and DAC7 are considered in the de
 *   **Messaging:** RabbitMQ (asynchronous events, transactional outbox)
 *   **Database:** PostgreSQL with **PostGIS** (one schema per service)
 *   **Caching / Real-time / Jobs:** Redis (Socket.IO adapter, pub/sub, BullMQ delayed jobs)
-*   **Object storage:** MinIO locally, Cloudflare R2 / S3 in production
+*   **Object storage:** SeaweedFS (S3-compatible) locally, Cloudflare R2 in production
 *   **Payments:** Stripe Connect Express (separate charges & transfers, refundable deposits)
 *   **Identity verification:** Stripe Identity
 *   **Observability:** OpenTelemetry, Grafana / Loki / Tempo / Prometheus
@@ -44,7 +44,7 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
 ## 🗺 Roadmap
 
 *   [x] System architecture defined
-*   [ ] **Phase 0 – Foundation:** Nx workspace, Docker Compose (Postgres/PostGIS, RabbitMQ, Redis, MinIO, Mailpit), shared libs, CI
+*   [ ] **Phase 0 – Foundation:** Nx workspace, Docker Compose (Postgres/PostGIS, RabbitMQ, Redis, SeaweedFS, Mailpit), shared libs, CI
 *   [ ] **Phase 1 – Identity & Gateway:** register / login / refresh, profile, Angular auth screens
 *   [ ] **Phase 2 – Catalog:** item CRUD, photo upload, geo search + map, fuzzed locations
 *   [ ] **Phase 3 – Bookings:** availability, request / accept / decline, state machine, email notifications

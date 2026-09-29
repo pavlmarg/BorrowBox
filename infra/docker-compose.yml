@@ -1,0 +1,99 @@
+# Local development infrastructure for BorrowBox.
+#   cp infra/.env.example infra/.env   (then edit the values)
+#   docker compose -f infra/docker-compose.yml up -d
+# All ports are bound to 127.0.0.1 so nothing is exposed on the LAN.
+name: borrowbox
+
+services:
+  postgres:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set in infra/.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in infra/.env}
+      POSTGRES_DB: ${POSTGRES_DB:?set in infra/.env}
+      IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?set in infra/.env}
+      CATALOG_DB_PASSWORD: ${CATALOG_DB_PASSWORD:?set in infra/.env}
+      BOOKINGS_DB_PASSWORD: ${BOOKINGS_DB_PASSWORD:?set in infra/.env}
+      PAYMENTS_DB_PASSWORD: ${PAYMENTS_DB_PASSWORD:?set in infra/.env}
+      MESSAGING_DB_PASSWORD: ${MESSAGING_DB_PASSWORD:?set in infra/.env}
+      NOTIFICATIONS_DB_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD:?set in infra/.env}
+      REVIEWS_DB_PASSWORD: ${REVIEWS_DB_PASSWORD:?set in infra/.env}
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init/20-service-schemas.sh:/docker-entrypoint-initdb.d/20-service-schemas.sh:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:4.3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:?set in infra/.env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?set in infra/.env}
+    ports:
+      - '127.0.0.1:${RABBITMQ_PORT:-5672}:5672' # AMQP
+      - '127.0.0.1:${RABBITMQ_UI_PORT:-15672}:15672' # management UI
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 10s
+      timeout: 10s
+      retries: 12
+
+  redis:
+    image: redis:8.10-alpine
+    command: ['redis-server', '--requirepass', '${REDIS_PASSWORD:?set in infra/.env}', '--appendonly', 'yes']
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
+    ports:
+      - '127.0.0.1:${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # S3-compatible object storage (Cloudflare R2 in production).
+  # Buckets are created on first upload (-s3.autoCreateBucket, admin identity only).
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.48
+    environment:
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?set in infra/.env}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?set in infra/.env}
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        cat > /tmp/s3.json <<EOF
+        {"identities":[{"name":"borrowbox","credentials":[{"accessKey":"$$S3_ACCESS_KEY_ID","secretKey":"$$S3_SECRET_ACCESS_KEY"}],"actions":["Admin","Read","Write","List","Tagging"]}]}
+        EOF
+        exec /usr/bin/weed -logtostderr=true server -dir=/data -volume.max=0 -master.volumeSizeLimitMB=1024 \
+          -s3 -s3.config=/tmp/s3.json -s3.port.iceberg=0 -s3.port.lance=0
+    ports:
+      - '127.0.0.1:${S3_PORT:-8333}:8333' # S3 API
+    volumes:
+      - seaweedfs-data:/data
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9333/cluster/status']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # Catches all outgoing email in development. UI: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.31
+    ports:
+      - '127.0.0.1:${SMTP_PORT:-1025}:1025' # SMTP
+      - '127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025' # web UI
+
+volumes:
+  postgres-data:
+  rabbitmq-data:
+  redis-data:
+  seaweedfs-data:

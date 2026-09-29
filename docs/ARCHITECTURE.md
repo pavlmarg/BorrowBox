@@ -49,7 +49,7 @@ flowchart TB
 
     pg[(PostgreSQL + PostGIS<br/>schema per service)]
     redis[(Redis<br/>pub/sub, BullMQ, nonces)]
-    s3[(Object storage<br/>MinIO / R2)]
+    s3[(Object storage<br/>SeaweedFS locally / R2)]
     services --> pg
     services --> redis
     gw --> redis
@@ -224,7 +224,7 @@ libs/
   observability/       logger, OpenTelemetry bootstrap
   testing/             Testcontainers helpers, factories
 infra/
-  docker-compose.yml   postgres+postgis, rabbitmq, redis, minio, mailpit
+  docker-compose.yml   postgres+postgis, rabbitmq, redis, seaweedfs (S3), mailpit
   docker-compose.observability.yml
   postgres/init/       schemas + roles per service
 docs/
