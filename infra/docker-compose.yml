@@ -47,7 +47,14 @@ services:
 
   redis:
     image: redis:8.10-alpine
-    command: ['redis-server', '--requirepass', '${REDIS_PASSWORD:?set in infra/.env}', '--appendonly', 'yes']
+    command:
+      [
+        'redis-server',
+        '--requirepass',
+        '${REDIS_PASSWORD:?set in infra/.env}',
+        '--appendonly',
+        'yes',
+      ]
     environment:
       REDISCLI_AUTH: ${REDIS_PASSWORD}
     ports:
