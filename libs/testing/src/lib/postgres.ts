@@ -3,7 +3,7 @@ import {
   PostgreSqlContainer,
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
-import { POSTGRES_IMAGE } from './images';
+import { POSTGRES_IMAGE, STARTUP_TIMEOUT_MS } from './images';
 
 /** Every service that owns a schema + role (see infra/postgres/init). */
 export const SERVICES = [
@@ -49,6 +49,7 @@ export async function startPostgres(): Promise<TestPostgres> {
     .withDatabase(DATABASE)
     .withUsername(ADMIN_USER)
     .withPassword(ADMIN_PASSWORD)
+    .withStartupTimeout(STARTUP_TIMEOUT_MS)
     .withEnvironment(passwords)
     .withCopyFilesToContainer([
       {

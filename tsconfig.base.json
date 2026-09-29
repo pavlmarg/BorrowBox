@@ -20,9 +20,11 @@
     "paths": {
       "@borrowbox/contracts": ["./libs/contracts/src/index.ts"],
       "@borrowbox/testing": ["./libs/testing/src/index.ts"],
-      "@borrowbox/messaging": ["./libs/messaging/src/index.ts"]
+      "@borrowbox/messaging": ["./libs/messaging/src/index.ts"],
+      "@borrowbox/outbox": ["./libs/outbox/src/index.ts"]
     },
-    "types": ["node"]
+    "types": ["node"],
+    "isolatedModules": true
   },
   "exclude": ["node_modules", "tmp"]
 }
