@@ -59,7 +59,7 @@ flowchart TB
 
 ### Communication rules
 - **Client → system:** always through the gateway (REST + Socket.IO).
-- **Gateway → service:** synchronous request/response over the NestJS TCP transport (or gRPC), used only for queries and user-initiated commands.
+- **Gateway → service:** synchronous request/response over the NestJS TCP transport ([ADR-0005](adr/0005-gateway-service-transport-tcp.md)), used only for queries and user-initiated commands.
 - **Service → service:** asynchronous **events** over RabbitMQ, on the topic exchange `borrowbox.events` with routing keys such as `booking.accepted.v1`. Services never call each other synchronously during a business flow.
 - **Data:** each service owns one Postgres schema with its own DB role. Cross-schema reads are forbidden. When a service needs another service's data, it keeps a local read model built from events (for example, Bookings stores item title, lender id and deposit from `item.*` events).
 
@@ -192,7 +192,7 @@ See [ADR-0003](adr/0003-stripe-separate-charges-transfers.md).
 - **Map:** MapLibre GL with clustered markers at fuzzed locations and radius search.
 - **PWA:** `@angular/pwa` service worker, installable, offline shell, Web Push (VAPID). iOS supports push only for installed PWAs (16.4+), so email is always the fallback.
 - **i18n:** Greek + English (Transloco), with EUR formatting and the `el-GR` locale.
-- **UI kit:** Angular Material or PrimeNG.
+- **UI kit:** Angular Material ([ADR-0006](adr/0006-ui-kit-angular-material.md)).
 
 ## 8. Cross-cutting concerns
 

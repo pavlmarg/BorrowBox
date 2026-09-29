@@ -11,6 +11,8 @@ ADRs — read the relevant one before touching that area:
 - Monorepo layout, DB schemas & roles → `docs/adr/0002-nx-monorepo-schema-per-service.md`
 - Anything involving money / Stripe → `docs/adr/0003-stripe-separate-charges-transfers.md`
 - Item locations, maps, photos → `docs/adr/0004-location-fuzzing.md`
+- Gateway → service calls (NestJS TCP) → `docs/adr/0005-gateway-service-transport-tcp.md`
+- UI kit (Angular Material) → `docs/adr/0006-ui-kit-angular-material.md`
 
 ---
 
@@ -98,8 +100,8 @@ ADRs — read the relevant one before touching that area:
 These are inconsistent or undecided in the docs. Raise them when they become relevant:
 - Location fuzz: ADR-0004 says a random 150–300 m offset; ARCHITECTURE.md says a deterministic ~300 m offset.
 - Map tiles: README says OpenStreetMap tiles; ARCHITECTURE.md mentions MapTiler.
-- Gateway → service transport: NestJS TCP vs gRPC.
-- UI kit: Angular Material vs PrimeNG.
+
+Resolved: gateway → service transport is NestJS TCP (ADR-0005); UI kit is Angular Material (ADR-0006).
 
 ## Stop and ask when
 
