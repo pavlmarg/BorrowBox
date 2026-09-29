@@ -17,6 +17,7 @@ import {
 
 const KEY_ID = 'test-key-1';
 const USER_ID = '3f1c9a52-6a8e-4b8a-9d61-0c0f2f5f7a11';
+const SESSION_ID = '9b2d4e61-0c3a-4f7e-8a51-2d6f0e9c1b44';
 
 async function keyPair() {
   const { privateKey, publicKey } = await generateKeyPair('EdDSA', {
@@ -50,17 +51,18 @@ describe('access tokens', () => {
         privateKeyPem: keys.privateKeyPem,
         keyId: KEY_ID,
       })
-    ).sign(USER_ID, now);
+    ).sign({ userId: USER_ID, sessionId: SESSION_ID }, now);
 
   /** Builds a token by hand to test claims the real signer never produces. */
   const craft = (
     key: CryptoKey,
     edit: (jwt: SignJWT) => SignJWT = (j) => j,
     header: { alg: string; kid?: string } = { alg: 'EdDSA', kid: KEY_ID },
+    claims: Record<string, unknown> = { sid: SESSION_ID },
   ) => {
     const now = Math.floor(Date.now() / 1000);
     return edit(
-      new SignJWT({})
+      new SignJWT(claims)
         .setProtectedHeader(header)
         .setIssuer('borrowbox-identity')
         .setAudience('borrowbox')
@@ -80,6 +82,7 @@ describe('access tokens', () => {
     const { token, expiresAt } = await sign();
     const user = await verifier.verify(token);
     expect(user.userId).toBe(USER_ID);
+    expect(user.sessionId).toBe(SESSION_ID);
     expect(user.tokenId).toMatch(/^[0-9a-f-]{36}$/);
     expect(expiresAt.getTime() - Date.now()).toBeGreaterThan(
       (ACCESS_TOKEN_TTL_SECONDS - 5) * 1000,
@@ -104,6 +107,21 @@ describe('access tokens', () => {
   it('rejects an unknown key id', async () => {
     await rejects(
       await craft(keys.privateKey, undefined, { alg: 'EdDSA', kid: 'other' }),
+    );
+  });
+
+  it('accepts a hand-crafted valid token (baseline for the cases below)', async () => {
+    await expect(
+      verifier.verify(await craft(keys.privateKey)),
+    ).resolves.toEqual(
+      expect.objectContaining({ userId: USER_ID, sessionId: SESSION_ID }),
+    );
+  });
+
+  it('rejects a token without a string session id', async () => {
+    await rejects(await craft(keys.privateKey, undefined, undefined, {}));
+    await rejects(
+      await craft(keys.privateKey, undefined, undefined, { sid: 42 }),
     );
   });
 

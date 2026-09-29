@@ -9,6 +9,7 @@ with the public key.
 | `alg` / `kid` | `EdDSA` / `JWT_KEY_ID` |
 | `iss` / `aud` | `borrowbox-identity` / `borrowbox` |
 | `sub` / `jti` | user id / random UUID |
+| `sid` | sign-in session (Identity's refresh-token family); stays the same across refreshes |
 | `exp` | `iat` + 15 min; verified with 30 s clock tolerance |
 
 ## Keys
@@ -26,7 +27,7 @@ node tools/gen-jwt-keys.mjs   # prints JWT_KEY_ID, JWT_PUBLIC_KEY, JWT_PRIVATE_K
 ```ts
 // Identity
 const signer = await createAccessTokenSigner({ privateKeyPem, keyId });
-const { token, expiresAt } = await signer.sign(userId);
+const { token, expiresAt } = await signer.sign({ userId, sessionId });
 
 // Gateway / services (NestJS)
 AuthModule.forRoot({

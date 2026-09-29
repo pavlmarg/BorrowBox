@@ -12,11 +12,21 @@ interface ProfileRow {
   providers: OAuthProvider[];
 }
 
-/** The public view of an account. Never includes the password hash. */
+/** Like {@link findProfile}, for callers that just created or verified the user. */
 export async function loadProfile(
   db: EntityManager,
   userId: string,
 ): Promise<UserProfile> {
+  const profile = await findProfile(db, userId);
+  if (!profile) throw new Error('User not found');
+  return profile;
+}
+
+/** The public view of an account, or null if it doesn't exist or was deleted. Never includes the password hash. */
+export async function findProfile(
+  db: EntityManager,
+  userId: string,
+): Promise<UserProfile | null> {
   const rows: ProfileRow[] = await db.query(
     `SELECT u.id, u.email, u.display_name, u.locale, u.created_at,
             u.password_hash IS NOT NULL      AS has_password,
@@ -30,7 +40,7 @@ export async function loadProfile(
     [userId],
   );
   const row = rows[0];
-  if (!row) throw new Error('User not found');
+  if (!row) return null;
   return {
     id: row.id,
     email: row.email,

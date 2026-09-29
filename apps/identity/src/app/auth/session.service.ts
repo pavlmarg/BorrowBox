@@ -44,7 +44,8 @@ export class SessionService {
        VALUES ($1, $2, $3, $4, $5)`,
       [userId, familyId, hashRefreshToken(refreshToken), now, familyExpiresAt],
     );
-    const access = await this.signer.sign(userId, now);
+    // The family is the sign-in session; `sid` lets Identity check when it started (re-auth).
+    const access = await this.signer.sign({ userId, sessionId: familyId }, now);
     return {
       accessToken: access.token,
       accessTokenExpiresAt: access.expiresAt.toISOString(),

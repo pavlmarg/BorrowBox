@@ -4,7 +4,7 @@ import { InvalidAccessTokenError, type AuthUser } from './access-token';
 import { JwtAuthGuard, RpcJwtAuthGuard } from './jwt-auth.guard';
 
 const TOKEN = 'aaa.bbb.ccc';
-const USER: AuthUser = { userId: 'u-1', tokenId: 't-1' };
+const USER: AuthUser = { userId: 'u-1', tokenId: 't-1', sessionId: 's-1' };
 
 const verifier = {
   verify: jest.fn(async (token: string) => {

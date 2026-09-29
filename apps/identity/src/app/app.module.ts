@@ -7,6 +7,7 @@ import { PasswordAuthModule } from './auth/password-auth.module';
 import { validateConfig, type IdentityConfig } from './config';
 import { DatabaseModule } from './database/database.module';
 import { EventsModule } from './events/events.module';
+import { MeModule } from './users/me.module';
 import {
   IdentityRpcExceptionFilter,
   rpcValidationPipe,
@@ -36,6 +37,7 @@ export const configModule = ConfigModule.forRoot({
       }),
     }),
     PasswordAuthModule,
+    MeModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: rpcValidationPipe },

@@ -24,6 +24,11 @@ export type IdentityErrorCode =
   /** The provider did not confirm the email (`email_verified` false), so we can't sign in or link. */
   | 'OAUTH_EMAIL_NOT_VERIFIED'
   /** Unexpected failure; details are only in Identity's logs. */
+  /**
+   * A sensitive action (account deletion) needs fresh proof: the current
+   * password, or for accounts without one, a sign-in in the last 5 minutes.
+   */
+  | 'REAUTHENTICATION_REQUIRED'
   | 'INTERNAL';
 
 // --- Shared shapes ---------------------------------------------------------
@@ -95,6 +100,14 @@ export interface UpdateProfileRequest {
   locale?: Locale;
 }
 
+/**
+ * `DELETE /me`. Accounts with a password must send it (`UserProfile.hasPassword`);
+ * accounts without one must have signed in within the last 5 minutes.
+ */
+export interface DeleteAccountRequest {
+  password?: string;
+}
+
 /** Identity's part of `GET /me/export`. No secrets: no hashes, tokens or provider tokens. */
 export interface IdentityDataExport {
   exportedAt: string;
@@ -151,7 +164,10 @@ export interface IdentityRpcContract {
     request: Record<string, never>;
     response: IdentityDataExport;
   };
-  [IdentityRpc.deleteMe]: { request: Record<string, never>; response: void };
+  [IdentityRpc.deleteMe]: {
+    request: DeleteAccountRequest;
+    response: void;
+  };
 }
 
 export type IdentityRpcPattern = keyof IdentityRpcContract;

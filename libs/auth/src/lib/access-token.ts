@@ -20,6 +20,13 @@ export interface AuthUser {
   userId: string;
   /** The token's `jti`; handy for logs and future revocation lists. */
   tokenId: string;
+  /** The sign-in session (`sid`, Identity's refresh-token family) the token was issued for. */
+  sessionId: string;
+}
+
+export interface AccessTokenSubject {
+  userId: string;
+  sessionId: string;
 }
 
 /** Thrown for any token that must not be trusted. The message is safe to log; the token is never included. */
@@ -42,7 +49,7 @@ export interface SignedAccessToken {
 }
 
 export interface AccessTokenSigner {
-  sign(userId: string, now?: Date): Promise<SignedAccessToken>;
+  sign(subject: AccessTokenSubject, now?: Date): Promise<SignedAccessToken>;
 }
 
 export async function createAccessTokenSigner(
@@ -50,10 +57,10 @@ export async function createAccessTokenSigner(
 ): Promise<AccessTokenSigner> {
   const key = await importPKCS8(options.privateKeyPem, ACCESS_TOKEN_ALG);
   return {
-    async sign(userId, now = new Date()) {
+    async sign({ userId, sessionId }, now = new Date()) {
       const iat = Math.floor(now.getTime() / 1000);
       const exp = iat + ACCESS_TOKEN_TTL_SECONDS;
-      const token = await new SignJWT({})
+      const token = await new SignJWT({ sid: sessionId })
         .setProtectedHeader({ alg: ACCESS_TOKEN_ALG, kid: options.keyId })
         .setIssuer(ACCESS_TOKEN_ISSUER)
         .setAudience(ACCESS_TOKEN_AUDIENCE)
@@ -93,16 +100,20 @@ export async function createAccessTokenVerifier(
           algorithms: [ACCESS_TOKEN_ALG],
           issuer: ACCESS_TOKEN_ISSUER,
           audience: ACCESS_TOKEN_AUDIENCE,
-          requiredClaims: ['sub', 'jti', 'iat', 'exp'],
+          requiredClaims: ['sub', 'jti', 'sid', 'iat', 'exp'],
           clockTolerance: CLOCK_TOLERANCE_SECONDS,
           currentDate: now,
         });
         if (protectedHeader.kid !== options.keyId) {
           throw new InvalidAccessTokenError('unknown key id');
         }
+        if (typeof payload['sid'] !== 'string') {
+          throw new InvalidAccessTokenError('invalid sid');
+        }
         return {
           userId: payload.sub as string,
           tokenId: payload.jti as string,
+          sessionId: payload['sid'],
         };
       } catch (err) {
         if (err instanceof InvalidAccessTokenError) throw err;
