@@ -1,0 +1,8 @@
+/dist
+/coverage
+/.nx/cache
+/.nx/workspace-data
+package-lock.json
+
+# Hand-written docs keep their own formatting
+*.md
