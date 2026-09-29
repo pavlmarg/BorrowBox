@@ -60,7 +60,12 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
       .setTitle('BorrowBox API')
       .setVersion('1')
       .addBearerAuth()
-      .addCookieAuth(REFRESH_COOKIE)
+      // Scheme name must match @ApiCookieAuth(REFRESH_COOKIE) on the controllers.
+      .addCookieAuth(
+        REFRESH_COOKIE,
+        { type: 'apiKey', in: 'cookie' },
+        REFRESH_COOKIE,
+      )
       .build(),
   );
 }

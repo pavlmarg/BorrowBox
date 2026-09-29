@@ -1,0 +1,61 @@
+@use '@angular/material' as mat;
+
+// System fonts only: loading fonts or icon fonts from Google's CDN shares
+// visitors' IPs with Google, which EU courts have found to breach GDPR.
+$font:
+  system-ui,
+  -apple-system,
+  'Segoe UI',
+  Roboto,
+  'Noto Sans',
+  sans-serif;
+
+html {
+  // Light or dark, following the OS setting.
+  color-scheme: light dark;
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$azure-palette,
+        tertiary: mat.$blue-palette,
+      ),
+      typography: (
+        plain-family: $font,
+        brand-family: $font,
+      ),
+      density: 0,
+    )
+  );
+}
+
+body {
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-large);
+  margin: 0;
+}
+
+// Shared page layout for the auth and profile features.
+.page-title {
+  font: var(--mat-sys-headline-small);
+  margin: 0 0 16px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.form-error {
+  color: var(--mat-sys-error);
+  margin: 0;
+}
+
+.muted {
+  color: var(--mat-sys-on-surface-variant);
+}

@@ -1,0 +1,37 @@
+<ng-container *transloco="let t">
+  <mat-toolbar class="toolbar">
+    <a class="brand" routerLink="/">{{ t('app.name') }}</a>
+    <span class="spacer"></span>
+
+    <button
+      mat-button
+      [matMenuTriggerFor]="languageMenu"
+      [attr.aria-label]="t('nav.language')"
+    >
+      {{ t('languages.' + language.current()) }}
+    </button>
+    <mat-menu #languageMenu="matMenu">
+      @for (lang of languages; track lang) {
+      <button
+        mat-menu-item
+        [attr.lang]="lang"
+        [attr.aria-current]="lang === language.current()"
+        (click)="setLanguage(lang)"
+      >
+        {{ t('languages.' + lang) }}
+      </button>
+      }
+    </mat-menu>
+
+    @if (auth.isAuthenticated()) {
+    <a mat-button routerLink="/profile">{{ t('nav.profile') }}</a>
+    <button mat-button (click)="logout()">{{ t('nav.logout') }}</button>
+    } @else {
+    <a mat-button routerLink="/auth/login">{{ t('nav.login') }}</a>
+    }
+  </mat-toolbar>
+
+  <main class="content">
+    <router-outlet />
+  </main>
+</ng-container>

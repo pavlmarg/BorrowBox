@@ -55,7 +55,7 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
 
 ## 🚀 Getting Started
 
-**Prerequisites:** Node.js 22 (see `.nvmrc`), Docker (Docker Desktop on Windows/macOS).
+**Prerequisites:** Node.js 22.22.3 or newer 22.x (see `.nvmrc`; Angular 22 and Testcontainers need it), Docker (Docker Desktop on Windows/macOS).
 
 ```sh
 npm ci
