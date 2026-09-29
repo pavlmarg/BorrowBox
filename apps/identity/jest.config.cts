@@ -14,4 +14,8 @@ module.exports = {
   coverageDirectory: '../../coverage/apps/identity',
   // Integration tests start real Postgres/RabbitMQ containers.
   testTimeout: 180_000,
+  // Each suite boots its own Postgres + RabbitMQ; running them one at a time
+  // keeps `nx affected` (3 projects in parallel) from starting a dozen
+  // containers at once, which made health checks time out under load.
+  maxWorkers: 1,
 };
