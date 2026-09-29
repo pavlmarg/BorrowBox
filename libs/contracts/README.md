@@ -24,6 +24,19 @@ runtime dependencies, so it is safe to import from both Node and the browser.
 - **Never change an existing version.** For a breaking change, add `V2`
   alongside `V1` and keep publishing/consuming both until consumers migrate.
 
+## Gateway → service RPC
+
+Services are called over NestJS TCP (ADR-0005). Each service declares, in
+`src/lib/<service>/rpc.ts`:
+
+- a `<Service>Rpc` object of message patterns (`<service>.<action>`, e.g. `identity.register`),
+- a `<Service>RpcContract` interface mapping each pattern to its `request` / `response` types,
+- an error-code union carried in `RpcErrorBody.code`.
+
+Every message is an `RpcRequest<T>`: `{ correlationId, accessToken?, data }`. The
+service re-verifies `accessToken` and uses `correlationId` for any events it emits.
+These are plain types; validation classes live in the gateway and the service.
+
 ## Commands
 
 - `npx nx test contracts`
