@@ -19,7 +19,8 @@
     "skipDefaultLibCheck": true,
     "paths": {
       "@borrowbox/contracts": ["./libs/contracts/src/index.ts"],
-      "@borrowbox/testing": ["./libs/testing/src/index.ts"]
+      "@borrowbox/testing": ["./libs/testing/src/index.ts"],
+      "@borrowbox/messaging": ["./libs/messaging/src/index.ts"]
     },
     "types": ["node"]
   },

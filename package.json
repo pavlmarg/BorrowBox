@@ -45,6 +45,8 @@
     "smol-toml": "^1.7.1"
   },
   "dependencies": {
+    "amqp-connection-manager": "^5.0.0",
+    "amqplib": "^2.2.0",
     "pg": "^8.23.0"
   }
 }

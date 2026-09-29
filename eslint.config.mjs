@@ -19,8 +19,24 @@ export default [
             {
               sourceTag: '*',
               onlyDependOnLibsWithTags: ['*'],
+              // Test helpers (Testcontainers etc.) must never ship in runtime code.
+              notDependOnLibsWithTags: ['type:testing'],
             },
           ],
+        },
+      ],
+    },
+  },
+  {
+    // Tests may use @borrowbox/testing; they aren't part of any build output.
+    files: ['**/*.spec.ts', '**/*.test.ts'],
+    rules: {
+      '@nx/enforce-module-boundaries': [
+        'error',
+        {
+          enforceBuildableLibDependency: false,
+          allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
+          depConstraints: [{ sourceTag: '*', onlyDependOnLibsWithTags: ['*'] }],
         },
       ],
     },
