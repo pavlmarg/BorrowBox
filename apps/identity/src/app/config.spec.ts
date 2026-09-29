@@ -4,6 +4,8 @@ const valid = {
   DATABASE_URL: 'postgres://identity_svc:secret-pw@localhost:5432/borrowbox',
   RABBITMQ_URL: 'amqp://borrowbox:secret-pw@localhost:5672',
   JWT_PUBLIC_KEY: '-----BEGIN PUBLIC KEY-----\\nabc\\n-----END PUBLIC KEY-----',
+  JWT_PRIVATE_KEY:
+    '-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----',
   JWT_KEY_ID: 'dev-1',
 };
 
@@ -44,6 +46,7 @@ describe('validateConfig', () => {
       'RABBITMQ_URL',
       'IDENTITY_PORT',
       'JWT_PUBLIC_KEY',
+      'JWT_PRIVATE_KEY',
       'JWT_KEY_ID',
     ]) {
       expect(message).toContain(name);

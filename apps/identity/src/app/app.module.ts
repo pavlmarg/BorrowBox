@@ -1,10 +1,16 @@
 import { join } from 'node:path';
 import { Module } from '@nestjs/common';
+import { APP_FILTER, APP_PIPE } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule, pemFromEnv } from '@borrowbox/auth';
+import { PasswordAuthModule } from './auth/password-auth.module';
 import { validateConfig, type IdentityConfig } from './config';
 import { DatabaseModule } from './database/database.module';
 import { EventsModule } from './events/events.module';
+import {
+  IdentityRpcExceptionFilter,
+  rpcValidationPipe,
+} from './rpc/rpc-errors';
 
 /** Dev reads `apps/identity/.env` (gitignored); elsewhere env comes from the environment. */
 export const configModule = ConfigModule.forRoot({
@@ -29,6 +35,11 @@ export const configModule = ConfigModule.forRoot({
         keyId: config.get('JWT_KEY_ID', { infer: true }),
       }),
     }),
+    PasswordAuthModule,
+  ],
+  providers: [
+    { provide: APP_PIPE, useValue: rpcValidationPipe },
+    { provide: APP_FILTER, useClass: IdentityRpcExceptionFilter },
   ],
 })
 export class AppModule {}

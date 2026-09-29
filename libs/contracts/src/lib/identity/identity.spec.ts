@@ -1,5 +1,21 @@
 import { UserDeletionRequestedV1, UserRegisteredV1 } from './events';
 import { IdentityRpc, type IdentityRpcPattern } from './rpc';
+import { isValidPassword } from './validation';
+
+describe('isValidPassword', () => {
+  it.each(['abcdefg1', 'correct horse 42', 'κωδικός9', 'a1'.repeat(32)])(
+    'accepts %p',
+    (p) => expect(isValidPassword(p)).toBe(true),
+  );
+
+  it.each([
+    ['too short', 'abcdef1'],
+    ['too long', 'a1'.repeat(32) + 'x'],
+    ['no digit', 'abcdefgh'],
+    ['no letter', '12345678'],
+    ['digits and symbols only', '1234!@#$'],
+  ])('rejects %s', (_, p) => expect(isValidPassword(p)).toBe(false));
+});
 
 describe('identity events', () => {
   it('use versioned routing keys', () => {

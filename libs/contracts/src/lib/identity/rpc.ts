@@ -22,7 +22,9 @@ export type IdentityErrorCode =
   | 'INVALID_REFRESH_TOKEN'
   | 'OAUTH_EXCHANGE_FAILED'
   /** The provider did not confirm the email (`email_verified` false), so we can't sign in or link. */
-  | 'OAUTH_EMAIL_NOT_VERIFIED';
+  | 'OAUTH_EMAIL_NOT_VERIFIED'
+  /** Unexpected failure; details are only in Identity's logs. */
+  | 'INTERNAL';
 
 // --- Shared shapes ---------------------------------------------------------
 

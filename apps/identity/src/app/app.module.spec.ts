@@ -1,7 +1,4 @@
-import { generateKeyPairSync } from 'node:crypto';
-import { Test, type TestingModule } from '@nestjs/testing';
 import { Client } from 'pg';
-import type { DataSource } from 'typeorm';
 import {
   createEnvelope,
   UserDeletionRequestedV1,
@@ -15,7 +12,11 @@ import {
   type TestPostgres,
   type TestRabbitMq,
 } from '@borrowbox/testing';
-import { DATA_SOURCE, MIGRATIONS } from './database/database.module';
+import {
+  startIdentity,
+  type IdentityHarness,
+} from '../testing/identity-harness';
+import { MIGRATIONS } from './database/database.module';
 
 const silent: MessagingLogger = {
   info: () => undefined,
@@ -31,34 +32,19 @@ const silent: MessagingLogger = {
 describe('Identity AppModule (integration)', () => {
   let pg: TestPostgres;
   let rabbit: TestRabbitMq;
-  let app: TestingModule;
-  let dataSource: DataSource;
+  let identity: IdentityHarness;
   const savedEnv = { ...process.env };
 
   beforeAll(async () => {
     [pg, rabbit] = await Promise.all([startPostgres(), startRabbitMq()]);
-    const { publicKey } = generateKeyPairSync('ed25519', {
-      publicKeyEncoding: { type: 'spki', format: 'pem' },
-      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    identity = await startIdentity({
+      databaseUrl: pg.urlFor('identity'),
+      rabbitmqUrl: rabbit.url,
     });
-    Object.assign(process.env, {
-      DATABASE_URL: pg.urlFor('identity'),
-      RABBITMQ_URL: rabbit.url,
-      DB_MIGRATIONS_RUN: 'true',
-      JWT_PUBLIC_KEY: publicKey,
-      JWT_KEY_ID: 'test-key',
-    });
-
-    // ConfigModule.forRoot validates env when app.module is first imported,
-    // so import it only after the containers' URLs are in process.env.
-    const { AppModule } = await import('./app.module');
-    app = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    await app.init(); // runs onApplicationBootstrap → relay starts
-    dataSource = app.get<DataSource>(DATA_SOURCE);
   });
 
   afterAll(async () => {
-    await app?.close();
+    await identity?.close();
     process.env = savedEnv;
     await Promise.all([pg?.stop(), rabbit?.stop()]);
   });
@@ -89,21 +75,21 @@ describe('Identity AppModule (integration)', () => {
       await admin.end();
     }
     // Idempotent: nothing left to run.
-    expect(await dataSource.showMigrations()).toBe(false);
+    expect(await identity.dataSource.showMigrations()).toBe(false);
     expect(MIGRATIONS).toHaveLength(2);
   });
 
   it('enforces case-insensitive unique emails and the display-name rule', async () => {
-    await dataSource.query(
+    await identity.dataSource.query(
       `INSERT INTO users (email, display_name) VALUES ('Ana@Example.com', 'Ana')`,
     );
     await expect(
-      dataSource.query(
+      identity.dataSource.query(
         `INSERT INTO users (email, display_name) VALUES ('ana@example.COM', 'Other')`,
       ),
     ).rejects.toThrow(/users_email_lower_key/);
     await expect(
-      dataSource.query(
+      identity.dataSource.query(
         `INSERT INTO users (email) VALUES ('no-name@example.com')`,
       ),
     ).rejects.toThrow(/users_display_name_present/);
@@ -126,7 +112,7 @@ describe('Identity AppModule (integration)', () => {
         { userId: '00000000-0000-4000-8000-000000000001' },
         { correlationId: 'test-flow' },
       );
-      await dataSource.transaction((tx) => addToOutbox(tx, envelope));
+      await identity.dataSource.transaction((tx) => addToOutbox(tx, envelope));
 
       await expect(received).resolves.toMatchObject({
         eventId: envelope.eventId,
@@ -135,6 +121,20 @@ describe('Identity AppModule (integration)', () => {
       });
     } finally {
       await bus.close();
+    }
+  });
+
+  it('answers unexpected failures with a generic INTERNAL error', async () => {
+    await identity.dataSource.query(`ALTER TABLE users RENAME TO users_tmp`);
+    try {
+      await expect(
+        identity.send('identity.login', {
+          email: 'x@example.com',
+          password: 'whatever1',
+        }),
+      ).rejects.toEqual({ code: 'INTERNAL', message: 'Internal error' });
+    } finally {
+      await identity.dataSource.query(`ALTER TABLE users_tmp RENAME TO users`);
     }
   });
 });

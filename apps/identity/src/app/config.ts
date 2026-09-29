@@ -45,6 +45,11 @@ export class IdentityConfig {
   @IsNotEmpty()
   JWT_PUBLIC_KEY!: string;
 
+  /** PKCS#8 PEM (escaped `\n` allowed). Identity is the only holder of the signing key. */
+  @IsString()
+  @IsNotEmpty()
+  JWT_PRIVATE_KEY!: string;
+
   @IsString()
   @IsNotEmpty()
   JWT_KEY_ID!: string;
