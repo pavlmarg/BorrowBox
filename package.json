@@ -23,6 +23,7 @@
     "@swc/helpers": "~0.5.18",
     "@testcontainers/postgresql": "^12.2.0",
     "@testcontainers/rabbitmq": "^12.2.0",
+    "@testcontainers/redis": "^12.2.0",
     "@types/jest": "~30.0.0",
     "@types/node": "^22.20.4",
     "@types/pg": "^8.23.1",
