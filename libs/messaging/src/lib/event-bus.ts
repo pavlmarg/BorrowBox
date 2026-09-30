@@ -58,9 +58,18 @@ export interface Subscription {
   close(): Promise<void>;
 }
 
+/** Default for {@link EventBusOptions.publishTimeoutMs}. */
+export const DEFAULT_PUBLISH_TIMEOUT_MS = 10_000;
+
 export interface EventBusOptions {
   url: string;
   logger?: MessagingLogger;
+  /**
+   * `publish` rejects if the broker hasn't confirmed within this time (e.g.
+   * while disconnected), so the outbox relay records a failure and retries
+   * instead of holding its transaction open indefinitely.
+   */
+  publishTimeoutMs?: number;
 }
 
 interface MoveMeta {
@@ -93,6 +102,7 @@ export class EventBus {
     );
 
     const publisher = connection.createChannel({
+      publishTimeout: options.publishTimeoutMs ?? DEFAULT_PUBLISH_TIMEOUT_MS,
       setup: (ch: ConfirmChannel) =>
         ch.assertExchange(EVENTS_EXCHANGE, 'topic', { durable: true }),
     });
@@ -100,7 +110,10 @@ export class EventBus {
     return new EventBus(connection, publisher, logger);
   }
 
-  /** Resolves once the broker has confirmed the message is stored. */
+  /**
+   * Resolves once the broker has confirmed the message is stored; rejects
+   * after `publishTimeoutMs` (e.g. while RabbitMQ is unreachable).
+   */
   async publish(envelope: EventEnvelope): Promise<void> {
     await this.publisher.publish(
       EVENTS_EXCHANGE,
