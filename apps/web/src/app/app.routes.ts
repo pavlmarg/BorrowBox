@@ -1,5 +1,14 @@
+import { inject } from '@angular/core';
 import type { Route } from '@angular/router';
 import { authGuard } from './core/auth/auth.guards';
+import { AuthStore } from './core/auth/auth.store';
+
+/**
+ * The start page: signed-in users go to their account, everyone else to
+ * register. The app initializer has already restored the session (AuthStore.init).
+ */
+export const startPage = () =>
+  inject(AuthStore).isAuthenticated() ? '/profile' : '/auth/register';
 
 export const appRoutes: Route[] = [
   {
@@ -13,7 +22,7 @@ export const appRoutes: Route[] = [
     loadChildren: () =>
       import('./features/profile/profile.routes').then((m) => m.profileRoutes),
   },
-  // Phase 1 has no public pages yet; `explore` becomes the home page in Phase 2.
-  { path: '', pathMatch: 'full', redirectTo: 'profile' },
-  { path: '**', redirectTo: 'profile' },
+  // `explore` becomes the signed-in home page in Phase 2.
+  { path: '', pathMatch: 'full', redirectTo: startPage },
+  { path: '**', redirectTo: startPage },
 ];

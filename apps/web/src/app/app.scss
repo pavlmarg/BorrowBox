@@ -1,13 +1,27 @@
 .toolbar {
+  backdrop-filter: blur(12px);
+  background: rgb(255 255 255 / 0.72);
+  border-bottom: 1px solid rgb(16 58 99 / 0.06);
   gap: 4px;
   position: sticky;
   top: 0;
+  transition:
+    background-color var(--bb-medium) var(--bb-ease),
+    border-color var(--bb-medium) var(--bb-ease);
   z-index: 1;
 }
 
+// On register / login / callback the page itself carries the brand.
+.toolbar--auth {
+  backdrop-filter: none;
+  background: transparent;
+  border-bottom-color: transparent;
+}
+
 .brand {
-  color: inherit;
-  font-weight: 600;
+  color: var(--bb-sky-700);
+  font-weight: 700;
+  letter-spacing: 0.2px;
   text-decoration: none;
 }
 
@@ -18,6 +32,12 @@
 .content {
   box-sizing: border-box;
   margin: 0 auto;
-  max-width: 640px;
+  max-width: 720px;
   padding: 24px 16px 48px;
+}
+
+// The auth shell centres its own card and needs the full width.
+.content--auth {
+  max-width: none;
+  padding: 0;
 }

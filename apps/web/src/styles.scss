@@ -11,13 +11,13 @@ $font:
   sans-serif;
 
 html {
-  // Light or dark, following the OS setting.
-  color-scheme: light dark;
+  // Light only for now: the light-blue look has no dark variant yet.
+  color-scheme: light;
   @include mat.theme(
     (
       color: (
         primary: mat.$azure-palette,
-        tertiary: mat.$blue-palette,
+        tertiary: mat.$cyan-palette,
       ),
       typography: (
         plain-family: $font,
@@ -26,16 +26,89 @@ html {
       density: 0,
     )
   );
+
+  // Brand colours (light blue) and motion, shared by every feature.
+  --bb-sky-50: #f2f9ff;
+  --bb-sky-100: #e1f1ff;
+  --bb-sky-200: #c4e4ff;
+  --bb-sky-300: #9dd1ff;
+  --bb-sky-500: #4aa8f0;
+  --bb-sky-700: #1f6fb2;
+  --bb-card-bg: rgb(255 255 255 / 0.86);
+  --bb-card-border: rgb(255 255 255 / 0.7);
+  --bb-shadow-sm:
+    0 1px 2px rgb(16 58 99 / 0.08), 0 2px 6px rgb(16 58 99 / 0.06);
+  --bb-shadow-md:
+    0 4px 12px rgb(16 58 99 / 0.1), 0 12px 32px rgb(16 58 99 / 0.08);
+  --bb-radius: 20px;
+  --bb-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --bb-fast: 150ms;
+  --bb-medium: 280ms;
 }
 
 body {
-  background: var(--mat-sys-surface);
+  // Soft light-blue wash behind every page.
+  background:
+    radial-gradient(
+      1200px 600px at 10% -10%,
+      var(--bb-sky-200) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 500px at 110% 10%,
+      var(--bb-sky-100) 0%,
+      transparent 55%
+    ),
+    linear-gradient(180deg, var(--bb-sky-50) 0%, #ffffff 100%);
+  background-attachment: fixed;
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-large);
   margin: 0;
+  min-height: 100vh;
 }
 
-// Shared page layout for the auth and profile features.
+// --- Interaction feedback -------------------------------------------------
+
+// Buttons lift on hover, settle on press, and show a clear keyboard focus ring.
+.mat-mdc-button-base {
+  transition:
+    transform var(--bb-fast) var(--bb-ease),
+    box-shadow var(--bb-medium) var(--bb-ease),
+    background-color var(--bb-medium) var(--bb-ease),
+    color var(--bb-medium) var(--bb-ease);
+
+  &:not([disabled]):hover {
+    transform: translateY(-1px);
+  }
+  &:not([disabled]):active {
+    transform: translateY(0) scale(0.98);
+  }
+  &:focus-visible {
+    outline: 3px solid var(--bb-sky-300);
+    outline-offset: 2px;
+  }
+}
+
+.mat-mdc-unelevated-button:not([disabled]):hover,
+.mat-mdc-outlined-button:not([disabled]):hover {
+  box-shadow: var(--bb-shadow-md);
+}
+
+// Plain links follow the brand colour and underline smoothly on hover.
+a:not(.mat-mdc-button-base) {
+  color: var(--bb-sky-700);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition: text-decoration-color var(--bb-medium) var(--bb-ease);
+
+  &:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
+// --- Shared page layout -----------------------------------------------------
+
 .page-title {
   font: var(--mat-sys-headline-small);
   margin: 0 0 16px;
@@ -58,4 +131,59 @@ body {
 
 .muted {
   color: var(--mat-sys-on-surface-variant);
+}
+
+// --- Route transitions (View Transitions API) --------------------------------
+// Placeholder effect until the final animations are designed: the auth card's
+// content slides and fades; everything else crossfades.
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--bb-medium);
+  animation-timing-function: var(--bb-ease);
+}
+
+::view-transition-old(auth-content) {
+  animation: bb-slide-out var(--bb-medium) var(--bb-ease) both;
+}
+::view-transition-new(auth-content) {
+  animation: bb-slide-in var(--bb-medium) var(--bb-ease) both;
+}
+// The card itself morphs to the new content's size.
+::view-transition-group(auth-card) {
+  animation-duration: var(--bb-medium);
+  animation-timing-function: var(--bb-ease);
+}
+
+@keyframes bb-slide-out {
+  to {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+}
+@keyframes bb-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+
+// --- Reduced motion -----------------------------------------------------------
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+  .mat-mdc-button-base:not([disabled]):hover,
+  .mat-mdc-button-base:not([disabled]):active {
+    transform: none;
+  }
 }

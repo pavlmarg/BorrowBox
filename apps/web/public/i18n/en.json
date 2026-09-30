@@ -19,6 +19,7 @@
     "google": "Continue with Google",
     "login": {
       "title": "Sign in",
+      "subtitle": "Welcome back! Sign in to continue.",
       "email": "Email",
       "password": "Password",
       "submit": "Sign in",
@@ -28,6 +29,7 @@
     },
     "register": {
       "title": "Create your account",
+      "subtitle": "Join your neighbours and start borrowing in a minute.",
       "displayName": "Name shown to others",
       "email": "Email",
       "password": "Password",

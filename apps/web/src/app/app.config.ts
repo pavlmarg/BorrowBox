@@ -15,6 +15,7 @@ import {
   provideRouter,
   withComponentInputBinding,
   withInMemoryScrolling,
+  withViewTransitions,
 } from '@angular/router';
 import { provideTransloco } from '@jsverse/transloco';
 import { provideApiConfiguration } from './api/api-configuration';
@@ -37,6 +38,8 @@ export const appConfig: ApplicationConfig = {
       appRoutes,
       withComponentInputBinding(),
       withInMemoryScrolling({ scrollPositionRestoration: 'top' }),
+      // Animated route changes (CSS in styles.scss); no-op where unsupported.
+      withViewTransitions({ skipInitialTransition: true }),
     ),
     provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
     // Same origin: the dev server proxies /api to the gateway, Caddy does in production.

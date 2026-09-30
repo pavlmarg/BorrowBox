@@ -7,7 +7,6 @@ import {
   signal,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { Router, RouterLink } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
@@ -29,27 +28,26 @@ import { takeReturnUrl } from '../../core/auth/return-url';
     RouterLink,
     TranslocoDirective,
     MatButtonModule,
-    MatCardModule,
     MatProgressBarModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <mat-card *transloco="let t" appearance="outlined">
+    <div *transloco="let t">
       @if (failure(); as code) {
-        <mat-card-content class="stack">
+        <div class="stack">
           <h1 class="page-title">{{ t('auth.callback.failed') }}</h1>
           <p class="form-error" role="alert">{{ t(errorKey(code)) }}</p>
           <a mat-flat-button routerLink="/auth/login">{{
             t('auth.callback.backToLogin')
           }}</a>
-        </mat-card-content>
+        </div>
       } @else {
         <mat-progress-bar mode="indeterminate" />
-        <mat-card-content>
+        <div>
           <p role="status">{{ t('auth.callback.working') }}</p>
-        </mat-card-content>
+        </div>
       }
-    </mat-card>
+    </div>
   `,
 })
 export class AuthCallbackPage implements OnInit {

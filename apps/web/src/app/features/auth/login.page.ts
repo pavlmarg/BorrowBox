@@ -11,7 +11,6 @@ import {
   Validators,
 } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -29,7 +28,6 @@ import { GoogleButton } from './google-button';
     RouterLink,
     TranslocoDirective,
     MatButtonModule,
-    MatCardModule,
     MatFormFieldModule,
     MatInputModule,
     MatProgressBarModule,
@@ -38,81 +36,115 @@ import { GoogleButton } from './google-button';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ng-container *transloco="let t">
-      <mat-card appearance="outlined">
-        @if (pending()) {
-          <mat-progress-bar mode="indeterminate" />
-        }
-        <mat-card-content>
-          <h1 class="page-title">{{ t('auth.login.title') }}</h1>
+      @if (pending()) {
+        <mat-progress-bar class="progress" mode="indeterminate" />
+      }
+      <h1 class="title">{{ t('auth.login.title') }}</h1>
+      <p class="subtitle">{{ t('auth.login.subtitle') }}</p>
 
-          @if (deleted()) {
-            <p class="muted" role="status">{{ t('auth.login.deleted') }}</p>
+      @if (deleted()) {
+        <p class="notice" role="status">{{ t('auth.login.deleted') }}</p>
+      }
+
+      <bb-google-button [returnUrl]="returnUrl() ?? null" />
+      <p class="divider">{{ t('auth.or') }}</p>
+
+      <form class="stack" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <mat-form-field appearance="outline">
+          <mat-label>{{ t('auth.login.email') }}</mat-label>
+          <input
+            matInput
+            type="email"
+            formControlName="email"
+            autocomplete="email"
+          />
+          @if (form.controls.email.hasError('required')) {
+            <mat-error>{{ t('validation.required') }}</mat-error>
+          } @else if (form.controls.email.hasError('email')) {
+            <mat-error>{{ t('validation.email') }}</mat-error>
           }
+        </mat-form-field>
 
-          <form
-            class="stack"
-            [formGroup]="form"
-            (ngSubmit)="submit()"
-            novalidate
-          >
-            <mat-form-field>
-              <mat-label>{{ t('auth.login.email') }}</mat-label>
-              <input
-                matInput
-                type="email"
-                formControlName="email"
-                autocomplete="email"
-              />
-              @if (form.controls.email.hasError('required')) {
-                <mat-error>{{ t('validation.required') }}</mat-error>
-              } @else if (form.controls.email.hasError('email')) {
-                <mat-error>{{ t('validation.email') }}</mat-error>
-              }
-            </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>{{ t('auth.login.password') }}</mat-label>
+          <input
+            matInput
+            type="password"
+            formControlName="password"
+            autocomplete="current-password"
+          />
+          @if (form.controls.password.hasError('required')) {
+            <mat-error>{{ t('validation.required') }}</mat-error>
+          }
+        </mat-form-field>
 
-            <mat-form-field>
-              <mat-label>{{ t('auth.login.password') }}</mat-label>
-              <input
-                matInput
-                type="password"
-                formControlName="password"
-                autocomplete="current-password"
-              />
-              @if (form.controls.password.hasError('required')) {
-                <mat-error>{{ t('validation.required') }}</mat-error>
-              }
-            </mat-form-field>
+        @if (error(); as code) {
+          <p class="form-error" role="alert">{{ t(errorKey(code)) }}</p>
+        }
 
-            @if (error(); as code) {
-              <p class="form-error" role="alert">{{ t(errorKey(code)) }}</p>
-            }
+        <button
+          mat-flat-button
+          class="submit"
+          type="submit"
+          [disabled]="pending()"
+        >
+          {{ t('auth.login.submit') }}
+        </button>
+      </form>
 
-            <button mat-flat-button type="submit" [disabled]="pending()">
-              {{ t('auth.login.submit') }}
-            </button>
-          </form>
-
-          <p class="muted or">{{ t('auth.or') }}</p>
-          <bb-google-button [returnUrl]="returnUrl() ?? null" />
-
-          <p class="switch">
-            {{ t('auth.login.noAccount') }}
-            <a
-              routerLink="/auth/register"
-              [queryParams]="{ returnUrl: returnUrl() }"
-              >{{ t('auth.login.registerLink') }}</a
-            >
-          </p>
-        </mat-card-content>
-      </mat-card>
+      <p class="switch">
+        {{ t('auth.login.noAccount') }}
+        <a
+          routerLink="/auth/register"
+          [queryParams]="{ returnUrl: returnUrl() }"
+          >{{ t('auth.login.registerLink') }}</a
+        >
+      </p>
     </ng-container>
   `,
   styles: `
-    .or {
-      text-align: center;
+    .title {
+      font: var(--mat-sys-headline-small);
+      font-weight: 600;
+      margin: 0;
+    }
+    .subtitle {
+      color: var(--mat-sys-on-surface-variant);
+      margin: 4px 0 20px;
+    }
+    .notice {
+      background: var(--bb-sky-100);
+      border-radius: 12px;
+      margin: 0 0 16px;
+      padding: 10px 14px;
+    }
+    .divider {
+      align-items: center;
+      color: var(--mat-sys-on-surface-variant);
+      display: flex;
+      font: var(--mat-sys-label-large);
+      gap: 12px;
+      margin: 18px 0;
+    }
+    .divider::before,
+    .divider::after {
+      background: rgb(16 58 99 / 0.12);
+      content: '';
+      flex: 1;
+      height: 1px;
+    }
+    .submit {
+      height: 48px;
+      margin-top: 4px;
     }
     .switch {
-      margin: 16px 0 0;
+      margin: 20px 0 0;
+      text-align: center;
+    }
+    .progress {
+      border-radius: 4px;
+      margin-bottom: 12px;
+      overflow: hidden;
     }
   `,
 })

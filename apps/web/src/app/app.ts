@@ -8,7 +8,14 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import { Router, RouterLink, RouterOutlet } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import {
+  NavigationEnd,
+  Router,
+  RouterLink,
+  RouterOutlet,
+} from '@angular/router';
+import { filter, map } from 'rxjs';
 import { TranslocoDirective } from '@jsverse/transloco';
 import { Api } from './api/api';
 import { meControllerUpdate } from './api/functions';
@@ -36,6 +43,15 @@ export class App {
   protected readonly languages = LANGUAGES;
   private readonly api = inject(Api);
   private readonly router = inject(Router);
+
+  /** Register / login / callback: the toolbar turns transparent and minimal. */
+  protected readonly onAuthPage = toSignal(
+    this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      map((e) => e.urlAfterRedirects.startsWith('/auth')),
+    ),
+    { initialValue: false },
+  );
 
   constructor() {
     // Signing in adopts the account's language.

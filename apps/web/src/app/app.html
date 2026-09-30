@@ -1,6 +1,8 @@
 <ng-container *transloco="let t">
-  <mat-toolbar class="toolbar">
+  <mat-toolbar class="toolbar" [class.toolbar--auth]="onAuthPage()">
+    @if (!onAuthPage()) {
     <a class="brand" routerLink="/">{{ t('app.name') }}</a>
+    }
     <span class="spacer"></span>
 
     <button
@@ -26,12 +28,10 @@
     @if (auth.isAuthenticated()) {
     <a mat-button routerLink="/profile">{{ t('nav.profile') }}</a>
     <button mat-button (click)="logout()">{{ t('nav.logout') }}</button>
-    } @else {
-    <a mat-button routerLink="/auth/login">{{ t('nav.login') }}</a>
     }
   </mat-toolbar>
 
-  <main class="content">
+  <main class="content" [class.content--auth]="onAuthPage()">
     <router-outlet />
   </main>
 </ng-container>
