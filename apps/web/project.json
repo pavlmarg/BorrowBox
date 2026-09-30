@@ -21,7 +21,10 @@
             "input": "apps/web/public"
           }
         ],
-        "styles": ["apps/web/src/styles.scss"]
+        "styles": [
+          "@fontsource-variable/inter/index.css",
+          "apps/web/src/styles.scss"
+        ]
       },
       "configurations": {
         "production": {

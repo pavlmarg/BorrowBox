@@ -42,6 +42,10 @@
       "working": "Signing you in…",
       "failed": "We couldn't sign you in.",
       "backToLogin": "Back to sign in"
+    },
+    "scene": {
+      "label": "Two neighbours chatting in front of their homes while one lends the other a toolbox",
+      "caption": "Borrow a drill, lend a tent: neighbours helping neighbours."
     }
   },
   "profile": {

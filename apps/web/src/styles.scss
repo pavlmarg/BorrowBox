@@ -1,8 +1,10 @@
 @use '@angular/material' as mat;
 
-// System fonts only: loading fonts or icon fonts from Google's CDN shares
-// visitors' IPs with Google, which EU courts have found to breach GDPR.
+// Inter, self-hosted from @fontsource-variable/inter (project.json styles).
+// Never from Google's CDN: that shares visitors' IPs with Google, which EU
+// courts have found to breach GDPR. System fonts are the fallback.
 $font:
+  'Inter Variable',
   system-ui,
   -apple-system,
   'Segoe UI',
@@ -27,6 +29,40 @@ html {
     )
   );
 
+  // Squarer than Material's defaults (pill buttons, 16-28 px corners).
+  @include mat.button-overrides(
+    (
+      filled-container-shape: 8px,
+      outlined-container-shape: 8px,
+      protected-container-shape: 8px,
+      text-container-shape: 8px,
+      tonal-container-shape: 8px,
+    )
+  );
+  @include mat.form-field-overrides(
+    (
+      outlined-container-shape: 6px,
+      filled-container-shape: 6px,
+    )
+  );
+  @include mat.card-overrides(
+    (
+      elevated-container-shape: 8px,
+      filled-container-shape: 8px,
+      outlined-container-shape: 8px,
+    )
+  );
+  @include mat.dialog-overrides(
+    (
+      container-shape: 8px,
+    )
+  );
+  @include mat.menu-overrides(
+    (
+      container-shape: 6px,
+    )
+  );
+
   // Brand colours (light blue) and motion, shared by every feature.
   --bb-sky-50: #f2f9ff;
   --bb-sky-100: #e1f1ff;
@@ -40,10 +76,11 @@ html {
     0 1px 2px rgb(16 58 99 / 0.08), 0 2px 6px rgb(16 58 99 / 0.06);
   --bb-shadow-md:
     0 4px 12px rgb(16 58 99 / 0.1), 0 12px 32px rgb(16 58 99 / 0.08);
-  --bb-radius: 20px;
+  --bb-radius: 8px;
   --bb-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --bb-fast: 150ms;
   --bb-medium: 280ms;
+  --bb-slide: 460ms;
 }
 
 body {
@@ -134,8 +171,10 @@ a:not(.mat-mdc-button-base) {
 }
 
 // --- Route transitions (View Transitions API) --------------------------------
-// Placeholder effect until the final animations are designed: the auth card's
-// content slides and fades; everything else crossfades.
+// Everything crossfades by default. Between the auth pages the card works as
+// a sliding window: html[data-bb-slide] (set by authSlideDirection) says which
+// way, the old page slides out and the new one slides in from the other side,
+// clipped to the card.
 
 ::view-transition-old(root),
 ::view-transition-new(root) {
@@ -143,28 +182,61 @@ a:not(.mat-mdc-button-base) {
   animation-timing-function: var(--bb-ease);
 }
 
-::view-transition-old(auth-content) {
-  animation: bb-slide-out var(--bb-medium) var(--bb-ease) both;
-}
-::view-transition-new(auth-content) {
-  animation: bb-slide-in var(--bb-medium) var(--bb-ease) both;
-}
-// The card itself morphs to the new content's size.
-::view-transition-group(auth-card) {
-  animation-duration: var(--bb-medium);
+// The card morphs to the new content's height while the content slides.
+::view-transition-group(auth-card),
+::view-transition-group(auth-content) {
+  animation-duration: var(--bb-slide);
   animation-timing-function: var(--bb-ease);
 }
+::view-transition-group(auth-content) {
+  overflow: clip;
+}
+::view-transition-old(auth-content),
+::view-transition-new(auth-content) {
+  // Keep each page at its own height instead of stretching to the group.
+  height: auto;
+  width: 100%;
+}
 
-@keyframes bb-slide-out {
-  to {
-    opacity: 0;
-    transform: translateX(-16px);
+html[data-bb-slide='forward'] {
+  &::view-transition-old(auth-content) {
+    animation: bb-out-to-left var(--bb-slide) var(--bb-ease) both;
+  }
+  &::view-transition-new(auth-content) {
+    animation: bb-in-from-right var(--bb-slide) var(--bb-ease) both;
   }
 }
-@keyframes bb-slide-in {
+html[data-bb-slide='back'] {
+  &::view-transition-old(auth-content) {
+    animation: bb-out-to-right var(--bb-slide) var(--bb-ease) both;
+  }
+  &::view-transition-new(auth-content) {
+    animation: bb-in-from-left var(--bb-slide) var(--bb-ease) both;
+  }
+}
+
+@keyframes bb-out-to-left {
+  to {
+    opacity: 0.4;
+    transform: translateX(-105%);
+  }
+}
+@keyframes bb-in-from-right {
   from {
-    opacity: 0;
-    transform: translateX(16px);
+    opacity: 0.4;
+    transform: translateX(105%);
+  }
+}
+@keyframes bb-out-to-right {
+  to {
+    opacity: 0.4;
+    transform: translateX(105%);
+  }
+}
+@keyframes bb-in-from-left {
+  from {
+    opacity: 0.4;
+    transform: translateX(-105%);
   }
 }
 
@@ -175,6 +247,8 @@ a:not(.mat-mdc-button-base) {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    // Otherwise infinite loops would flicker at 0.01 ms per cycle.
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
   ::view-transition-group(*),
