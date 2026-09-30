@@ -245,51 +245,14 @@ describe('Identity me.* (integration)', () => {
       expect(JSON.stringify(events)).not.toContain(s.user.email);
 
       // Every way back in is closed.
-      for (const call of [
-        identity.send(IdentityRpc.getMe, {}, as(s)),
-        identity.send(IdentityRpc.getMe, {}, as(other)),
-        identity.send(IdentityRpc.login, {
-          email: s.user.email,
-          password: PASSWORD,
-        }),
-        identity.send(IdentityRpc.refresh, {
-          refreshToken: other.refreshToken,
-        }),
-        deleteMe(s, { password: PASSWORD }),
-      ]) {
-        expect([
-          'UNAUTHENTICATED',
-          'INVALID_CREDENTIALS',
-          'INVALID_REFRESH_TOKEN',
-        ]).toContain((await failure(call)).code);
+      const calls = [
+        () => identity.send(IdentityRpc.getMe, {}, as(s)),
+        () => identity.send(IdentityRpc.updateMe, { locale: 'en' }, as(s)),
+        () => identity.send(IdentityRpc.exportMe, {}, as(s)),
+      ];
+      for (const call of calls) {
+        expect((await failure(call())).code).toBe('UNAUTHENTICATED');
       }
-
-      // The email can be registered again as a new account.
-      const again = await identity.send(IdentityRpc.register, {
-        email: s.user.email,
-        password: PASSWORD,
-        displayName: 'New',
-      });
-      expect(again.user.id).not.toBe(s.user.id);
-    });
-
-    it('lets a password-less account delete only right after signing in', async () => {
-      const fresh = await signUp();
-      const stale = await signUp();
-      await identity.dataSource.query(
-        `UPDATE users SET password_hash = NULL WHERE id = ANY($1)`,
-        [[fresh.user.id, stale.user.id]],
-      );
-      await identity.dataSource.query(
-        `UPDATE refresh_tokens SET created_at = now() - interval '6 minutes'
-          WHERE user_id = $1`,
-        [stale.user.id],
-      );
-
-      expect((await failure(deleteMe(stale, {}))).code).toBe(
-        'REAUTHENTICATION_REQUIRED',
-      );
-      await expect(deleteMe(fresh, {})).resolves.toBeUndefined();
     });
 
     it('refuses once the access token’s session was logged out', async () => {

@@ -35,6 +35,7 @@ export class MeService {
   ) {}
 
   async get(auth: AuthUser): Promise<UserProfile> {
+    await assertLiveSession(this.dataSource.manager, auth);
     const profile = await findProfile(this.dataSource.manager, auth.userId);
     if (!profile) throw UNAUTHENTICATED();
     return profile;
@@ -42,16 +43,16 @@ export class MeService {
 
   async update(auth: AuthUser, dto: UpdateProfileDto): Promise<UserProfile> {
     return this.dataSource.transaction(async (tx) => {
-      const updated: unknown[] = await tx.query(
+      await assertLiveSession(tx, auth);
+      await tx.query(
         `UPDATE users
             SET display_name = COALESCE($2, display_name),
                 locale       = COALESCE($3, locale),
                 updated_at   = now()
-          WHERE id = $1 AND deleted_at IS NULL
-          RETURNING id`,
+          WHERE id = $1 AND deleted_at IS NULL`,
         [auth.userId, dto.displayName ?? null, dto.locale ?? null],
       );
-      if (updated.length === 0) throw UNAUTHENTICATED();
+      // Null if the account was deleted meanwhile.
       const profile = await findProfile(tx, auth.userId);
       if (!profile) throw UNAUTHENTICATED();
       return profile;
@@ -61,6 +62,7 @@ export class MeService {
   /** Everything Identity holds about the user, minus secrets (hashes, tokens). */
   async export(auth: AuthUser): Promise<IdentityDataExport> {
     const db = this.dataSource.manager;
+    await assertLiveSession(db, auth);
     const [user]: Array<{
       id: string;
       email: string;
@@ -206,6 +208,26 @@ export class MeService {
       );
     }
   }
+}
+
+/**
+ * The access token's sign-in session (`sid` = refresh-token family) must
+ * still be live, so a token stops working at logout, reuse detection or the
+ * Google auto-link revocation instead of lasting out its 15 minutes.
+ */
+async function assertLiveSession(
+  db: EntityManager,
+  auth: AuthUser,
+): Promise<void> {
+  const [{ live }]: Array<{ live: boolean }> = await db.query(
+    `SELECT EXISTS (
+       SELECT 1 FROM refresh_tokens
+        WHERE family_id = $1 AND user_id = $2
+          AND revoked_at IS NULL AND rotated_at IS NULL AND expires_at > now()
+     ) AS live`,
+    [auth.sessionId, auth.userId],
+  );
+  if (!live) throw UNAUTHENTICATED();
 }
 
 /**
