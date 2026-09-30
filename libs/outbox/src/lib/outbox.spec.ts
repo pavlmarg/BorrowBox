@@ -5,7 +5,7 @@ import {
   type EventEnvelope,
 } from '@borrowbox/contracts';
 import { startPostgres, type TestPostgres } from '@borrowbox/testing';
-import { handleOnce } from './idempotent-consumer';
+import { handleOnce, pruneProcessedEvents } from './idempotent-consumer';
 import { CreateOutboxTables1759140000000 } from './migration';
 import { addToOutbox } from './outbox';
 import { OutboxRelay, relayDelayMs, type OutboxLogger } from './relay';
@@ -205,6 +205,46 @@ describe('outbox (Postgres integration)', () => {
       expect(published).toEqual([env.eventId]);
     });
 
+    it('prunes published rows past the retention period, never unpublished ones', async () => {
+      const [old, recent, pending] = ['old', 'recent', 'pending'].map(newEvent);
+      for (const e of [old, recent, pending]) await createItem(e);
+      await ds.query(
+        `UPDATE outbox SET published_at = now() - interval '8 days'
+          WHERE event_id = $1`,
+        [old.eventId],
+      );
+      await ds.query(
+        `UPDATE outbox SET published_at = now() - interval '1 day'
+          WHERE event_id = $1`,
+        [recent.eventId],
+      );
+      await ds.query(
+        `UPDATE outbox SET created_at = now() - interval '30 days'
+          WHERE event_id = $1`,
+        [pending.eventId],
+      );
+
+      // The loop prunes on its first iteration; publishing fails meanwhile,
+      // so the pending row stays unpublished.
+      const relay = new OutboxRelay({
+        dataSource: ds,
+        pollIntervalMs: 20,
+        logger: silent,
+        publish: async () => {
+          throw new Error('broker unavailable');
+        },
+      });
+      relay.start();
+      await new Promise((r) => setTimeout(r, 200));
+      await relay.stop();
+
+      expect((await outboxRows()).map((r) => r.event_id)).toEqual([
+        recent.eventId,
+        pending.eventId,
+      ]);
+      expect(await relay.prunePublished()).toBe(0);
+    });
+
     it('backs off while publishing keeps failing, then recovers at the normal pace', async () => {
       const events = ['a', 'b'].map(newEvent);
       for (const e of events) await createItem(e);
@@ -274,6 +314,21 @@ describe('outbox (Postgres integration)', () => {
       expect(relayDelayMs(10_000, 500, 30_000)).toBe(30_000);
       // A cap below the poll interval never makes polling faster.
       expect(relayDelayMs(3, 500, 100)).toBe(500);
+    });
+  });
+
+  describe('pruneProcessedEvents', () => {
+    it('deletes entries older than the retention period', async () => {
+      await ds.query(
+        `INSERT INTO processed_events (consumer, event_id, processed_at) VALUES
+           ('c', gen_random_uuid(), now() - interval '8 days'),
+           ('c', gen_random_uuid(), now() - interval '1 day')`,
+      );
+      expect(await pruneProcessedEvents(ds)).toBe(1);
+      expect(
+        (await ds.query(`SELECT count(*)::int AS n FROM processed_events`))[0]
+          .n,
+      ).toBe(1);
     });
   });
 

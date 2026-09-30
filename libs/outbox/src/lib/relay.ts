@@ -1,5 +1,6 @@
 import type { DataSource } from 'typeorm';
 import type { EventEnvelope } from '@borrowbox/contracts';
+import { DEFAULT_RETENTION_MS } from './idempotent-consumer';
 
 /** Structured logger (pino-compatible). Never pass payloads — they may hold personal data. */
 export interface OutboxLogger {
@@ -17,6 +18,10 @@ export interface OutboxRelayOptions {
   maxBackoffMs?: number;
   /** A row that has failed this many times is logged as an error, not a warning (default 10). */
   alertAfterAttempts?: number;
+  /** Published rows older than this are deleted (default 7 days). */
+  retentionMs?: number;
+  /** How often the relay loop prunes published rows (default 1 hour). */
+  pruneIntervalMs?: number;
   logger?: OutboxLogger;
 }
 
@@ -63,6 +68,8 @@ export class OutboxRelay {
   private readonly pollIntervalMs: number;
   private readonly maxBackoffMs: number;
   private readonly alertAfterAttempts: number;
+  private readonly retentionMs: number;
+  private readonly pruneIntervalMs: number;
   private readonly logger: OutboxLogger;
 
   private running = false;
@@ -76,6 +83,8 @@ export class OutboxRelay {
     this.pollIntervalMs = options.pollIntervalMs ?? 500;
     this.maxBackoffMs = options.maxBackoffMs ?? 30_000;
     this.alertAfterAttempts = options.alertAfterAttempts ?? 10;
+    this.retentionMs = options.retentionMs ?? DEFAULT_RETENTION_MS;
+    this.pruneIntervalMs = options.pruneIntervalMs ?? 60 * 60 * 1000;
     this.logger = options.logger ?? {
       warn: (obj, msg) => console.warn(msg, obj),
       error: (obj, msg) => console.error(msg, obj),
@@ -101,6 +110,21 @@ export class OutboxRelay {
    */
   async publishPending(): Promise<number> {
     return (await this.publishBatch()).published;
+  }
+
+  /**
+   * Deletes published rows older than `retentionMs`; unpublished rows are
+   * never touched. The relay loop calls this every `pruneIntervalMs`.
+   * Returns how many were deleted.
+   */
+  async prunePublished(): Promise<number> {
+    // TypeORM returns [rows, rowCount] for DELETE.
+    const [, deleted]: [unknown[], number] = await this.dataSource.query(
+      `DELETE FROM outbox
+        WHERE published_at IS NOT NULL AND published_at < $1`,
+      [new Date(Date.now() - this.retentionMs)],
+    );
+    return deleted;
   }
 
   private publishBatch(): Promise<BatchResult> {
@@ -163,7 +187,19 @@ export class OutboxRelay {
 
   private async run(): Promise<void> {
     let consecutiveFailures = 0;
+    let lastPruneAt = 0;
     while (this.running) {
+      if (Date.now() - lastPruneAt >= this.pruneIntervalMs) {
+        lastPruneAt = Date.now();
+        try {
+          await this.prunePublished();
+        } catch (err) {
+          this.logger.error(
+            { err: err instanceof Error ? err.message : String(err) },
+            'Outbox pruning failed',
+          );
+        }
+      }
       let result: BatchResult = { published: 0, failed: false };
       try {
         result = await this.publishBatch();

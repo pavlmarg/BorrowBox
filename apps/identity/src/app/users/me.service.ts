@@ -231,9 +231,9 @@ async function assertLiveSession(
 }
 
 /**
- * Published outbox rows are kept (see @borrowbox/outbox), so the
- * `user.registered` envelope would otherwise keep the email and name after
- * erasure. Replace them with the anonymised values; the contract shape stays valid.
+ * Published outbox rows are kept for a week (see @borrowbox/outbox), so
+ * the `user.registered` envelope would otherwise keep the email and name
+ * after erasure until then. Replace them with the anonymised values; the contract shape stays valid.
  */
 async function redactRegisteredEvents(
   tx: EntityManager,

@@ -30,3 +30,26 @@ export async function handleOnce(
     return true;
   });
 }
+
+/**
+ * How long published outbox rows and processed_events entries are kept by
+ * default. Redeliveries arrive within minutes, and old envelopes can hold
+ * personal data, so a week is plenty for dedupe and debugging.
+ */
+export const DEFAULT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Deletes processed_events entries older than `olderThanMs`. Call it
+ * periodically from a consuming service. Returns how many were deleted.
+ */
+export async function pruneProcessedEvents(
+  dataSource: DataSource,
+  olderThanMs: number = DEFAULT_RETENTION_MS,
+): Promise<number> {
+  // TypeORM returns [rows, rowCount] for DELETE.
+  const [, deleted]: [unknown[], number] = await dataSource.query(
+    `DELETE FROM processed_events WHERE processed_at < $1`,
+    [new Date(Date.now() - olderThanMs)],
+  );
+  return deleted;
+}

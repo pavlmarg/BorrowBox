@@ -39,7 +39,10 @@ interval doubling up to `maxBackoffMs`, default 30 s) and returns to the
 normal pace after the next success. A failing row is never skipped; once it
 has failed `alertAfterAttempts` times (default 10) it is logged as an error.
 
-Published rows are kept for now; a retention/cleanup job is future work.
+The relay also deletes published rows older than `retentionMs` (default
+7 days) once every `pruneIntervalMs` (default 1 hour); unpublished rows are
+never deleted. Consuming services call `pruneProcessedEvents(dataSource)`
+periodically to drop `processed_events` entries older than 7 days.
 
 ## Consuming — at most once per consumer
 
