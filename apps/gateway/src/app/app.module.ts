@@ -23,6 +23,8 @@ import { REDIS, RedisModule } from './redis.module';
 const configModule = ConfigModule.forRoot({
   isGlobal: true,
   envFilePath: join(process.cwd(), 'apps/gateway/.env'),
+  // Tests set their own env; a developer's local .env must not leak in.
+  ignoreEnvFile: process.env['NODE_ENV'] === 'test',
   validate: validateConfig,
   cache: true,
 });

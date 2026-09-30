@@ -105,7 +105,9 @@ npx nx serve web        # http://localhost:4200 (proxies /api to the gateway)
 
 Google sign-in is optional. To enable it, create a "Web application" OAuth client in Google Cloud Console
 with redirect URI `http://localhost:4200/api/auth/google/callback`. Put `GOOGLE_CLIENT_ID` in both `.env`
-files and `GOOGLE_CLIENT_SECRET` in Identity's only.
+files and `GOOGLE_CLIENT_SECRET` in Identity's only. Left empty, Google sign-in stays disabled.
+
+Tests never read these `.env` files (`NODE_ENV=test`); they set their own environment.
 
 After changing gateway endpoints, run `npx nx run gateway:openapi` and then `npx nx run web:api-client` to
 regenerate the spec and the PWA's typed client.

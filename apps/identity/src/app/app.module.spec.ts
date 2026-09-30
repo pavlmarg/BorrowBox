@@ -40,6 +40,8 @@ describe('Identity AppModule (integration)', () => {
     identity = await startIdentity({
       databaseUrl: pg.urlFor('identity'),
       rabbitmqUrl: rabbit.url,
+      // As in .env.example: present but empty means "not configured".
+      env: { GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '' },
     });
   });
 

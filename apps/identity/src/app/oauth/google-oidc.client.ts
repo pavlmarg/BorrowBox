@@ -35,8 +35,12 @@ export class GoogleOidcClient {
 
   constructor(private readonly config: ConfigService<IdentityConfig, true>) {}
 
+  /**
+   * Truthiness, not `!== undefined`: for a value validation mapped to
+   * undefined (`GOOGLE_CLIENT_ID=`), ConfigService falls back to the raw ''.
+   */
   get enabled(): boolean {
-    return this.config.get('GOOGLE_CLIENT_ID', { infer: true }) !== undefined;
+    return Boolean(this.config.get('GOOGLE_CLIENT_ID', { infer: true }));
   }
 
   async exchange(input: GoogleCodeExchange): Promise<GoogleIdentity> {
