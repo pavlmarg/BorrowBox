@@ -34,6 +34,11 @@ to run several instances), publishes with broker confirms, then marks them
 published. On a publish error it records `attempts`/`last_error` and stops the
 batch so later events don't overtake it. Delivery is at-least-once.
 
+While publishing keeps failing, the relay backs off exponentially (poll
+interval doubling up to `maxBackoffMs`, default 30 s) and returns to the
+normal pace after the next success. A failing row is never skipped; once it
+has failed `alertAfterAttempts` times (default 10) it is logged as an error.
+
 Published rows are kept for now; a retention/cleanup job is future work.
 
 ## Consuming — at most once per consumer
