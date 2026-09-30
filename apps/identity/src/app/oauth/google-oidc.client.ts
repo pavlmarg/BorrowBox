@@ -18,6 +18,8 @@ export interface GoogleCodeExchange {
   codeVerifier: string;
   nonce: string;
   redirectUri: string;
+  /** Google's `iss` redirect parameter (RFC 9207). */
+  iss?: string;
 }
 
 const exchangeFailed = (message = 'Google sign-in failed, try again') =>
@@ -50,9 +52,12 @@ export class GoogleOidcClient {
     let claims: oidc.IDToken | undefined;
     try {
       const configuration = await this.discover();
-      // The gateway already checked `state` against its signed cookie.
+      // Rebuild Google's redirect. The gateway already checked `state`
+      // against its signed cookie; `iss` must be present because Google's
+      // discovery sets authorization_response_iss_parameter_supported.
       const callback = new URL(input.redirectUri);
       callback.searchParams.set('code', input.code);
+      if (input.iss !== undefined) callback.searchParams.set('iss', input.iss);
       const tokens = await oidc.authorizationCodeGrant(
         configuration,
         callback,

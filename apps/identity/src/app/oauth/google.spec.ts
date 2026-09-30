@@ -263,8 +263,27 @@ describe('Identity Google sign-in (integration)', () => {
       ).toBe('OAUTH_EXCHANGE_FAILED');
     });
 
+    it('requires Google’s `iss` on the redirect and rejects any other issuer (RFC 9207)', async () => {
+      const user = googleUser();
+      const { iss: _iss, ...withoutIss } = google.authorize(user);
+      expect(
+        (await failure(identity.send(IdentityRpc.googleExchange, withoutIss)))
+          .code,
+      ).toBe('OAUTH_EXCHANGE_FAILED');
+
+      const wrongIss = {
+        ...google.authorize(user),
+        iss: 'https://evil.example',
+      };
+      expect(
+        (await failure(identity.send(IdentityRpc.googleExchange, wrongIss)))
+          .code,
+      ).toBe('OAUTH_EXCHANGE_FAILED');
+    });
+
     it.each([
       ['a short code verifier', { codeVerifier: 'short' }],
+      ['a non-URL iss', { iss: 'not a url' }],
       ['a non-URL redirect', { redirectUri: 'not a url' }],
       ['an unknown field', { email: 'x@example.com' }],
     ])('rejects %s with VALIDATION_FAILED', async (_, override) => {

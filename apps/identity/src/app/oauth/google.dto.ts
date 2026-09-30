@@ -1,4 +1,10 @@
-import { IsString, IsUrl, Matches, MaxLength } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsUrl,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 import type { GoogleExchangeRequest } from '@borrowbox/contracts';
 
 export class GoogleExchangeDto implements GoogleExchangeRequest {
@@ -22,4 +28,14 @@ export class GoogleExchangeDto implements GoogleExchangeRequest {
   })
   @MaxLength(2048)
   redirectUri!: string;
+
+  /** Checked against the issuer by openid-client; only its shape is checked here. */
+  @IsOptional()
+  @IsUrl({
+    protocols: ['http', 'https'],
+    require_tld: false,
+    require_protocol: true,
+  })
+  @MaxLength(2048)
+  iss?: string;
 }

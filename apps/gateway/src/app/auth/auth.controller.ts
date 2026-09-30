@@ -240,6 +240,8 @@ export class AuthController {
     @Query('code') code: unknown,
     @Query('state') state: unknown,
     @Query('error') error: unknown,
+    // RFC 9207: Google adds its issuer; Identity checks it.
+    @Query('iss') iss: unknown,
     @Req() req: Request,
     @CorrelationId() correlationId: string,
     @Res() res: Response,
@@ -254,7 +256,8 @@ export class AuthController {
       code.length === 0 ||
       code.length > 2048 ||
       typeof state !== 'string' ||
-      !sameString(state, saved.s)
+      !sameString(state, saved.s) ||
+      (iss !== undefined && (typeof iss !== 'string' || iss.length > 2048))
     ) {
       return this.backToWeb(res, 'OAUTH_EXCHANGE_FAILED');
     }
@@ -267,6 +270,7 @@ export class AuthController {
           codeVerifier: saved.v,
           nonce: saved.n,
           redirectUri: this.config.get('GOOGLE_REDIRECT_URI', { infer: true }),
+          ...(typeof iss === 'string' ? { iss } : {}),
         },
         { correlationId },
       );

@@ -28,6 +28,8 @@ export interface AuthorizeResult {
   codeVerifier: string;
   nonce: string;
   redirectUri: string;
+  /** Sent on the redirect back, like Google does (RFC 9207). */
+  iss: string;
 }
 
 export class FakeOidcProvider {
@@ -75,6 +77,8 @@ export class FakeOidcProvider {
           id_token_signing_alg_values_supported: ['RS256'],
           token_endpoint_auth_methods_supported: ['client_secret_post'],
           code_challenge_methods_supported: ['S256'],
+          // Like Google: the redirect back carries `iss` (RFC 9207).
+          authorization_response_iss_parameter_supported: true,
         });
       }
       if (req.method === 'GET' && url.pathname === '/jwks') {
@@ -136,7 +140,13 @@ export class FakeOidcProvider {
       redirectUri: this.redirectUri,
       claimsOverride,
     });
-    return { code, codeVerifier, nonce, redirectUri: this.redirectUri };
+    return {
+      code,
+      codeVerifier,
+      nonce,
+      redirectUri: this.redirectUri,
+      iss: this.issuer,
+    };
   }
 
   async stop(): Promise<void> {

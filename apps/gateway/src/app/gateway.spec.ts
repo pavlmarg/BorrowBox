@@ -473,6 +473,7 @@ describe('Gateway (integration)', () => {
         .query({
           code: 'google-code',
           state: location.searchParams.get('state'),
+          iss: 'https://accounts.google.com',
         })
         .set('Cookie', cookiePair)
         .expect(302);
@@ -487,8 +488,11 @@ describe('Gateway (integration)', () => {
         codeVerifier: string;
         nonce: string;
         redirectUri: string;
+        iss?: string;
       };
       expect(sent.code).toBe('google-code');
+      // Passed through for Identity to check (RFC 9207).
+      expect(sent.iss).toBe('https://accounts.google.com');
       expect(sent.redirectUri).toBe(GOOGLE_REDIRECT);
       expect(sent.nonce).toBe(location.searchParams.get('nonce'));
       expect(
@@ -501,6 +505,12 @@ describe('Gateway (integration)', () => {
       ['no state cookie', {}, false, 'OAUTH_EXCHANGE_FAILED'],
       ['a denied consent', { error: 'access_denied' }, true, 'OAUTH_CANCELLED'],
       ['a missing code', { code: undefined }, true, 'OAUTH_EXCHANGE_FAILED'],
+      [
+        'a repeated iss',
+        { iss: ['https://accounts.google.com', 'https://evil.example'] },
+        true,
+        'OAUTH_EXCHANGE_FAILED',
+      ],
     ])(
       'returns to the web app with an error on %s, without calling Identity',
       async (_, override, withCookie, error) => {

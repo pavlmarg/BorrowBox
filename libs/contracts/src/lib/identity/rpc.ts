@@ -93,6 +93,12 @@ export interface GoogleExchangeRequest {
   codeVerifier: string;
   nonce: string;
   redirectUri: string;
+  /**
+   * The `iss` parameter of Google's redirect (RFC 9207), passed through
+   * unchanged. Google announces it, so Identity requires it and checks it is
+   * Google's issuer (defends against authorization-server mix-up).
+   */
+  iss?: string;
 }
 
 export interface UpdateProfileRequest {
