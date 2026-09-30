@@ -6,7 +6,6 @@ import {
   untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatMenuModule } from '@angular/material/menu';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
@@ -16,12 +15,13 @@ import {
   RouterOutlet,
 } from '@angular/router';
 import { filter, map } from 'rxjs';
-import { TranslocoDirective } from '@jsverse/transloco';
+import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { Api } from './api/api';
 import { meControllerUpdate } from './api/functions';
 import type { Locale } from './api/models';
 import { AuthStore } from './core/auth/auth.store';
 import { LANGUAGES, LanguageService } from './core/i18n/language';
+import { LanguageToggle } from './core/i18n/language-toggle';
 
 @Component({
   selector: 'bb-root',
@@ -31,7 +31,7 @@ import { LANGUAGES, LanguageService } from './core/i18n/language';
     TranslocoDirective,
     MatToolbarModule,
     MatButtonModule,
-    MatMenuModule,
+    LanguageToggle,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -40,7 +40,6 @@ import { LANGUAGES, LanguageService } from './core/i18n/language';
 export class App {
   protected readonly auth = inject(AuthStore);
   protected readonly language = inject(LanguageService);
-  protected readonly languages = LANGUAGES;
   private readonly api = inject(Api);
   private readonly router = inject(Router);
 
@@ -54,6 +53,10 @@ export class App {
   );
 
   constructor() {
+    // Load every language up front so the flag toggle switches instantly.
+    const transloco = inject(TranslocoService);
+    for (const lang of LANGUAGES) transloco.load(lang).subscribe();
+
     // Signing in adopts the account's language.
     let lastUserId: string | null = null;
     effect(() => {

@@ -5,25 +5,7 @@
     }
     <span class="spacer"></span>
 
-    <button
-      mat-button
-      [matMenuTriggerFor]="languageMenu"
-      [attr.aria-label]="t('nav.language')"
-    >
-      {{ t('languages.' + language.current()) }}
-    </button>
-    <mat-menu #languageMenu="matMenu">
-      @for (lang of languages; track lang) {
-      <button
-        mat-menu-item
-        [attr.lang]="lang"
-        [attr.aria-current]="lang === language.current()"
-        (click)="setLanguage(lang)"
-      >
-        {{ t('languages.' + lang) }}
-      </button>
-      }
-    </mat-menu>
+    <bb-language-toggle (changed)="setLanguage($event)" />
 
     @if (auth.isAuthenticated()) {
     <a mat-button routerLink="/profile">{{ t('nav.profile') }}</a>

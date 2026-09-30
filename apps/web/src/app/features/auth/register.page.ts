@@ -25,6 +25,7 @@ import { errorCode, errorKey } from '../../core/api-errors';
 import { AuthStore } from '../../core/auth/auth.store';
 import { safeReturnUrl } from '../../core/auth/return-url';
 import { LanguageService, isLanguage } from '../../core/i18n/language';
+import { AuthScene } from './auth-scene';
 import { GoogleButton } from './google-button';
 import { passwordValidator } from './password.validator';
 
@@ -39,88 +40,91 @@ import { passwordValidator } from './password.validator';
     MatInputModule,
     MatProgressBarModule,
     GoogleButton,
+    AuthScene,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <ng-container *transloco="let t">
-      @if (pending()) {
-        <mat-progress-bar class="progress" mode="indeterminate" />
-      }
-      <h1 class="title">{{ t('auth.register.title') }}</h1>
-      <p class="subtitle">{{ t('auth.register.subtitle') }}</p>
-
-      <bb-google-button [returnUrl]="returnUrl() ?? null" />
-      <p class="divider">{{ t('auth.or') }}</p>
-
-      <form class="stack" [formGroup]="form" (ngSubmit)="submit()" novalidate>
-        <mat-form-field appearance="outline">
-          <mat-label>{{ t('auth.register.displayName') }}</mat-label>
-          <input
-            matInput
-            formControlName="displayName"
-            autocomplete="nickname"
-            [maxlength]="displayNameMax"
-          />
-          @if (form.controls.displayName.invalid) {
-            <mat-error>{{ t('validation.displayName') }}</mat-error>
-          }
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>{{ t('auth.register.email') }}</mat-label>
-          <input
-            matInput
-            type="email"
-            formControlName="email"
-            autocomplete="email"
-          />
-          @if (form.controls.email.hasError('required')) {
-            <mat-error>{{ t('validation.required') }}</mat-error>
-          } @else if (form.controls.email.invalid) {
-            <mat-error>{{ t('validation.email') }}</mat-error>
-          }
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>{{ t('auth.register.password') }}</mat-label>
-          <input
-            matInput
-            type="password"
-            formControlName="password"
-            autocomplete="new-password"
-            [maxlength]="passwordMax"
-          />
-          <mat-hint>{{ t('auth.register.passwordHint') }}</mat-hint>
-          @if (form.controls.password.hasError('required')) {
-            <mat-error>{{ t('validation.required') }}</mat-error>
-          } @else if (form.controls.password.invalid) {
-            <mat-error>{{ t('validation.password') }}</mat-error>
-          }
-        </mat-form-field>
-
-        @if (error(); as code) {
-          <p class="form-error" role="alert">{{ t(errorKey(code)) }}</p>
+    <bb-auth-scene video="register" formSide="left">
+      <ng-container *transloco="let t">
+        @if (pending()) {
+          <mat-progress-bar class="progress" mode="indeterminate" />
         }
+        <h1 class="title">{{ t('auth.register.title') }}</h1>
+        <p class="subtitle">{{ t('auth.register.subtitle') }}</p>
 
-        <button
-          mat-flat-button
-          class="submit"
-          type="submit"
-          [disabled]="pending()"
-        >
-          {{ t('auth.register.submit') }}
-        </button>
-      </form>
+        <bb-google-button [returnUrl]="returnUrl() ?? null" />
+        <p class="divider">{{ t('auth.or') }}</p>
 
-      <p class="switch">
-        {{ t('auth.register.haveAccount') }}
-        <a
-          routerLink="/auth/login"
-          [queryParams]="{ returnUrl: returnUrl() }"
-          >{{ t('auth.register.loginLink') }}</a
-        >
-      </p>
-    </ng-container>
+        <form class="stack" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ t('auth.register.displayName') }}</mat-label>
+            <input
+              matInput
+              formControlName="displayName"
+              autocomplete="nickname"
+              [maxlength]="displayNameMax"
+            />
+            @if (form.controls.displayName.invalid) {
+              <mat-error>{{ t('validation.displayName') }}</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>{{ t('auth.register.email') }}</mat-label>
+            <input
+              matInput
+              type="email"
+              formControlName="email"
+              autocomplete="email"
+            />
+            @if (form.controls.email.hasError('required')) {
+              <mat-error>{{ t('validation.required') }}</mat-error>
+            } @else if (form.controls.email.invalid) {
+              <mat-error>{{ t('validation.email') }}</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>{{ t('auth.register.password') }}</mat-label>
+            <input
+              matInput
+              type="password"
+              formControlName="password"
+              autocomplete="new-password"
+              [maxlength]="passwordMax"
+            />
+            <mat-hint>{{ t('auth.register.passwordHint') }}</mat-hint>
+            @if (form.controls.password.hasError('required')) {
+              <mat-error>{{ t('validation.required') }}</mat-error>
+            } @else if (form.controls.password.invalid) {
+              <mat-error>{{ t('validation.password') }}</mat-error>
+            }
+          </mat-form-field>
+
+          @if (error(); as code) {
+            <p class="form-error" role="alert">{{ t(errorKey(code)) }}</p>
+          }
+
+          <button
+            mat-flat-button
+            class="submit"
+            type="submit"
+            [disabled]="pending()"
+          >
+            {{ t('auth.register.submit') }}
+          </button>
+        </form>
+
+        <p class="switch">
+          {{ t('auth.register.haveAccount') }}
+          <a
+            routerLink="/auth/login"
+            [queryParams]="{ returnUrl: returnUrl() }"
+            >{{ t('auth.register.loginLink') }}</a
+          >
+        </p>
+      </ng-container>
+    </bb-auth-scene>
   `,
   styles: `
     .title {

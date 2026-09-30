@@ -16,6 +16,10 @@
   backdrop-filter: none;
   background: transparent;
   border-bottom-color: transparent;
+  // Floats over the full-screen auth scene instead of pushing it down.
+  left: 0;
+  position: fixed;
+  right: 0;
 }
 
 .brand {

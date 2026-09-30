@@ -19,6 +19,7 @@ import { TranslocoDirective } from '@jsverse/transloco';
 import { errorCode, errorKey } from '../../core/api-errors';
 import { AuthStore } from '../../core/auth/auth.store';
 import { safeReturnUrl } from '../../core/auth/return-url';
+import { AuthScene } from './auth-scene';
 import { GoogleButton } from './google-button';
 
 @Component({
@@ -32,75 +33,78 @@ import { GoogleButton } from './google-button';
     MatInputModule,
     MatProgressBarModule,
     GoogleButton,
+    AuthScene,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <ng-container *transloco="let t">
-      @if (pending()) {
-        <mat-progress-bar class="progress" mode="indeterminate" />
-      }
-      <h1 class="title">{{ t('auth.login.title') }}</h1>
-      <p class="subtitle">{{ t('auth.login.subtitle') }}</p>
+    <bb-auth-scene video="login" formSide="right">
+      <ng-container *transloco="let t">
+        @if (pending()) {
+          <mat-progress-bar class="progress" mode="indeterminate" />
+        }
+        <h1 class="title">{{ t('auth.login.title') }}</h1>
+        <p class="subtitle">{{ t('auth.login.subtitle') }}</p>
 
-      @if (deleted()) {
-        <p class="notice" role="status">{{ t('auth.login.deleted') }}</p>
-      }
-
-      <bb-google-button [returnUrl]="returnUrl() ?? null" />
-      <p class="divider">{{ t('auth.or') }}</p>
-
-      <form class="stack" [formGroup]="form" (ngSubmit)="submit()" novalidate>
-        <mat-form-field appearance="outline">
-          <mat-label>{{ t('auth.login.email') }}</mat-label>
-          <input
-            matInput
-            type="email"
-            formControlName="email"
-            autocomplete="email"
-          />
-          @if (form.controls.email.hasError('required')) {
-            <mat-error>{{ t('validation.required') }}</mat-error>
-          } @else if (form.controls.email.hasError('email')) {
-            <mat-error>{{ t('validation.email') }}</mat-error>
-          }
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>{{ t('auth.login.password') }}</mat-label>
-          <input
-            matInput
-            type="password"
-            formControlName="password"
-            autocomplete="current-password"
-          />
-          @if (form.controls.password.hasError('required')) {
-            <mat-error>{{ t('validation.required') }}</mat-error>
-          }
-        </mat-form-field>
-
-        @if (error(); as code) {
-          <p class="form-error" role="alert">{{ t(errorKey(code)) }}</p>
+        @if (deleted()) {
+          <p class="notice" role="status">{{ t('auth.login.deleted') }}</p>
         }
 
-        <button
-          mat-flat-button
-          class="submit"
-          type="submit"
-          [disabled]="pending()"
-        >
-          {{ t('auth.login.submit') }}
-        </button>
-      </form>
+        <bb-google-button [returnUrl]="returnUrl() ?? null" />
+        <p class="divider">{{ t('auth.or') }}</p>
 
-      <p class="switch">
-        {{ t('auth.login.noAccount') }}
-        <a
-          routerLink="/auth/register"
-          [queryParams]="{ returnUrl: returnUrl() }"
-          >{{ t('auth.login.registerLink') }}</a
-        >
-      </p>
-    </ng-container>
+        <form class="stack" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ t('auth.login.email') }}</mat-label>
+            <input
+              matInput
+              type="email"
+              formControlName="email"
+              autocomplete="email"
+            />
+            @if (form.controls.email.hasError('required')) {
+              <mat-error>{{ t('validation.required') }}</mat-error>
+            } @else if (form.controls.email.hasError('email')) {
+              <mat-error>{{ t('validation.email') }}</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>{{ t('auth.login.password') }}</mat-label>
+            <input
+              matInput
+              type="password"
+              formControlName="password"
+              autocomplete="current-password"
+            />
+            @if (form.controls.password.hasError('required')) {
+              <mat-error>{{ t('validation.required') }}</mat-error>
+            }
+          </mat-form-field>
+
+          @if (error(); as code) {
+            <p class="form-error" role="alert">{{ t(errorKey(code)) }}</p>
+          }
+
+          <button
+            mat-flat-button
+            class="submit"
+            type="submit"
+            [disabled]="pending()"
+          >
+            {{ t('auth.login.submit') }}
+          </button>
+        </form>
+
+        <p class="switch">
+          {{ t('auth.login.noAccount') }}
+          <a
+            routerLink="/auth/register"
+            [queryParams]="{ returnUrl: returnUrl() }"
+            >{{ t('auth.login.registerLink') }}</a
+          >
+        </p>
+      </ng-container>
+    </bb-auth-scene>
   `,
   styles: `
     .title {

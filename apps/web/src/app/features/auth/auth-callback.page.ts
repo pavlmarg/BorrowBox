@@ -17,6 +17,7 @@ import {
 } from '../../core/api-errors';
 import { AuthStore } from '../../core/auth/auth.store';
 import { takeReturnUrl } from '../../core/auth/return-url';
+import { AuthScene } from './auth-scene';
 
 /**
  * Where the gateway sends the browser after Google. The refresh cookie is
@@ -29,25 +30,28 @@ import { takeReturnUrl } from '../../core/auth/return-url';
     TranslocoDirective,
     MatButtonModule,
     MatProgressBarModule,
+    AuthScene,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div *transloco="let t">
-      @if (failure(); as code) {
-        <div class="stack">
-          <h1 class="page-title">{{ t('auth.callback.failed') }}</h1>
-          <p class="form-error" role="alert">{{ t(errorKey(code)) }}</p>
-          <a mat-flat-button routerLink="/auth/login">{{
-            t('auth.callback.backToLogin')
-          }}</a>
-        </div>
-      } @else {
-        <mat-progress-bar mode="indeterminate" />
-        <div>
-          <p role="status">{{ t('auth.callback.working') }}</p>
-        </div>
-      }
-    </div>
+    <bb-auth-scene video="register" formSide="left">
+      <div *transloco="let t">
+        @if (failure(); as code) {
+          <div class="stack">
+            <h1 class="page-title">{{ t('auth.callback.failed') }}</h1>
+            <p class="form-error" role="alert">{{ t(errorKey(code)) }}</p>
+            <a mat-flat-button routerLink="/auth/login">{{
+              t('auth.callback.backToLogin')
+            }}</a>
+          </div>
+        } @else {
+          <mat-progress-bar mode="indeterminate" />
+          <div>
+            <p role="status">{{ t('auth.callback.working') }}</p>
+          </div>
+        }
+      </div>
+    </bb-auth-scene>
   `,
 })
 export class AuthCallbackPage implements OnInit {

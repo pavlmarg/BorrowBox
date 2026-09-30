@@ -80,7 +80,7 @@ html {
   --bb-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --bb-fast: 150ms;
   --bb-medium: 280ms;
-  --bb-slide: 460ms;
+  --bb-fade: 500ms;
 }
 
 body {
@@ -171,72 +171,23 @@ a:not(.mat-mdc-button-base) {
 }
 
 // --- Route transitions (View Transitions API) --------------------------------
-// Everything crossfades by default. Between the auth pages the card works as
-// a sliding window: html[data-bb-slide] (set by authSlideDirection) says which
-// way, the old page slides out and the new one slides in from the other side,
-// clipped to the card.
+// Route changes: a simple fade out / fade in of the whole page.
 
-::view-transition-old(root),
+::view-transition-old(root) {
+  animation: bb-fade-out var(--bb-fade) ease both;
+}
 ::view-transition-new(root) {
-  animation-duration: var(--bb-medium);
-  animation-timing-function: var(--bb-ease);
+  animation: bb-fade-in var(--bb-fade) ease both;
 }
 
-// The card morphs to the new content's height while the content slides.
-::view-transition-group(auth-card),
-::view-transition-group(auth-content) {
-  animation-duration: var(--bb-slide);
-  animation-timing-function: var(--bb-ease);
-}
-::view-transition-group(auth-content) {
-  overflow: clip;
-}
-::view-transition-old(auth-content),
-::view-transition-new(auth-content) {
-  // Keep each page at its own height instead of stretching to the group.
-  height: auto;
-  width: 100%;
-}
-
-html[data-bb-slide='forward'] {
-  &::view-transition-old(auth-content) {
-    animation: bb-out-to-left var(--bb-slide) var(--bb-ease) both;
-  }
-  &::view-transition-new(auth-content) {
-    animation: bb-in-from-right var(--bb-slide) var(--bb-ease) both;
-  }
-}
-html[data-bb-slide='back'] {
-  &::view-transition-old(auth-content) {
-    animation: bb-out-to-right var(--bb-slide) var(--bb-ease) both;
-  }
-  &::view-transition-new(auth-content) {
-    animation: bb-in-from-left var(--bb-slide) var(--bb-ease) both;
-  }
-}
-
-@keyframes bb-out-to-left {
+@keyframes bb-fade-out {
   to {
-    opacity: 0.4;
-    transform: translateX(-105%);
+    opacity: 0;
   }
 }
-@keyframes bb-in-from-right {
+@keyframes bb-fade-in {
   from {
-    opacity: 0.4;
-    transform: translateX(105%);
-  }
-}
-@keyframes bb-out-to-right {
-  to {
-    opacity: 0.4;
-    transform: translateX(105%);
-  }
-}
-@keyframes bb-in-from-left {
-  from {
-    opacity: 0.4;
-    transform: translateX(-105%);
+    opacity: 0;
   }
 }
 

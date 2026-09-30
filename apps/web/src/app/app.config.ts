@@ -22,7 +22,6 @@ import { provideApiConfiguration } from './api/api-configuration';
 import { appRoutes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
 import { AuthStore } from './core/auth/auth.store';
-import { authSlideDirection } from './core/ui/view-transitions';
 import {
   DEFAULT_LANGUAGE,
   LANGUAGES,
@@ -40,10 +39,7 @@ export const appConfig: ApplicationConfig = {
       withComponentInputBinding(),
       withInMemoryScrolling({ scrollPositionRestoration: 'top' }),
       // Animated route changes (CSS in styles.scss); no-op where unsupported.
-      withViewTransitions({
-        skipInitialTransition: true,
-        onViewTransitionCreated: authSlideDirection,
-      }),
+      withViewTransitions({ skipInitialTransition: true }),
     ),
     provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
     // Same origin: the dev server proxies /api to the gateway, Caddy does in production.
