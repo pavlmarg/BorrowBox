@@ -295,6 +295,59 @@ describe('Identity password auth (integration)', () => {
     });
   });
 
+  describe('token cleanup', () => {
+    it('deletes finished sessions on the next sign-in and keeps live ones', async () => {
+      const u = newUser();
+      const loggedOut = await register(u);
+      await identity.send(IdentityRpc.refresh, {
+        refreshToken: loggedOut.refreshToken,
+      });
+      const expired = await identity.send(IdentityRpc.login, credentials(u));
+      const live = await identity.send(IdentityRpc.login, credentials(u));
+
+      const [{ sid: loggedOutSid }, { sid: expiredSid }] = [
+        loggedOut,
+        expired,
+      ].map(
+        (s) =>
+          JSON.parse(
+            Buffer.from(s.accessToken.split('.')[1], 'base64url').toString(),
+          ) as { sid: string },
+      );
+      // A second, rotated token in the logged-out family: the whole family goes.
+      const rotated = await identity.dataSource.query(
+        `SELECT refresh_tokens.* FROM refresh_tokens WHERE family_id = $1`,
+        [loggedOutSid],
+      );
+      expect(rotated).toHaveLength(2);
+      await identity.dataSource.query(
+        `UPDATE refresh_tokens SET revoked_at = now() WHERE family_id = $1`,
+        [loggedOutSid],
+      );
+      await identity.dataSource.query(
+        `UPDATE refresh_tokens SET expires_at = now() - interval '1 second'
+          WHERE family_id = $1`,
+        [expiredSid],
+      );
+
+      await identity.send(IdentityRpc.login, credentials(u));
+
+      const families: Array<{ family_id: string }> =
+        await identity.dataSource.query(
+          `SELECT DISTINCT family_id FROM refresh_tokens
+            WHERE user_id = $1`,
+          [live.user.id],
+        );
+      const ids = families.map((f) => f.family_id);
+      expect(ids).toHaveLength(2); // `live` + the new sign-in
+      expect(ids).not.toContain(loggedOutSid);
+      expect(ids).not.toContain(expiredSid);
+      await expect(
+        identity.send(IdentityRpc.refresh, { refreshToken: live.refreshToken }),
+      ).resolves.toBeDefined();
+    });
+  });
+
   describe('logout', () => {
     it('ends the session family and is idempotent', async () => {
       const first: AuthSession = await register(newUser());

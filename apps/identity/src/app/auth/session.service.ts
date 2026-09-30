@@ -19,8 +19,24 @@ export class SessionService {
     @Inject(ACCESS_TOKEN_SIGNER) private readonly signer: AccessTokenSigner,
   ) {}
 
-  /** A new sign-in: new token family, expiring 30 days from now. */
-  start(tx: EntityManager, userId: string, now = new Date()) {
+  /**
+   * A new sign-in: new token family, expiring 30 days from now. Also deletes
+   * the user's finished families (expired, or revoked by logout or reuse
+   * detection), so refresh_tokens doesn't grow with every rotation forever.
+   * A token from a deleted family is simply unknown: still rejected.
+   */
+  async start(tx: EntityManager, userId: string, now = new Date()) {
+    await tx.query(
+      `DELETE FROM refresh_tokens
+        WHERE user_id = $1
+          AND family_id IN (
+            SELECT family_id FROM refresh_tokens
+             WHERE user_id = $1
+             GROUP BY family_id
+            HAVING bool_and(revoked_at IS NOT NULL OR expires_at <= $2)
+          )`,
+      [userId, now],
+    );
     return this.issue(
       tx,
       userId,
