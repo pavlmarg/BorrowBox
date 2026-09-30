@@ -63,6 +63,9 @@ import { ProfileStore } from './profile.store';
         @if (store.error(); as code) {
           <p class="form-error" role="alert">{{ t(errorKey(code)) }}</p>
           @if (code === 'REAUTHENTICATION_REQUIRED' && !user.hasPassword) {
+            <!-- A fresh Google sign-in starts a new session; the old one is
+                 not revoked but ends on its own and is pruned at a later
+                 sign-in (SessionService.start). -->
             <bb-google-button
               returnUrl="/profile"
               label="deleteDialog.reauthenticate"

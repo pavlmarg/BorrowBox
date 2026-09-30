@@ -115,4 +115,31 @@ describe('authInterceptor', () => {
     expect(store.status()).toBe('anonymous');
     expect(navigate).toHaveBeenCalledWith(['/auth/login'], expect.anything());
   });
+
+  it('stays signed in when the refresh fails for a transient reason (5xx)', async () => {
+    const { client, http, store } = await signedIn();
+    const navigate = jest
+      .spyOn(TestBed.inject(Router), 'navigate')
+      .mockResolvedValue(true);
+
+    const call = firstValueFrom(client.get('/api/me'));
+    await tick();
+    http
+      .expectOne('/api/me')
+      .flush(
+        { statusCode: 401, code: 'UNAUTHENTICATED', message: 'x' },
+        { status: 401, statusText: 'Unauthorized' },
+      );
+    await tick();
+    http
+      .expectOne('/api/auth/refresh')
+      .flush(
+        { statusCode: 503, code: 'SERVICE_UNAVAILABLE', message: 'x' },
+        { status: 503, statusText: 'Service Unavailable' },
+      );
+
+    await expect(call).rejects.toMatchObject({ status: 401 });
+    expect(store.status()).toBe('authenticated');
+    expect(navigate).not.toHaveBeenCalled();
+  });
 });

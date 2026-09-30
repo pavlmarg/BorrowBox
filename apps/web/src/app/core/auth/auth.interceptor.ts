@@ -43,9 +43,13 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       return from(auth.refresh()).pipe(
         switchMap((ok) => {
           if (!ok) {
-            void router.navigate(['/auth/login'], {
-              queryParams: { returnUrl: router.url },
-            });
+            // Only when the session really ended; after a network error or
+            // 5xx the store stays signed in and the user can simply retry.
+            if (auth.status() === 'anonymous') {
+              void router.navigate(['/auth/login'], {
+                queryParams: { returnUrl: router.url },
+              });
+            }
             return throwError(() => err);
           }
           return next(withToken(req));

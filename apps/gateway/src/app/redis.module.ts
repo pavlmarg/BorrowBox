@@ -1,6 +1,7 @@
 import {
   Global,
   Inject,
+  Logger,
   Module,
   type OnApplicationShutdown,
 } from '@nestjs/common';
@@ -21,11 +22,27 @@ export const REDIS = Symbol('REDIS');
     {
       provide: REDIS,
       inject: [ConfigService],
-      useFactory: (config: ConfigService<GatewayConfig, true>) =>
-        new Redis(config.get('REDIS_URL', { infer: true }), {
+      useFactory: (config: ConfigService<GatewayConfig, true>) => {
+        const redis = new Redis(config.get('REDIS_URL', { infer: true }), {
           maxRetriesPerRequest: 1,
           enableOfflineQueue: false,
-        }),
+        });
+        // Without an 'error' listener ioredis prints "Unhandled error event"
+        // on every reconnect attempt. Log once per outage instead; the
+        // message never contains the URL or password.
+        const logger = new Logger('Redis');
+        let down = false;
+        redis.on('error', (err: Error & { code?: string }) => {
+          if (down) return;
+          down = true;
+          logger.error(`Redis unavailable (${err.code ?? err.name})`);
+        });
+        redis.on('ready', () => {
+          if (down) logger.log('Redis connection restored');
+          down = false;
+        });
+        return redis;
+      },
     },
   ],
   exports: [REDIS],

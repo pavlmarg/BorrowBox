@@ -23,12 +23,12 @@ export type IdentityErrorCode =
   | 'OAUTH_EXCHANGE_FAILED'
   /** The provider did not confirm the email (`email_verified` false), so we can't sign in or link. */
   | 'OAUTH_EMAIL_NOT_VERIFIED'
-  /** Unexpected failure; details are only in Identity's logs. */
   /**
    * A sensitive action (account deletion) needs fresh proof: the current
    * password, or for accounts without one, a sign-in in the last 5 minutes.
    */
   | 'REAUTHENTICATION_REQUIRED'
+  /** Unexpected failure; details are only in Identity's logs. */
   | 'INTERNAL';
 
 // --- Shared shapes ---------------------------------------------------------
