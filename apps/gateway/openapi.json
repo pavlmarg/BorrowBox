@@ -345,6 +345,16 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "RATE_LIMITED (10 per minute)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
           }
         },
         "security": [

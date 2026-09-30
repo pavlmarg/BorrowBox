@@ -294,6 +294,22 @@ describe('Gateway (integration)', () => {
       expect((await redisClient.keys('*')).length).toBeGreaterThan(0);
     });
 
+    it('rate-limits account deletion (a password check) to 10 per minute', async () => {
+      identity.fail(IdentityRpc.deleteMe, {
+        code: 'INVALID_CREDENTIALS',
+        message: 'Wrong password',
+      });
+      const token = await bearer();
+      const attempt = () =>
+        http()
+          .delete('/api/me')
+          .set('Authorization', token)
+          .send({ password: 'guess' });
+      for (let i = 0; i < 10; i++) await attempt().expect(401);
+      expect((await attempt().expect(429)).body.code).toBe('RATE_LIMITED');
+      expect(identity.callsTo(IdentityRpc.deleteMe)).toHaveLength(10);
+    });
+
     it('keys rate limits on the client IP forwarded by a trusted proxy', async () => {
       // supertest connects from 127.0.0.1, which the default TRUST_PROXY
       // (loopback) trusts, like the Angular dev proxy or a same-host Caddy.

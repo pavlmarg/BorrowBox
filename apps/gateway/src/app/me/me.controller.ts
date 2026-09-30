@@ -29,6 +29,7 @@ import {
   UserProfileResponse,
 } from '../api.dto';
 import { clearRefreshCookie } from '../http/cookies';
+import { AuthRateLimit } from '../http/rate-limits';
 import { AccessToken, CorrelationId } from '../http/request-context';
 import { IdentityClient } from '../identity/identity.client';
 
@@ -104,6 +105,8 @@ export class MeController {
 
   @Delete()
   @HttpCode(HttpStatus.NO_CONTENT)
+  // Checks the password, so it gets the same limit as login.
+  @AuthRateLimit()
   @ApiOperation({
     summary: 'Delete my account (GDPR Art. 17)',
     description:
@@ -119,6 +122,11 @@ export class MeController {
     status: 403,
     type: ApiErrorResponse,
     description: 'REAUTHENTICATION_REQUIRED',
+  })
+  @ApiResponse({
+    status: 429,
+    type: ApiErrorResponse,
+    description: 'RATE_LIMITED (10 per minute)',
   })
   async delete(
     @Body() body: DeleteAccountBody,
