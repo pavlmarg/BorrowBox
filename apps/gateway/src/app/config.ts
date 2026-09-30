@@ -1,3 +1,4 @@
+import { isIP } from 'node:net';
 import { plainToInstance, Transform } from 'class-transformer';
 import {
   IsBoolean,
@@ -9,6 +10,7 @@ import {
   Max,
   Min,
   MinLength,
+  registerDecorator,
   validateSync,
 } from 'class-validator';
 
@@ -16,6 +18,60 @@ const toInt = () =>
   Transform(({ value }) => (value === undefined ? value : Number(value)));
 const emptyToUndefined = () =>
   Transform(({ value }) => (value === '' ? undefined : value));
+
+/** Express's named ranges for `trust proxy`. */
+const NAMED_RANGES = new Set(['loopback', 'linklocal', 'uniquelocal']);
+const MAX_PROXY_HOPS = 10;
+
+/** `ip` or `ip/prefix`, with the prefix in range for the address family. */
+function isAddressOrCidr(value: string): boolean {
+  const [address, prefix, ...rest] = value.split('/');
+  const family = isIP(address);
+  if (family === 0 || rest.length > 0) return false;
+  if (prefix === undefined) return true;
+  if (!/^[0-9]{1,3}$/.test(prefix)) return false;
+  return Number(prefix) <= (family === 4 ? 32 : 128);
+}
+
+/**
+ * Parses TRUST_PROXY into Express's `trust proxy` setting, or null if invalid.
+ * - `false`: ignore X-Forwarded-For (the gateway is reached directly)
+ * - `0`–`10`: trust that many proxy hops
+ * - comma-separated IPs, CIDRs and named ranges (`loopback`, `linklocal`,
+ *   `uniquelocal`), e.g. `loopback,172.16.0.0/12` for Caddy on a Docker network
+ * `true` (trust every sender) is refused: any client could then fake its IP
+ * and dodge the per-IP rate limits.
+ */
+export function parseTrustProxy(
+  value: string,
+): false | number | string[] | null {
+  const trimmed = value.trim();
+  if (trimmed === 'false') return false;
+  if (/^[0-9]+$/.test(trimmed)) {
+    const hops = Number(trimmed);
+    return hops <= MAX_PROXY_HOPS ? hops : null;
+  }
+  const entries = trimmed.split(',').map((e) => e.trim());
+  const valid = entries.every((e) => NAMED_RANGES.has(e) || isAddressOrCidr(e));
+  return valid && entries.length > 0 ? entries : null;
+}
+
+function IsTrustProxy(): PropertyDecorator {
+  return (target, propertyName) =>
+    registerDecorator({
+      name: 'isTrustProxy',
+      target: target.constructor,
+      propertyName: propertyName as string,
+      options: {
+        message:
+          'TRUST_PROXY must be false, a hop count (0-10), or comma-separated IPs/CIDRs/loopback/linklocal/uniquelocal',
+      },
+      validator: {
+        validate: (value: unknown) =>
+          typeof value === 'string' && parseTrustProxy(value) !== null,
+      },
+    });
+}
 
 /**
  * Gateway environment. Stateless: no database. Secrets come from env / Docker
@@ -31,6 +87,14 @@ export class GatewayConfig {
   @Min(1)
   @Max(65535)
   GATEWAY_PORT = 3000;
+
+  /**
+   * Which senders may set X-Forwarded-For (rate limits key on the client IP).
+   * `loopback` fits dev (Angular proxy) and Caddy on the same host; Caddy in
+   * Docker Compose needs its network, e.g. `loopback,172.16.0.0/12`.
+   */
+  @IsTrustProxy()
+  TRUST_PROXY = 'loopback';
 
   /** Identity's TCP endpoint (ADR-0005). */
   @IsString()

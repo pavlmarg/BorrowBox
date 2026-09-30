@@ -293,6 +293,25 @@ describe('Gateway (integration)', () => {
       expect(identity.callsTo(IdentityRpc.login)).toHaveLength(10);
       expect((await redisClient.keys('*')).length).toBeGreaterThan(0);
     });
+
+    it('keys rate limits on the client IP forwarded by a trusted proxy', async () => {
+      // supertest connects from 127.0.0.1, which the default TRUST_PROXY
+      // (loopback) trusts, like the Angular dev proxy or a same-host Caddy.
+      identity.fail(IdentityRpc.login, {
+        code: 'INVALID_CREDENTIALS',
+        message: 'Invalid email or password',
+      });
+      const login = (clientIp: string) =>
+        http()
+          .post('/api/auth/login')
+          .set('X-Forwarded-For', clientIp)
+          .send({ email: 'ana@example.com', password: 'guess' });
+
+      for (let i = 0; i < 10; i++) await login('203.0.113.1').expect(401);
+      await login('203.0.113.1').expect(429);
+      // Another client behind the same proxy has its own budget.
+      await login('203.0.113.2').expect(401);
+    });
   });
 
   describe('refresh / logout', () => {

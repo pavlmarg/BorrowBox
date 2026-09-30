@@ -8,7 +8,7 @@ import {
 } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import { parseOrigins, type GatewayConfig } from './config';
+import { parseOrigins, parseTrustProxy, type GatewayConfig } from './config';
 import { ApiExceptionFilter } from './http/api-exception.filter';
 import { REFRESH_COOKIE } from './http/cookies';
 import { correlationIdMiddleware } from './http/request-context';
@@ -20,9 +20,12 @@ export function configureApp(app: NestExpressApplication): void {
   const config = app.get(ConfigService<GatewayConfig, true>);
   const docs = config.get('API_DOCS', { infer: true });
 
-  // Rate limits key on req.ip: trust X-Forwarded-For only from a local proxy
-  // (Angular dev proxy, Caddy on the same host).
-  app.set('trust proxy', 'loopback');
+  // Rate limits key on req.ip, so X-Forwarded-For is trusted only from the
+  // proxies TRUST_PROXY names (validated at startup).
+  app.set(
+    'trust proxy',
+    parseTrustProxy(config.get('TRUST_PROXY', { infer: true })),
+  );
   // Swagger UI needs inline scripts; the JSON API itself doesn't care about CSP.
   app.use(helmet({ contentSecurityPolicy: docs ? false : undefined }));
   app.use(cookieParser(config.get('COOKIE_SECRET', { infer: true })));
