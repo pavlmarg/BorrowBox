@@ -83,7 +83,9 @@
       "title": "Delete your account",
       "description": "Your personal data will be erased. Records we must keep by law (e.g. payments) are anonymised. This cannot be undone.",
       "button": "Delete my account"
-    }
+    },
+    "editProfile": "Edit profile",
+    "changePhoto": "Profile photos are coming soon"
   },
   "deleteDialog": {
     "title": "Delete your account?",

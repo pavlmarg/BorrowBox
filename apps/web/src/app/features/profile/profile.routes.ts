@@ -10,6 +10,6 @@ export const profileRoutes: Route[] = [
 export const settingsRoutes: Route[] = [
   {
     path: '',
-    loadComponent: () => import('./profile.page').then((m) => m.ProfilePage),
+    loadComponent: () => import('./settings.page').then((m) => m.SettingsPage),
   },
 ];

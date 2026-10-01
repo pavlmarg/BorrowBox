@@ -2,303 +2,182 @@ import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  type OnInit,
-  effect,
+  computed,
   inject,
-  untracked,
 } from '@angular/core';
-import {
-  NonNullableFormBuilder,
-  ReactiveFormsModule,
-  Validators,
-} from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatDialog } from '@angular/material/dialog';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSelectModule } from '@angular/material/select';
-import { Router } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
-import { DISPLAY_NAME_MAX_LENGTH } from '@borrowbox/contracts';
-import type { Locale } from '../../api/models';
-import { errorKey } from '../../core/api-errors';
 import { AuthStore } from '../../core/auth/auth.store';
-import { LANGUAGES, LanguageService } from '../../core/i18n/language';
-import { GoogleButton } from '../auth/google-button';
-import {
-  DeleteAccountDialog,
-  type DeleteAccountDialogData,
-  type DeleteAccountDialogResult,
-} from './delete-account.dialog';
-import { ProfileStore } from './profile.store';
+import { LanguageService } from '../../core/i18n/language';
 
+/** Up to two letters for the avatar: first and last word of the name. */
+export function initials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return '?';
+  const first = [...words[0]][0];
+  const last = words.length > 1 ? [...words[words.length - 1]][0] : '';
+  return (first + last).toLocaleUpperCase();
+}
+
+/**
+ * The user's profile at a glance. Editing lives in Settings; the photo,
+ * items and rentals arrive with later phases.
+ */
 @Component({
   selector: 'bb-profile-page',
-  imports: [
-    DatePipe,
-    ReactiveFormsModule,
-    TranslocoDirective,
-    MatButtonModule,
-    MatCardModule,
-    MatDividerModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatProgressBarModule,
-    MatSelectModule,
-    GoogleButton,
-  ],
-  providers: [ProfileStore],
+  imports: [DatePipe, RouterLink, TranslocoDirective, MatButtonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ng-container *transloco="let t">
       @if (auth.user(); as user) {
-        <h1 class="page-title">{{ t('profile.title') }}</h1>
+        <section class="hero">
+          <div class="avatar-wrap">
+            <div class="avatar" aria-hidden="true">{{ avatar() }}</div>
+            <span class="photo-soon" [title]="t('profile.changePhoto')">
+              {{ t('nav.soon') }}
+            </span>
+          </div>
 
-        @if (store.busy()) {
-          <mat-progress-bar mode="indeterminate" />
-        }
-        @if (store.error(); as code) {
-          <p class="form-error" role="alert">{{ t(errorKey(code)) }}</p>
-          @if (code === 'REAUTHENTICATION_REQUIRED' && !user.hasPassword) {
-            <!-- A fresh Google sign-in starts a new session; the old one is
-                 not revoked but ends on its own and is pruned at a later
-                 sign-in (SessionService.start). -->
-            <bb-google-button
-              returnUrl="/profile"
-              label="deleteDialog.reauthenticate"
-            />
-          }
-        }
-
-        <div class="stack">
-          <mat-card appearance="outlined">
-            <mat-card-header>
-              <mat-card-title>{{ t('profile.details') }}</mat-card-title>
-              <mat-card-subtitle>
+          <div class="who">
+            <h1 class="name">{{ user.displayName }}</h1>
+            <p class="email">{{ user.email }}</p>
+            <ul class="chips">
+              <li class="chip" [class.ok]="user.emailVerified">
                 {{
-                  t('profile.memberSince', {
-                    date:
-                      (user.createdAt
-                      | date: 'longDate' : undefined : language.formatLocale()),
-                  })
+                  t(
+                    user.emailVerified
+                      ? 'profile.emailVerified'
+                      : 'profile.emailNotVerified'
+                  )
                 }}
-              </mat-card-subtitle>
-            </mat-card-header>
-            <mat-card-content>
-              <form
-                class="stack"
-                [formGroup]="form"
-                (ngSubmit)="save()"
-                novalidate
-              >
-                <mat-form-field>
-                  <mat-label>{{ t('profile.email') }}</mat-label>
-                  <input matInput [value]="user.email" disabled />
-                  <mat-hint>{{
-                    t(
-                      user.emailVerified
-                        ? 'profile.emailVerified'
-                        : 'profile.emailNotVerified'
-                    )
-                  }}</mat-hint>
-                </mat-form-field>
-
-                <mat-form-field>
-                  <mat-label>{{ t('profile.displayName') }}</mat-label>
-                  <input
-                    matInput
-                    formControlName="displayName"
-                    autocomplete="nickname"
-                    [maxlength]="displayNameMax"
-                  />
-                  @if (form.controls.displayName.invalid) {
-                    <mat-error>{{ t('validation.displayName') }}</mat-error>
-                  }
-                </mat-form-field>
-
-                <mat-form-field>
-                  <mat-label>{{ t('profile.language') }}</mat-label>
-                  <mat-select formControlName="locale">
-                    @for (lang of languages; track lang) {
-                      <mat-option [value]="lang">{{
-                        t('languages.' + lang)
-                      }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-
-                <div class="actions">
-                  @if (store.saved()) {
-                    <span class="muted" role="status">{{
-                      t('profile.saved')
-                    }}</span>
-                  }
-                  <button
-                    mat-flat-button
-                    type="submit"
-                    [disabled]="form.pristine || store.busy() !== null"
-                  >
-                    {{ t('profile.save') }}
-                  </button>
-                </div>
-              </form>
-
-              <mat-divider />
-              <h3>{{ t('profile.signIn') }}</h3>
-              <ul class="methods">
-                @if (user.hasPassword) {
-                  <li>{{ t('profile.withPassword') }}</li>
-                }
-                @for (provider of user.providers; track provider) {
-                  <li>{{ t('profile.withGoogle') }}</li>
-                }
-              </ul>
-            </mat-card-content>
-          </mat-card>
-
-          <mat-card appearance="outlined">
-            <mat-card-header>
-              <mat-card-title>{{ t('profile.export.title') }}</mat-card-title>
-            </mat-card-header>
-            <mat-card-content>
-              <p class="muted">{{ t('profile.export.description') }}</p>
-            </mat-card-content>
-            <mat-card-actions align="end">
-              @if (store.exported()) {
-                <span class="muted" role="status">{{
-                  t('profile.export.done')
-                }}</span>
+              </li>
+              @if (user.hasPassword) {
+                <li class="chip">{{ t('profile.withPassword') }}</li>
               }
-              <button
-                mat-stroked-button
-                [disabled]="store.busy() !== null"
-                (click)="store.exportData()"
-              >
-                {{ t('profile.export.button') }}
-              </button>
-            </mat-card-actions>
-          </mat-card>
-
-          <mat-card appearance="outlined">
-            <mat-card-header>
-              <mat-card-title>{{ t('profile.delete.title') }}</mat-card-title>
-            </mat-card-header>
-            <mat-card-content>
-              <p class="muted">{{ t('profile.delete.description') }}</p>
-            </mat-card-content>
-            <mat-card-actions align="end">
-              <button
-                mat-stroked-button
-                class="danger"
-                [disabled]="store.busy() !== null"
-                (click)="confirmDelete(user.hasPassword)"
-              >
-                {{ t('profile.delete.button') }}
-              </button>
-            </mat-card-actions>
-          </mat-card>
-        </div>
+              @for (provider of user.providers; track provider) {
+                <li class="chip">{{ t('profile.withGoogle') }}</li>
+              }
+            </ul>
+            <p class="since">
+              {{
+                t('profile.memberSince', {
+                  date:
+                    (user.createdAt
+                    | date: 'longDate' : undefined : language.formatLocale()),
+                })
+              }}
+            </p>
+            <a mat-stroked-button routerLink="/settings">{{
+              t('profile.editProfile')
+            }}</a>
+          </div>
+        </section>
       }
     </ng-container>
   `,
   styles: `
-    .actions {
+    .hero {
       align-items: center;
+      background: var(--bb-card-bg);
+      border: 1px solid var(--bb-card-border);
+      border-radius: var(--bb-radius);
+      box-shadow: var(--bb-shadow-sm);
       display: flex;
-      gap: 12px;
-      justify-content: flex-end;
+      gap: 32px;
+      padding: 32px;
     }
-    .methods {
+    .avatar-wrap {
+      flex: none;
+      position: relative;
+    }
+    .avatar {
+      align-items: center;
+      background: linear-gradient(
+        135deg,
+        var(--bb-sky-300) 0%,
+        var(--bb-sky-700) 100%
+      );
+      border-radius: 50%;
+      box-shadow: var(--bb-shadow-md);
+      color: #fff;
+      display: flex;
+      font-size: 40px;
+      font-weight: 700;
+      height: 112px;
+      justify-content: center;
+      letter-spacing: 1px;
+      width: 112px;
+    }
+    .photo-soon {
+      background: var(--bb-sky-100);
+      border: 2px solid #fff;
+      border-radius: 999px;
+      bottom: -4px;
+      color: var(--bb-sky-700);
+      font: var(--mat-sys-label-small);
+      left: 50%;
+      padding: 2px 8px;
+      position: absolute;
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+    .who {
+      min-width: 0;
+    }
+    .name {
+      font: var(--mat-sys-headline-small);
+      font-weight: 700;
       margin: 0;
-      padding-left: 20px;
     }
-    .danger {
-      color: var(--mat-sys-error);
+    .email {
+      color: var(--mat-sys-on-surface-variant);
+      margin: 2px 0 12px;
+      overflow-wrap: anywhere;
     }
-    mat-card-actions {
-      gap: 12px;
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      list-style: none;
+      margin: 0 0 12px;
+      padding: 0;
+    }
+    .chip {
+      background: var(--bb-sky-50);
+      border: 1px solid var(--bb-sky-200);
+      border-radius: 999px;
+      font: var(--mat-sys-label-medium);
+      padding: 4px 10px;
+    }
+    .chip.ok {
+      background: #e8f6ee;
+      border-color: #b5e1c6;
+      color: #1d6b3f;
+    }
+    .since {
+      color: var(--mat-sys-on-surface-variant);
+      font: var(--mat-sys-body-medium);
+      margin: 0 0 16px;
+    }
+
+    @media (max-width: 599px) {
+      .hero {
+        flex-direction: column;
+        gap: 20px;
+        padding: 24px 20px;
+        text-align: center;
+      }
+      .chips {
+        justify-content: center;
+      }
     }
   `,
 })
-export class ProfilePage implements OnInit {
+export class ProfilePage {
   protected readonly auth = inject(AuthStore);
-  protected readonly store = inject(ProfileStore);
   protected readonly language = inject(LanguageService);
-  private readonly dialog = inject(MatDialog);
-  private readonly router = inject(Router);
-
-  protected readonly languages = LANGUAGES;
-  protected readonly displayNameMax = DISPLAY_NAME_MAX_LENGTH;
-  protected readonly errorKey = errorKey;
-  protected readonly form = inject(NonNullableFormBuilder).group({
-    displayName: [
-      '',
-      [
-        Validators.required,
-        Validators.maxLength(DISPLAY_NAME_MAX_LENGTH),
-        Validators.pattern(/\S/),
-      ],
-    ],
-    locale: ['el' as Locale],
-  });
-
-  constructor() {
-    // Keep the form in step with the profile (load, save, other tabs) unless the user is editing.
-    effect(() => {
-      const user = this.auth.user();
-      untracked(() => {
-        if (user && this.form.pristine) {
-          this.form.reset({
-            displayName: user.displayName,
-            locale: user.locale,
-          });
-        }
-      });
-    });
-  }
-
-  ngOnInit(): void {
-    void this.store.load();
-  }
-
-  protected async save(): Promise<void> {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      return;
-    }
-    const { displayName, locale } = this.form.getRawValue();
-    if (await this.store.save({ displayName: displayName.trim(), locale })) {
-      this.language.use(locale);
-      this.form.markAsPristine();
-      const user = this.auth.user();
-      if (user)
-        this.form.reset({ displayName: user.displayName, locale: user.locale });
-    }
-  }
-
-  protected confirmDelete(hasPassword: boolean): void {
-    this.store.clearError();
-    this.dialog
-      .open<
-        DeleteAccountDialog,
-        DeleteAccountDialogData,
-        DeleteAccountDialogResult
-      >(DeleteAccountDialog, {
-        data: { hasPassword },
-        width: '440px',
-        autoFocus: 'first-tabbable',
-      })
-      .afterClosed()
-      .subscribe(async (result) => {
-        if (!result) return;
-        if (await this.store.deleteAccount(result.password)) {
-          await this.router.navigate(['/auth/login'], {
-            queryParams: { deleted: 1 },
-          });
-        }
-      });
-  }
+  protected readonly avatar = computed(() =>
+    initials(this.auth.user()?.displayName ?? ''),
+  );
 }
