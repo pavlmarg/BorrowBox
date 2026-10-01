@@ -39,8 +39,11 @@
       "loginLink": "Sign in"
     },
     "callback": {
+      "title": "Welcome back",
       "working": "Signing you in…",
+      "hint": "This only takes a moment.",
       "failed": "We couldn't sign you in.",
+      "tryAgain": "Try Google again",
       "backToLogin": "Back to sign in"
     }
   },

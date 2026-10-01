@@ -7,7 +7,6 @@ import {
   signal,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { Router, RouterLink } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
 import {
@@ -18,6 +17,7 @@ import {
 import { AuthStore } from '../../core/auth/auth.store';
 import { takeReturnUrl } from '../../core/auth/return-url';
 import { AuthScene } from './auth-scene';
+import { GoogleButton } from './google-button';
 
 /**
  * Where the gateway sends the browser after Google. The refresh cookie is
@@ -29,29 +29,149 @@ import { AuthScene } from './auth-scene';
     RouterLink,
     TranslocoDirective,
     MatButtonModule,
-    MatProgressBarModule,
     AuthScene,
+    GoogleButton,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <bb-auth-scene video="register" formSide="left">
-      <div *transloco="let t">
+      <ng-container *transloco="let t">
         @if (failure(); as code) {
-          <div class="stack">
-            <h1 class="page-title">{{ t('auth.callback.failed') }}</h1>
-            <p class="form-error" role="alert">{{ t(errorKey(code)) }}</p>
-            <a mat-flat-button routerLink="/auth/login">{{
+          <div class="failure" role="alert">
+            <span class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M12 3 2 20h20L12 3Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linejoin="round"
+                  stroke-width="1.8"
+                />
+                <path
+                  d="M12 10v4.5"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-width="1.8"
+                />
+                <circle cx="12" cy="17.25" r="1.1" fill="currentColor" />
+              </svg>
+            </span>
+            <h1 class="title">{{ t('auth.callback.failed') }}</h1>
+            <p class="message">{{ t(errorKey(code)) }}</p>
+          </div>
+          <div class="actions">
+            <bb-google-button label="auth.callback.tryAgain" />
+            <a mat-flat-button class="back" routerLink="/auth/login">{{
               t('auth.callback.backToLogin')
             }}</a>
           </div>
         } @else {
-          <mat-progress-bar mode="indeterminate" />
-          <div>
-            <p role="status">{{ t('auth.callback.working') }}</p>
+          <div class="working" role="status">
+            <svg class="spinner" viewBox="0 0 48 48" aria-hidden="true">
+              <circle class="track" cx="24" cy="24" r="20" />
+              <circle class="arc" cx="24" cy="24" r="20" />
+            </svg>
+            <h1 class="title">{{ t('auth.callback.title') }}</h1>
+            <p class="subtitle">{{ t('auth.callback.working') }}</p>
+            <p class="hint">{{ t('auth.callback.hint') }}</p>
           </div>
         }
-      </div>
+      </ng-container>
     </bb-auth-scene>
+  `,
+  styles: `
+    .title {
+      font: var(--mat-sys-headline-small);
+      font-weight: 600;
+      margin: 0;
+    }
+    .subtitle {
+      color: var(--mat-sys-on-surface-variant);
+      margin: 4px 0 0;
+    }
+
+    .working {
+      animation: rise var(--bb-fade) var(--bb-ease) both;
+    }
+    .spinner {
+      animation: spin 1.1s linear infinite;
+      display: block;
+      height: 48px;
+      margin-bottom: 20px;
+      width: 48px;
+    }
+    .spinner circle {
+      fill: none;
+      stroke-width: 4;
+    }
+    .track {
+      stroke: var(--bb-sky-200);
+    }
+    .arc {
+      stroke: var(--bb-sky-700);
+      stroke-dasharray: 32 126;
+      stroke-linecap: round;
+    }
+    .hint {
+      color: var(--mat-sys-on-surface-variant);
+      font: var(--mat-sys-body-small);
+      margin: 16px 0 0;
+    }
+
+    .failure {
+      animation: rise var(--bb-fade) var(--bb-ease) both;
+      background: var(--bb-card-bg);
+      border: 1px solid rgb(186 26 26 / 0.18);
+      border-radius: var(--bb-radius);
+      box-shadow: var(--bb-shadow-sm);
+      padding: 20px;
+    }
+    .icon {
+      align-items: center;
+      background: rgb(186 26 26 / 0.08);
+      border-radius: 50%;
+      color: var(--mat-sys-error);
+      display: inline-flex;
+      height: 44px;
+      justify-content: center;
+      margin-bottom: 12px;
+      width: 44px;
+    }
+    .icon svg {
+      height: 24px;
+      width: 24px;
+    }
+    .message {
+      color: var(--mat-sys-on-surface-variant);
+      margin: 6px 0 0;
+    }
+    .actions {
+      display: grid;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .back {
+      height: 48px;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .spinner,
+      .working,
+      .failure {
+        animation: none;
+      }
+    }
   `,
 })
 export class AuthCallbackPage implements OnInit {
