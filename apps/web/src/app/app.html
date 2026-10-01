@@ -1,19 +1,8 @@
-<ng-container *transloco="let t">
-  <mat-toolbar class="toolbar" [class.toolbar--auth]="onAuthPage()">
-    @if (!onAuthPage()) {
-    <a class="brand" routerLink="/">{{ t('app.name') }}</a>
-    }
-    <span class="spacer"></span>
-
-    <bb-language-toggle (changed)="setLanguage($event)" />
-
-    @if (auth.isAuthenticated()) {
-    <a mat-button routerLink="/profile">{{ t('nav.profile') }}</a>
-    <button mat-button (click)="logout()">{{ t('nav.logout') }}</button>
-    }
-  </mat-toolbar>
-
-  <main class="content" [class.content--auth]="onAuthPage()">
-    <router-outlet />
-  </main>
-</ng-container>
+<!-- Signed-in pages bring their own layout (AppShell); auth pages get a
+     floating language switch over their full-screen scene. -->
+@if (onAuthPage()) {
+<header class="toolbar">
+  <bb-language-toggle (changed)="accountLanguage.set($event)" />
+</header>
+}
+<router-outlet />

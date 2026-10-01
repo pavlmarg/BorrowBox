@@ -5,45 +5,29 @@ import {
   inject,
   untracked,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { toSignal } from '@angular/core/rxjs-interop';
-import {
-  NavigationEnd,
-  Router,
-  RouterLink,
-  RouterOutlet,
-} from '@angular/router';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
-import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
-import { Api } from './api/api';
-import { meControllerUpdate } from './api/functions';
-import type { Locale } from './api/models';
+import { TranslocoService } from '@jsverse/transloco';
 import { AuthStore } from './core/auth/auth.store';
+import { AccountLanguage } from './core/i18n/account-language';
 import { LANGUAGES, LanguageService } from './core/i18n/language';
 import { LanguageToggle } from './core/i18n/language-toggle';
 
 @Component({
   selector: 'bb-root',
-  imports: [
-    RouterOutlet,
-    RouterLink,
-    TranslocoDirective,
-    MatToolbarModule,
-    MatButtonModule,
-    LanguageToggle,
-  ],
+  imports: [RouterOutlet, LanguageToggle],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App {
-  protected readonly auth = inject(AuthStore);
-  protected readonly language = inject(LanguageService);
-  private readonly api = inject(Api);
+  protected readonly accountLanguage = inject(AccountLanguage);
+  private readonly auth = inject(AuthStore);
+  private readonly language = inject(LanguageService);
   private readonly router = inject(Router);
 
-  /** Register / login / callback: the toolbar turns transparent and minimal. */
+  /** Register / login / callback show a floating language switch. */
   protected readonly onAuthPage = toSignal(
     this.router.events.pipe(
       filter((e): e is NavigationEnd => e instanceof NavigationEnd),
@@ -66,21 +50,5 @@ export class App {
       }
       lastUserId = user?.id ?? null;
     });
-  }
-
-  /** Switches the UI; when signed in, also saves it as the account language. */
-  protected setLanguage(lang: Locale): void {
-    this.language.use(lang);
-    if (this.auth.isAuthenticated() && this.auth.user()?.locale !== lang) {
-      this.api
-        .invoke(meControllerUpdate, { body: { locale: lang } })
-        .then((user) => this.auth.updateUser(user))
-        .catch(() => undefined); // The UI already switched; the preference retries next time.
-    }
-  }
-
-  protected async logout(): Promise<void> {
-    await this.auth.logout().catch(() => undefined);
-    await this.router.navigateByUrl('/auth/login');
   }
 }

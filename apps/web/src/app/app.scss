@@ -1,47 +1,17 @@
+// Floats over the full-screen auth scene (register / login / callback).
 .toolbar {
-  backdrop-filter: blur(12px);
-  background: rgb(255 255 255 / 0.72);
-  border-bottom: 1px solid rgb(16 58 99 / 0.06);
-  gap: 4px;
-  position: sticky;
-  top: 0;
-  transition:
-    background-color var(--bb-medium) var(--bb-ease),
-    border-color var(--bb-medium) var(--bb-ease);
-  z-index: 1;
-}
-
-// On register / login / callback the page itself carries the brand.
-.toolbar--auth {
-  backdrop-filter: none;
-  background: transparent;
-  border-bottom-color: transparent;
-  // Floats over the full-screen auth scene instead of pushing it down.
+  display: flex;
+  justify-content: flex-end;
   left: 0;
+  padding: 20px 16px;
+  // Only the toggle takes clicks; the rest of the bar lets them through.
+  pointer-events: none;
   position: fixed;
   right: 0;
-}
+  top: 0;
+  z-index: 1;
 
-.brand {
-  color: var(--bb-sky-700);
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  text-decoration: none;
-}
-
-.spacer {
-  flex: 1;
-}
-
-.content {
-  box-sizing: border-box;
-  margin: 0 auto;
-  max-width: 720px;
-  padding: 24px 16px 48px;
-}
-
-// The auth shell centres its own card and needs the full width.
-.content--auth {
-  max-width: none;
-  padding: 0;
+  > * {
+    pointer-events: auto;
+  }
 }

@@ -9,7 +9,7 @@ import { RouterOutlet } from '@angular/router';
   selector: 'bb-auth-shell',
   imports: [RouterOutlet],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<router-outlet />`,
+  template: `<main><router-outlet /></main>`,
   styles: `
     :host {
       display: block;

@@ -6,3 +6,10 @@ export const profileRoutes: Route[] = [
     loadComponent: () => import('./profile.page').then((m) => m.ProfilePage),
   },
 ];
+
+export const settingsRoutes: Route[] = [
+  {
+    path: '',
+    loadComponent: () => import('./profile.page').then((m) => m.ProfilePage),
+  },
+];

@@ -16,13 +16,32 @@ export const appRoutes: Route[] = [
     loadChildren: () =>
       import('./features/auth/auth.routes').then((m) => m.authRoutes),
   },
-  {
-    path: 'profile',
-    canMatch: [authGuard],
-    loadChildren: () =>
-      import('./features/profile/profile.routes').then((m) => m.profileRoutes),
-  },
   // `explore` becomes the signed-in home page in Phase 2.
   { path: '', pathMatch: 'full', redirectTo: startPage },
+  {
+    // Signed-in pages share the sidebar layout. The guard sits on each
+    // child, so unknown URLs fall through to the start page below.
+    path: '',
+    loadComponent: () =>
+      import('./core/layout/app-shell').then((m) => m.AppShell),
+    children: [
+      {
+        path: 'profile',
+        canMatch: [authGuard],
+        loadChildren: () =>
+          import('./features/profile/profile.routes').then(
+            (m) => m.profileRoutes,
+          ),
+      },
+      {
+        path: 'settings',
+        canMatch: [authGuard],
+        loadChildren: () =>
+          import('./features/profile/profile.routes').then(
+            (m) => m.settingsRoutes,
+          ),
+      },
+    ],
+  },
   { path: '**', redirectTo: startPage },
 ];

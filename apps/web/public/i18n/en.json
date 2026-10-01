@@ -4,11 +4,20 @@
     "tagline": "Borrow what you need from your neighbours"
   },
   "nav": {
-    "profile": "My account",
-    "login": "Sign in",
-    "register": "Create account",
+    "explore": "Explore",
+    "myItems": "My items",
+    "rentals": "Rentals",
+    "messages": "Messages",
+    "profile": "Profile",
+    "settings": "Settings",
+    "menu": "Main menu",
+    "open": "Open menu",
+    "close": "Close menu",
+    "soon": "Soon",
     "logout": "Sign out",
-    "switchTo": "Switch to {{language}}"
+    "switchTo": "Switch to {{language}}",
+    "login": "Sign in",
+    "register": "Create account"
   },
   "languages": {
     "el": "Ελληνικά",

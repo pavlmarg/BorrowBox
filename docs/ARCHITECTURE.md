@@ -225,6 +225,7 @@ See [ADR-0003](adr/0003-stripe-separate-charges-transfers.md).
 ## 7. Frontend (Angular PWA)
 
 - **Structure:** standalone components, lazy-loaded feature routes, NgRx SignalStore per feature, and a typed API client generated from the gateway's OpenAPI spec.
+- **Layout:** signed-in pages share a lazy-loaded app shell: a sidebar with the app's navigation on desktop, a ☰ drawer on phones. Features plug into its menu (`core/layout/nav-items.ts`); ones from later phases show as "Soon" until built.
 - **Session handling:**
   - The access token lives in memory only (`AuthStore`), never in web storage. The refresh token is the httpOnly cookie, so page loads restore the session with `POST /api/auth/refresh`.
   - Refresh is single-flight: one per tab, serialised across tabs with a Web Lock, with tabs sharing sign-ins and sign-outs over `BroadcastChannel`. Refresh tokens are single-use, so two tabs refreshing at once would otherwise look like reuse.
