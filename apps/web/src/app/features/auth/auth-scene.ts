@@ -178,6 +178,37 @@ function prefersReducedMotion(): boolean {
       margin: 4px 0 0;
     }
 
+    /* Desktop: compact fields and spacing, so the longest form (register)
+       fits a laptop screen without scrolling. */
+    @media (min-width: 960px) {
+      .scene {
+        --mat-form-field-container-height: 48px;
+        --mat-form-field-container-vertical-padding: 12px;
+      }
+      .panel,
+      .form-right .panel {
+        padding-bottom: 32px;
+        padding-top: 72px;
+      }
+      .brand {
+        margin-bottom: 20px;
+      }
+    }
+    /* Short laptop screens (~730 px of browser height): tighter still. */
+    @media (min-width: 960px) and (max-height: 820px) {
+      .panel,
+      .form-right .panel {
+        padding-bottom: 24px;
+        padding-top: 24px;
+      }
+      .brand {
+        margin-bottom: 12px;
+      }
+      .tagline {
+        display: none;
+      }
+    }
+
     /* Phones and small tablets: full-screen video behind a readable scrim. */
     @media (max-width: 959px) {
       .media,

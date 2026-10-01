@@ -10,3 +10,16 @@ export const passwordValidator: ValidatorFn = (
   control: AbstractControl<string>,
 ): ValidationErrors | null =>
   !control.value || isValidPassword(control.value) ? null : { password: true };
+
+/**
+ * For a "confirm password" control: must equal its sibling `password`.
+ * Re-run it when the password changes (`updateValueAndValidity`).
+ */
+export const matchesPasswordValidator: ValidatorFn = (
+  control: AbstractControl<string>,
+): ValidationErrors | null => {
+  const password = control.parent?.get('password')?.value;
+  return !control.value || control.value === password
+    ? null
+    : { passwordMismatch: true };
+};

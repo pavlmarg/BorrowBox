@@ -5,6 +5,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   NonNullableFormBuilder,
   ReactiveFormsModule,
@@ -27,7 +28,11 @@ import { safeReturnUrl } from '../../core/auth/return-url';
 import { LanguageService, isLanguage } from '../../core/i18n/language';
 import { AuthScene } from './auth-scene';
 import { GoogleButton } from './google-button';
-import { passwordValidator } from './password.validator';
+import { PasswordToggle } from './password-toggle';
+import {
+  matchesPasswordValidator,
+  passwordValidator,
+} from './password.validator';
 
 @Component({
   selector: 'bb-register-page',
@@ -41,6 +46,7 @@ import { passwordValidator } from './password.validator';
     MatProgressBarModule,
     GoogleButton,
     AuthScene,
+    PasswordToggle,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -84,20 +90,45 @@ import { passwordValidator } from './password.validator';
             }
           </mat-form-field>
 
-          <mat-form-field appearance="outline">
+          <!-- The hint wraps in Greek; dynamic sizing gives it room. -->
+          <mat-form-field
+            appearance="outline"
+            class="password-field"
+            subscriptSizing="dynamic"
+          >
             <mat-label>{{ t('auth.register.password') }}</mat-label>
             <input
+              #passwordInput
               matInput
               type="password"
               formControlName="password"
               autocomplete="new-password"
               [maxlength]="passwordMax"
             />
+            <bb-password-toggle matSuffix [target]="passwordInput" />
             <mat-hint>{{ t('auth.register.passwordHint') }}</mat-hint>
             @if (form.controls.password.hasError('required')) {
               <mat-error>{{ t('validation.required') }}</mat-error>
             } @else if (form.controls.password.invalid) {
               <mat-error>{{ t('validation.password') }}</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>{{ t('auth.register.confirmPassword') }}</mat-label>
+            <input
+              #confirmInput
+              matInput
+              type="password"
+              formControlName="confirmPassword"
+              autocomplete="new-password"
+              [maxlength]="passwordMax"
+            />
+            <bb-password-toggle matSuffix [target]="confirmInput" />
+            @if (form.controls.confirmPassword.hasError('required')) {
+              <mat-error>{{ t('validation.required') }}</mat-error>
+            } @else if (form.controls.confirmPassword.invalid) {
+              <mat-error>{{ t('validation.passwordMismatch') }}</mat-error>
             }
           </mat-form-field>
 
@@ -157,9 +188,46 @@ import { passwordValidator } from './password.validator';
       flex: 1;
       height: 1px;
     }
+    .password-field {
+      /* Matches the space the other fields reserve under them. */
+      margin-bottom: 12px;
+    }
     .submit {
       height: 48px;
       margin-top: 4px;
+    }
+    @media (min-width: 960px) {
+      .subtitle {
+        margin-bottom: 16px;
+      }
+      .divider {
+        margin: 12px 0;
+      }
+      .stack {
+        gap: 8px;
+      }
+    }
+    /* Short laptop screens: the password rule shows while typing (and as
+       the error if it isn't met), so the form fits without scrolling. */
+    @media (min-width: 960px) and (max-height: 820px) {
+      .subtitle {
+        margin-bottom: 12px;
+      }
+      .divider {
+        margin: 8px 0;
+      }
+      .password-field:not(.mat-focused) mat-hint {
+        display: none;
+      }
+      .password-field:not(.mat-focused) {
+        margin-bottom: 20px;
+      }
+      .submit {
+        height: 44px;
+      }
+      .switch {
+        margin-top: 12px;
+      }
     }
     .switch {
       margin: 20px 0 0;
@@ -199,10 +267,20 @@ export class RegisterPage {
       ],
     ],
     password: ['', [Validators.required, passwordValidator]],
+    confirmPassword: ['', [Validators.required, matchesPasswordValidator]],
   });
   protected readonly pending = signal(false);
   protected readonly error = signal<ReturnType<typeof errorCode> | null>(null);
   protected readonly errorKey = errorKey;
+
+  constructor() {
+    // Editing the password re-checks the confirmation.
+    this.form.controls.password.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe(() =>
+        this.form.controls.confirmPassword.updateValueAndValidity(),
+      );
+  }
 
   protected async submit(): Promise<void> {
     if (this.form.invalid) {
@@ -212,9 +290,13 @@ export class RegisterPage {
     this.pending.set(true);
     this.error.set(null);
     const lang = this.language.current();
+    // The confirmation is client-side only; the gateway rejects unknown fields.
+    const { displayName, email, password } = this.form.getRawValue();
     try {
       await this.auth.register({
-        ...this.form.getRawValue(),
+        displayName,
+        email,
+        password,
         // The account starts in the language the user is reading.
         ...(isLanguage(lang) ? { locale: lang } : {}),
       });

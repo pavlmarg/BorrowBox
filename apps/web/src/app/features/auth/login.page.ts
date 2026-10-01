@@ -21,6 +21,7 @@ import { AuthStore } from '../../core/auth/auth.store';
 import { safeReturnUrl } from '../../core/auth/return-url';
 import { AuthScene } from './auth-scene';
 import { GoogleButton } from './google-button';
+import { PasswordToggle } from './password-toggle';
 
 @Component({
   selector: 'bb-login-page',
@@ -34,6 +35,7 @@ import { GoogleButton } from './google-button';
     MatProgressBarModule,
     GoogleButton,
     AuthScene,
+    PasswordToggle,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -71,11 +73,13 @@ import { GoogleButton } from './google-button';
           <mat-form-field appearance="outline">
             <mat-label>{{ t('auth.login.password') }}</mat-label>
             <input
+              #passwordInput
               matInput
               type="password"
               formControlName="password"
               autocomplete="current-password"
             />
+            <bb-password-toggle matSuffix [target]="passwordInput" />
             @if (form.controls.password.hasError('required')) {
               <mat-error>{{ t('validation.required') }}</mat-error>
             }

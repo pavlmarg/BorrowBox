@@ -17,6 +17,8 @@
   "auth": {
     "or": "or",
     "google": "Continue with Google",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "login": {
       "title": "Sign in",
       "subtitle": "Welcome back! Sign in to continue.",
@@ -34,6 +36,7 @@
       "email": "Email",
       "password": "Password",
       "passwordHint": "8–64 characters, with at least one letter and one digit",
+      "confirmPassword": "Confirm password",
       "submit": "Create account",
       "haveAccount": "Already have an account?",
       "loginLink": "Sign in"
@@ -86,6 +89,7 @@
     "required": "Required",
     "email": "Enter a valid email address",
     "password": "8–64 characters, with at least one letter and one digit",
+    "passwordMismatch": "Passwords don’t match",
     "displayName": "1–50 characters"
   },
   "errors": {
