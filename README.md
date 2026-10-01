@@ -48,8 +48,9 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
 *   [x] **Phase 1 – Identity & Gateway:** register / login / refresh, Google sign-in, profile, GDPR export & deletion, Angular auth screens
     *   Follow-ups:
         *   Publish a `user.profile_updated` event for Notifications' read model (Phase 3).
-        *   A "set password" flow for accounts whose password was cleared by Google auto-linking.
-        *   Email verification and password reset, once email sending exists (Notifications).
+        *   Change / set password in the profile (also for Google-only accounts that want email + password sign-in), confirmed by an email link (Phase 3, needs Notifications).
+        *   Email verification and password reset (Phase 3, needs Notifications). Unverified accounts can sign in and browse, but listing, booking and messaging require a verified email.
+        *   Terms of Service / Privacy Policy pages, and recorded acceptance at sign-up — including the first Google sign-in that creates an account (GDPR).
         *   Upgrade to NestJS 12 once `@nx/nest` supports it.
 *   [ ] **Phase 2 – Catalog:** item CRUD, photo upload, geo search + map, fuzzed locations
 *   [ ] **Phase 3 – Bookings:** availability, request / accept / decline, state machine, email notifications
