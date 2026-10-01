@@ -31,6 +31,10 @@ await bus.subscribe({
 });
 ```
 
+`bus.publish()` resolves on the broker's confirm and rejects after
+`publishTimeoutMs` (default 10 s), e.g. while RabbitMQ is unreachable, so the
+relay records a failure and retries instead of hanging.
+
 `bus.publish()` is only for the outbox relay. Business code never publishes
 directly — it writes to its schema's outbox in the same DB transaction.
 

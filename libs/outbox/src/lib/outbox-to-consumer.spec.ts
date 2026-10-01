@@ -80,7 +80,6 @@ describe('outbox → RabbitMQ → idempotent consumer', () => {
       queue: consumer,
       routingKeys: [ItemCreatedV1.routingKey],
       handler: async (envelope) => {
-        deliveries++;
         const { itemId, title } = envelope.payload as {
           itemId: string;
           title: string;
@@ -92,6 +91,9 @@ describe('outbox → RabbitMQ → idempotent consumer', () => {
             [itemId, title],
           );
         });
+        // Count only once handleOnce has committed (or skipped), so the
+        // assertions below never race an open transaction.
+        deliveries++;
       },
     });
 

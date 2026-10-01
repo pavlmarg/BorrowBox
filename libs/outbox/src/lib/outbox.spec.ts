@@ -5,10 +5,10 @@ import {
   type EventEnvelope,
 } from '@borrowbox/contracts';
 import { startPostgres, type TestPostgres } from '@borrowbox/testing';
-import { handleOnce } from './idempotent-consumer';
+import { handleOnce, pruneProcessedEvents } from './idempotent-consumer';
 import { CreateOutboxTables1759140000000 } from './migration';
 import { addToOutbox } from './outbox';
-import { OutboxRelay, type OutboxLogger } from './relay';
+import { OutboxRelay, relayDelayMs, type OutboxLogger } from './relay';
 
 const ItemCreatedV1 = defineEvent<{ itemId: string }>()('item.created', 1);
 const silent: OutboxLogger = { warn: () => undefined, error: () => undefined };
@@ -203,6 +203,132 @@ describe('outbox (Postgres integration)', () => {
       }
       await relay.stop();
       expect(published).toEqual([env.eventId]);
+    });
+
+    it('prunes published rows past the retention period, never unpublished ones', async () => {
+      const [old, recent, pending] = ['old', 'recent', 'pending'].map(newEvent);
+      for (const e of [old, recent, pending]) await createItem(e);
+      await ds.query(
+        `UPDATE outbox SET published_at = now() - interval '8 days'
+          WHERE event_id = $1`,
+        [old.eventId],
+      );
+      await ds.query(
+        `UPDATE outbox SET published_at = now() - interval '1 day'
+          WHERE event_id = $1`,
+        [recent.eventId],
+      );
+      await ds.query(
+        `UPDATE outbox SET created_at = now() - interval '30 days'
+          WHERE event_id = $1`,
+        [pending.eventId],
+      );
+
+      // The loop prunes on its first iteration; publishing fails meanwhile,
+      // so the pending row stays unpublished.
+      const relay = new OutboxRelay({
+        dataSource: ds,
+        pollIntervalMs: 20,
+        logger: silent,
+        publish: async () => {
+          throw new Error('broker unavailable');
+        },
+      });
+      relay.start();
+      await new Promise((r) => setTimeout(r, 200));
+      await relay.stop();
+
+      expect((await outboxRows()).map((r) => r.event_id)).toEqual([
+        recent.eventId,
+        pending.eventId,
+      ]);
+      expect(await relay.prunePublished()).toBe(0);
+    });
+
+    it('backs off while publishing keeps failing, then recovers at the normal pace', async () => {
+      const events = ['a', 'b'].map(newEvent);
+      for (const e of events) await createItem(e);
+
+      let brokerDown = true;
+      let attempts = 0;
+      const published: string[] = [];
+      const relay = new OutboxRelay({
+        dataSource: ds,
+        pollIntervalMs: 20,
+        maxBackoffMs: 200,
+        logger: silent,
+        publish: async (e) => {
+          attempts++;
+          if (brokerDown) throw new Error('broker unavailable');
+          published.push(e.eventId);
+        },
+      });
+      relay.start();
+      await new Promise((r) => setTimeout(r, 1_000));
+
+      // Without backoff: ~50 attempts in 1 s at a 20 ms poll.
+      // With it (20, 40, 80, 160, 200, 200…ms): about 8.
+      expect(attempts).toBeGreaterThanOrEqual(3);
+      expect(attempts).toBeLessThan(15);
+      expect(published).toHaveLength(0);
+
+      brokerDown = false;
+      // Within one max backoff, then everything goes out in order.
+      for (let i = 0; i < 50 && published.length < 2; i++) {
+        await new Promise((r) => setTimeout(r, 20));
+      }
+      await relay.stop();
+      expect(published).toEqual(events.map((e) => e.eventId));
+    });
+
+    it('logs a row as an error once it has failed alertAfterAttempts times', async () => {
+      await createItem(newEvent('stuck'));
+      const warn = jest.fn();
+      const error = jest.fn();
+      const relay = new OutboxRelay({
+        dataSource: ds,
+        alertAfterAttempts: 3,
+        logger: { warn, error },
+        publish: async () => {
+          throw new Error('broker unavailable');
+        },
+      });
+
+      for (let i = 0; i < 3; i++) await relay.publishPending();
+
+      expect(warn).toHaveBeenCalledTimes(2);
+      expect(error).toHaveBeenCalledTimes(1);
+      expect(error.mock.calls[0][0]).toMatchObject({ attempts: 3 });
+      // Logs identify the event, never its payload.
+      expect(JSON.stringify(error.mock.calls[0][0])).not.toContain('stuck');
+    });
+  });
+
+  describe('relayDelayMs', () => {
+    it('doubles per consecutive failure up to the cap, and resets to the poll interval', () => {
+      expect(relayDelayMs(0, 500, 30_000)).toBe(500);
+      expect([1, 2, 3, 4].map((n) => relayDelayMs(n, 500, 30_000))).toEqual([
+        1_000, 2_000, 4_000, 8_000,
+      ]);
+      expect(relayDelayMs(6, 500, 30_000)).toBe(30_000);
+      expect(relayDelayMs(10_000, 500, 30_000)).toBe(30_000);
+      // A cap below the poll interval never makes polling faster.
+      expect(relayDelayMs(3, 500, 100)).toBe(500);
+    });
+  });
+
+  describe('pruneProcessedEvents', () => {
+    it('deletes entries older than the retention period', async () => {
+      await ds.query(
+        `INSERT INTO processed_events (consumer, event_id, processed_at) VALUES
+           ('c', gen_random_uuid(), now() - interval '8 days'),
+           ('c', gen_random_uuid(), now() - interval '1 day')`,
+      );
+      expect(await pruneProcessedEvents(ds)).toBe(1);
+      expect(
+        (await ds.query(`SELECT count(*)::int AS n FROM processed_events`))[0]
+          .n,
+      ).toBe(1);
     });
   });
 

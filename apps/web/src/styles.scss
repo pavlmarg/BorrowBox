@@ -1,0 +1,214 @@
+@use '@angular/material' as mat;
+
+// Inter, self-hosted from @fontsource-variable/inter (project.json styles).
+// Never from Google's CDN: that shares visitors' IPs with Google, which EU
+// courts have found to breach GDPR. System fonts are the fallback.
+$font:
+  'Inter Variable',
+  system-ui,
+  -apple-system,
+  'Segoe UI',
+  Roboto,
+  'Noto Sans',
+  sans-serif;
+
+html {
+  // Light only for now: the light-blue look has no dark variant yet.
+  color-scheme: light;
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$azure-palette,
+        tertiary: mat.$cyan-palette,
+      ),
+      typography: (
+        plain-family: $font,
+        brand-family: $font,
+      ),
+      density: 0,
+    )
+  );
+
+  // Squarer than Material's defaults (pill buttons, 16-28 px corners).
+  @include mat.button-overrides(
+    (
+      filled-container-shape: 8px,
+      outlined-container-shape: 8px,
+      protected-container-shape: 8px,
+      text-container-shape: 8px,
+      tonal-container-shape: 8px,
+    )
+  );
+  @include mat.form-field-overrides(
+    (
+      outlined-container-shape: 6px,
+      filled-container-shape: 6px,
+    )
+  );
+  @include mat.card-overrides(
+    (
+      elevated-container-shape: 8px,
+      filled-container-shape: 8px,
+      outlined-container-shape: 8px,
+    )
+  );
+  @include mat.dialog-overrides(
+    (
+      container-shape: 8px,
+    )
+  );
+  @include mat.menu-overrides(
+    (
+      container-shape: 6px,
+    )
+  );
+
+  // Brand colours (light blue) and motion, shared by every feature.
+  --bb-sky-50: #f2f9ff;
+  --bb-sky-100: #e1f1ff;
+  --bb-sky-200: #c4e4ff;
+  --bb-sky-300: #9dd1ff;
+  --bb-sky-500: #4aa8f0;
+  --bb-sky-700: #1f6fb2;
+  --bb-card-bg: rgb(255 255 255 / 0.86);
+  --bb-card-border: rgb(255 255 255 / 0.7);
+  --bb-shadow-sm:
+    0 1px 2px rgb(16 58 99 / 0.08), 0 2px 6px rgb(16 58 99 / 0.06);
+  --bb-shadow-md:
+    0 4px 12px rgb(16 58 99 / 0.1), 0 12px 32px rgb(16 58 99 / 0.08);
+  --bb-radius: 8px;
+  --bb-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --bb-fast: 150ms;
+  --bb-medium: 280ms;
+  --bb-fade: 500ms;
+}
+
+body {
+  // Soft light-blue wash behind every page.
+  background:
+    radial-gradient(
+      1200px 600px at 10% -10%,
+      var(--bb-sky-200) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 500px at 110% 10%,
+      var(--bb-sky-100) 0%,
+      transparent 55%
+    ),
+    linear-gradient(180deg, var(--bb-sky-50) 0%, #ffffff 100%);
+  background-attachment: fixed;
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-large);
+  margin: 0;
+  min-height: 100vh;
+}
+
+// --- Interaction feedback -------------------------------------------------
+
+// Buttons lift on hover, settle on press, and show a clear keyboard focus ring.
+.mat-mdc-button-base {
+  transition:
+    transform var(--bb-fast) var(--bb-ease),
+    box-shadow var(--bb-medium) var(--bb-ease),
+    background-color var(--bb-medium) var(--bb-ease),
+    color var(--bb-medium) var(--bb-ease);
+
+  &:not([disabled]):hover {
+    transform: translateY(-1px);
+  }
+  &:not([disabled]):active {
+    transform: translateY(0) scale(0.98);
+  }
+  &:focus-visible {
+    outline: 3px solid var(--bb-sky-300);
+    outline-offset: 2px;
+  }
+}
+
+.mat-mdc-unelevated-button:not([disabled]):hover,
+.mat-mdc-outlined-button:not([disabled]):hover {
+  box-shadow: var(--bb-shadow-md);
+}
+
+// Plain links follow the brand colour and underline smoothly on hover.
+a:not(.mat-mdc-button-base) {
+  color: var(--bb-sky-700);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition: text-decoration-color var(--bb-medium) var(--bb-ease);
+
+  &:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
+// --- Shared page layout -----------------------------------------------------
+
+.page-title {
+  font: var(--mat-sys-headline-small);
+  margin: 0 0 16px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.form-error {
+  color: var(--mat-sys-error);
+  margin: 0;
+}
+
+.muted {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+// --- Route transitions (View Transitions API) --------------------------------
+// Route changes: a simple fade out / fade in of the whole page.
+
+::view-transition-old(root) {
+  animation: bb-fade-out var(--bb-fade) ease both;
+}
+::view-transition-new(root) {
+  animation: bb-fade-in var(--bb-fade) ease both;
+}
+
+@keyframes bb-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes bb-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+// --- Reduced motion -----------------------------------------------------------
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    // Otherwise infinite loops would flicker at 0.01 ms per cycle.
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+  .mat-mdc-button-base:not([disabled]):hover,
+  .mat-mdc-button-base:not([disabled]):active {
+    transform: none;
+  }
+}

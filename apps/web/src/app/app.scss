@@ -1,0 +1,17 @@
+// Floats over the full-screen auth scene (register / login / callback).
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  left: 0;
+  padding: 20px 16px;
+  // Only the toggle takes clicks; the rest of the bar lets them through.
+  pointer-events: none;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 1;
+
+  > * {
+    pointer-events: auto;
+  }
+}

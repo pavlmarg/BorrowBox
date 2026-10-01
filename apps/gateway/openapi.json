@@ -1,0 +1,776 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "operationId": "AuthController_register",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Also sets the httpOnly `bb_refresh` cookie",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EMAIL_TAKEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create an account and sign in",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Also sets the httpOnly `bb_refresh` cookie",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "INVALID_CREDENTIALS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Sign in with email and password",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "operationId": "AuthController_refresh",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "INVALID_REFRESH_TOKEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bb_refresh": []
+          }
+        ],
+        "summary": "Get a new access token using the `bb_refresh` cookie (rotates it)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bb_refresh": []
+          }
+        ],
+        "summary": "End this session and clear the cookie",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/google": {
+      "get": {
+        "operationId": "AuthController_googleStart",
+        "parameters": [],
+        "responses": {
+          "302": {
+            "description": "Redirect to Google"
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Start Google sign-in (navigate the browser here)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/me": {
+      "get": {
+        "operationId": "MeController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "My profile",
+        "tags": [
+          "me"
+        ]
+      },
+      "patch": {
+        "operationId": "MeController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update my display name and/or language",
+        "tags": [
+          "me"
+        ]
+      },
+      "delete": {
+        "description": "Accounts with a password must send it. Accounts without one must have signed in within the last 5 minutes.",
+        "operationId": "MeController_delete",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAccountBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "INVALID_CREDENTIALS (wrong password)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "REAUTHENTICATION_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (10 per minute)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete my account (GDPR Art. 17)",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/me/export": {
+      "get": {
+        "operationId": "MeController_export",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataExportResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Download all my personal data (GDPR Art. 15/20)",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "HealthController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "BorrowBox API",
+    "description": "",
+    "version": "1",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      },
+      "bb_refresh": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "bb_refresh"
+      }
+    },
+    "schemas": {
+      "ApiErrorResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number"
+          },
+          "code": {
+            "type": "string",
+            "description": "Stable machine-readable code, e.g. VALIDATION_FAILED, INVALID_CREDENTIALS, EMAIL_TAKEN, RATE_LIMITED"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "statusCode",
+          "code",
+          "message"
+        ]
+      },
+      "Locale": {
+        "type": "string",
+        "enum": [
+          "el",
+          "en"
+        ]
+      },
+      "RegisterBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 64,
+            "format": "password",
+            "description": "At least one letter and one digit"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "locale": {
+            "default": "el",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Locale"
+              }
+            ]
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "displayName"
+        ]
+      },
+      "OAuthProvider": {
+        "type": "string",
+        "enum": [
+          "google"
+        ]
+      },
+      "UserProfileResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "locale": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Locale"
+              }
+            ]
+          },
+          "emailVerified": {
+            "type": "boolean"
+          },
+          "hasPassword": {
+            "type": "boolean"
+          },
+          "providers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OAuthProvider"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "displayName",
+          "locale",
+          "emailVerified",
+          "hasPassword",
+          "providers",
+          "createdAt"
+        ]
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "Bearer token for `Authorization` (15 min)"
+          },
+          "accessTokenExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserProfileResponse"
+          }
+        },
+        "required": [
+          "accessToken",
+          "accessTokenExpiresAt",
+          "user"
+        ]
+      },
+      "LoginBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "UpdateProfileBody": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "locale": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Locale"
+              }
+            ]
+          }
+        }
+      },
+      "ExportedUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "locale": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Locale"
+              }
+            ]
+          },
+          "emailVerifiedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "displayName",
+          "locale",
+          "emailVerifiedAt",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "ExportedOAuthIdentity": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OAuthProvider"
+              }
+            ]
+          },
+          "linkedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "provider",
+          "linkedAt"
+        ]
+      },
+      "ExportedSession": {
+        "type": "object",
+        "properties": {
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "createdAt",
+          "expiresAt"
+        ]
+      },
+      "IdentityDataExportResponse": {
+        "type": "object",
+        "properties": {
+          "exportedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "user": {
+            "$ref": "#/components/schemas/ExportedUser"
+          },
+          "oauthIdentities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExportedOAuthIdentity"
+            }
+          },
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExportedSession"
+            }
+          }
+        },
+        "required": [
+          "exportedAt",
+          "user",
+          "oauthIdentities",
+          "sessions"
+        ]
+      },
+      "DataExportResponse": {
+        "type": "object",
+        "properties": {
+          "identity": {
+            "$ref": "#/components/schemas/IdentityDataExportResponse"
+          }
+        },
+        "required": [
+          "identity"
+        ]
+      },
+      "DeleteAccountBody": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": "string",
+            "format": "password",
+            "maxLength": 256,
+            "description": "Required when the account has a password (`UserProfile.hasPassword`). Otherwise the session must be less than 5 minutes old."
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      }
+    }
+  }
+}

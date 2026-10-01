@@ -45,7 +45,13 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
 
 *   [x] System architecture defined
 *   [x] **Phase 0 – Foundation:** Nx workspace, Docker Compose (Postgres/PostGIS, RabbitMQ, Redis, SeaweedFS, Mailpit), shared libs, CI
-*   [ ] **Phase 1 – Identity & Gateway:** register / login / refresh, profile, Angular auth screens
+*   [x] **Phase 1 – Identity & Gateway:** register / login / refresh, Google sign-in, profile, GDPR export & deletion, Angular auth screens
+    *   Follow-ups:
+        *   Publish a `user.profile_updated` event for Notifications' read model (Phase 3).
+        *   Change / set password in the profile (also for Google-only accounts that want email + password sign-in), confirmed by an email link (Phase 3, needs Notifications).
+        *   Email verification and password reset (Phase 3, needs Notifications). Unverified accounts can sign in and browse, but listing, booking and messaging require a verified email.
+        *   Terms of Service / Privacy Policy pages, and recorded acceptance at sign-up — including the first Google sign-in that creates an account (GDPR).
+        *   Upgrade to NestJS 12 once `@nx/nest` supports it.
 *   [ ] **Phase 2 – Catalog:** item CRUD, photo upload, geo search + map, fuzzed locations
 *   [ ] **Phase 3 – Bookings:** availability, request / accept / decline, state machine, email notifications
 *   [ ] **Phase 4 – Payments:** Stripe Connect onboarding, checkout, webhooks, transfers & refunds (test mode)
@@ -55,7 +61,7 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
 
 ## 🚀 Getting Started
 
-**Prerequisites:** Node.js 22 (see `.nvmrc`), Docker (Docker Desktop on Windows/macOS).
+**Prerequisites:** Node.js 22.22.3 or newer 22.x (see `.nvmrc`; Angular 22 and Testcontainers need it), Docker (Docker Desktop on Windows/macOS).
 
 ```sh
 npm ci
@@ -78,6 +84,36 @@ npx nx affected -t lint test build
 
 Ports can be changed in `infra/.env` if they clash with something already running.
 
+### Running the apps
+
+```sh
+# 1. Config for each app (gitignored). Use the passwords from infra/.env.
+cp apps/identity/.env.example apps/identity/.env
+cp apps/gateway/.env.example apps/gateway/.env
+
+# 2. Token signing keys: paste all three lines into apps/identity/.env, and
+#    only JWT_KEY_ID + JWT_PUBLIC_KEY into apps/gateway/.env.
+node tools/gen-jwt-keys.mjs
+
+# 3. Set COOKIE_SECRET in apps/gateway/.env (32+ random characters):
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+
+# 4. Start them (three terminals)
+npx nx serve identity   # TCP :4001, runs DB migrations in dev
+npx nx serve gateway    # http://localhost:3000/api (Swagger UI at /api/docs)
+npx nx serve web        # http://localhost:4200 (proxies /api to the gateway)
+```
+
+Google sign-in is optional. To enable it, create a "Web application" OAuth client in Google Cloud Console
+with redirect URI `http://localhost:4200/api/auth/google/callback`. Put `GOOGLE_CLIENT_ID` in both `.env`
+files and `GOOGLE_CLIENT_SECRET` in Identity's only. Left empty, Google sign-in stays disabled.
+
+Tests never read these `.env` files (`NODE_ENV=test`); they set their own environment.
+
+After changing gateway endpoints, run `npx nx run gateway:openapi` and then `npx nx run web:api-client` to
+regenerate the spec and the PWA's typed client.
+
 **Shared libraries** (`libs/`):
-`contracts` (event envelope + versioned event types), `messaging` (RabbitMQ bus with retry queues and DLQ),
-`outbox` (transactional outbox, relay, idempotent consumers on TypeORM) and `testing` (Testcontainers helpers).
+`contracts` (event envelope, versioned event types, RPC contracts, shared input rules), `auth` (Ed25519 access
+tokens, JWT guards), `messaging` (RabbitMQ bus with retry queues and DLQ), `outbox` (transactional outbox,
+relay, idempotent consumers on TypeORM) and `testing` (Testcontainers helpers).

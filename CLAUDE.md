@@ -11,12 +11,14 @@ ADRs — read the relevant one before touching that area:
 - Monorepo layout, DB schemas & roles → `docs/adr/0002-nx-monorepo-schema-per-service.md`
 - Anything involving money / Stripe → `docs/adr/0003-stripe-separate-charges-transfers.md`
 - Item locations, maps, photos → `docs/adr/0004-location-fuzzing.md`
+- Gateway → service calls (NestJS TCP) → `docs/adr/0005-gateway-service-transport-tcp.md`
+- UI kit (Angular Material) → `docs/adr/0006-ui-kit-angular-material.md`
 
 ---
 
 ## Current phase
 
-**Phase 1 – Identity & Gateway** (update this line as phases complete; see roadmap in `README.md`).
+**Phase 2 – Catalog** (update this line as phases complete; see roadmap in `README.md`). Phase 1 follow-ups are listed there.
 
 - Only build what the current phase needs. If a task seems to require a later-phase feature, stop and ask.
 - Messaging and Reviews start as modules inside `apps/bookings` until their event contracts settle.
@@ -35,7 +37,9 @@ ADRs — read the relevant one before touching that area:
 - First time: `npm ci`, then `cp infra/.env.example infra/.env` (host ports are overridable there)
 - Start infra: `docker compose -f infra/docker-compose.yml up -d --wait`
 - Affected checks: `npx nx affected -t lint test build` (Docker must be running: integration tests use Testcontainers)
-- Single project: `npx nx test <project>`, `npx nx serve <project>`
+- Single project: `npx nx test <project>`, `npx nx serve <project>` (apps need `apps/<app>/.env`; see README "Running the apps")
+- After changing gateway endpoints: `npx nx run gateway:openapi`, then `npx nx run web:api-client` (a test fails if `openapi.json` drifts)
+- Node ≥ 22.22.3 (`.nvmrc`); Angular 22 and Testcontainers need it
 - Formatting: `npx nx format:write` (Markdown is excluded on purpose)
 - Observability profile: `infra/docker-compose.observability.yml` — not created yet (Phase 7)
 
@@ -44,7 +48,10 @@ ADRs — read the relevant one before touching that area:
 - `@borrowbox/contracts` — `defineEvent`, `createEnvelope`, `EVENTS_EXCHANGE`; one definition per event version.
 - `@borrowbox/outbox` — `addToOutbox(tx, envelope)`, `OutboxRelay`, `handleOnce(ds, consumer, envelope, fn)`, `CreateOutboxTables…` migration.
 - `@borrowbox/messaging` — `EventBus` (subscribe with retry queues + DLQ; `publish` only from the relay).
-- `@borrowbox/testing` — `startPostgres()` (real per-service roles), `startRabbitMq()`. Spec files only (lint-enforced).
+- `@borrowbox/auth` — `createAccessTokenSigner` (Identity only), `createAccessTokenVerifier`, `AuthModule`, `JwtAuthGuard`, `@CurrentUser()`. Keys: `node tools/gen-jwt-keys.mjs`.
+- `@borrowbox/auth` also provides `RpcJwtAuthGuard` for services; `@CurrentUser()` works for HTTP and RPC.
+- `@borrowbox/contracts` also holds RPC contracts (`<Service>Rpc`, `<Service>RpcContract`, `RpcRequest`, `RpcErrorBody`) and shared input rules (`isValidPassword`, length limits) used by the PWA, the gateway and services.
+- `@borrowbox/testing` — `startPostgres()` (real per-service roles), `startRabbitMq()`, `startRedis()`. Spec files only (lint-enforced).
 
 ## Non-negotiable invariants
 
@@ -98,8 +105,8 @@ ADRs — read the relevant one before touching that area:
 These are inconsistent or undecided in the docs. Raise them when they become relevant:
 - Location fuzz: ADR-0004 says a random 150–300 m offset; ARCHITECTURE.md says a deterministic ~300 m offset.
 - Map tiles: README says OpenStreetMap tiles; ARCHITECTURE.md mentions MapTiler.
-- Gateway → service transport: NestJS TCP vs gRPC.
-- UI kit: Angular Material vs PrimeNG.
+
+Resolved: gateway → service transport is NestJS TCP (ADR-0005); UI kit is Angular Material (ADR-0006).
 
 ## Stop and ask when
 

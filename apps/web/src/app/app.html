@@ -1,0 +1,8 @@
+<!-- Signed-in pages bring their own layout (AppShell); auth pages get a
+     floating language switch over their full-screen scene. -->
+@if (onAuthPage()) {
+<header class="toolbar">
+  <bb-language-toggle (changed)="accountLanguage.set($event)" />
+</header>
+}
+<router-outlet />

@@ -175,3 +175,25 @@ describe('EventBus (RabbitMQ integration)', () => {
     await b.close();
   });
 });
+
+describe('EventBus while the broker is unreachable', () => {
+  it('rejects publish after publishTimeoutMs instead of waiting for a reconnect', async () => {
+    const rabbit = await startRabbitMq();
+    const bus = await EventBus.connect({
+      url: rabbit.url,
+      logger: silentLogger,
+      publishTimeoutMs: 500,
+    });
+    try {
+      await rabbit.stop();
+
+      const started = Date.now();
+      await expect(
+        bus.publish(createEnvelope(ItemCreatedV1, { itemId: 'i-1' })),
+      ).rejects.toThrow();
+      expect(Date.now() - started).toBeLessThan(5_000);
+    } finally {
+      await bus.close();
+    }
+  });
+});

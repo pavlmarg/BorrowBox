@@ -1,0 +1,122 @@
+{
+  "app": {
+    "name": "BorrowBox",
+    "tagline": "Borrow what you need from your neighbours"
+  },
+  "nav": {
+    "explore": "Explore",
+    "myItems": "My items",
+    "rentals": "Rentals",
+    "messages": "Messages",
+    "profile": "Profile",
+    "settings": "Settings",
+    "menu": "Main menu",
+    "open": "Open menu",
+    "close": "Close menu",
+    "soon": "Soon",
+    "logout": "Sign out",
+    "switchTo": "Switch to {{language}}",
+    "login": "Sign in",
+    "register": "Create account"
+  },
+  "languages": {
+    "el": "Ελληνικά",
+    "en": "English"
+  },
+  "auth": {
+    "or": "or",
+    "google": "Continue with Google",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "login": {
+      "title": "Sign in",
+      "subtitle": "Welcome back! Sign in to continue.",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign in",
+      "noAccount": "New to BorrowBox?",
+      "registerLink": "Create an account",
+      "deleted": "Your account has been deleted."
+    },
+    "register": {
+      "title": "Create your account",
+      "subtitle": "Join your neighbours and start borrowing in a minute.",
+      "displayName": "Name shown to others",
+      "email": "Email",
+      "password": "Password",
+      "passwordHint": "8–64 characters, with at least one letter and one digit",
+      "confirmPassword": "Confirm password",
+      "submit": "Create account",
+      "haveAccount": "Already have an account?",
+      "loginLink": "Sign in"
+    },
+    "callback": {
+      "title": "Welcome back",
+      "working": "Signing you in…",
+      "hint": "This only takes a moment.",
+      "failed": "We couldn't sign you in.",
+      "tryAgain": "Try Google again",
+      "backToLogin": "Back to sign in"
+    }
+  },
+  "profile": {
+    "title": "My account",
+    "details": "Your details",
+    "displayName": "Name shown to others",
+    "email": "Email",
+    "language": "Language",
+    "save": "Save",
+    "saved": "Saved",
+    "memberSince": "Member since {{date}}",
+    "emailVerified": "Verified email",
+    "emailNotVerified": "Email not verified",
+    "signIn": "How you sign in",
+    "withPassword": "Email and password",
+    "withGoogle": "Google",
+    "export": {
+      "title": "Download your data",
+      "description": "Get a copy of the personal data BorrowBox holds about you, as a JSON file.",
+      "button": "Download my data",
+      "done": "Your download has started"
+    },
+    "delete": {
+      "title": "Delete your account",
+      "description": "Your personal data will be erased. Records we must keep by law (e.g. payments) are anonymised. This cannot be undone.",
+      "button": "Delete my account"
+    },
+    "editProfile": "Edit profile",
+    "changePhoto": "Profile photos are coming soon"
+  },
+  "deleteDialog": {
+    "title": "Delete your account?",
+    "body": "This permanently deletes your account and signs you out everywhere.",
+    "password": "Enter your password to confirm",
+    "noPassword": "For your security, you need to have signed in within the last 5 minutes.",
+    "reauthenticate": "Sign in again with Google",
+    "cancel": "Cancel",
+    "confirm": "Delete account"
+  },
+  "validation": {
+    "required": "Required",
+    "email": "Enter a valid email address",
+    "password": "8–64 characters, with at least one letter and one digit",
+    "passwordMismatch": "Passwords don’t match",
+    "displayName": "1–50 characters"
+  },
+  "errors": {
+    "VALIDATION_FAILED": "Please check the highlighted fields.",
+    "MALFORMED_REQUEST": "Something went wrong with the request. Please try again.",
+    "UNAUTHENTICATED": "Please sign in again.",
+    "INVALID_CREDENTIALS": "Wrong email or password.",
+    "INVALID_REFRESH_TOKEN": "Your session has expired. Please sign in again.",
+    "EMAIL_TAKEN": "An account with this email already exists.",
+    "REAUTHENTICATION_REQUIRED": "Please confirm it's you first.",
+    "OAUTH_EXCHANGE_FAILED": "Google sign-in didn't work. Please try again.",
+    "OAUTH_EMAIL_NOT_VERIFIED": "Your Google account's email isn't verified.",
+    "OAUTH_CANCELLED": "Google sign-in was cancelled.",
+    "RATE_LIMITED": "Too many attempts. Please wait a minute and try again.",
+    "SERVICE_UNAVAILABLE": "BorrowBox is temporarily unavailable. Please try again shortly.",
+    "INTERNAL": "Something went wrong on our side. Please try again.",
+    "NETWORK": "Can't reach BorrowBox. Check your connection."
+  }
+}
