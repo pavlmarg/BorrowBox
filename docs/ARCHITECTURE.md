@@ -286,3 +286,6 @@ Messaging and Reviews can start as modules inside Bookings and move into their o
 - Capacitor wrapper for app-store presence and better push support on iOS.
 - Meilisearch if Postgres full-text search stops being enough.
 - Community features: neighbourhood groups, "wanted" requests.
+
+### Side decisions (revisit once all phases are done)
+- **Rate-limiting algorithm.** The Redis store counts in a fixed window that starts at a client's first request, so a client can get about 2× the limit in a burst across a window boundary. The in-memory fallback is a sliding-window log, so it's slightly stricter. That's fine for brute-force protection today. Decide whether to switch Redis to a sliding window or a token bucket (a custom Lua script) for smoother limits.
