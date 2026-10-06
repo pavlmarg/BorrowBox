@@ -13,6 +13,7 @@ ADRs — read the relevant one before touching that area:
 - Item locations, maps, photos → `docs/adr/0004-location-fuzzing.md`, then `0007-location-privacy-search.md` (supersedes parts of 0004)
 - Map tiles, setting item locations → `docs/adr/0008-maps-pin-drop.md`
 - Photo uploads and processing → `docs/adr/0009-photo-pipeline.md`
+- Item pricing (rate card, free items) and its effects on Bookings/Payments → `docs/adr/0010-flexible-pricing.md`
 - Gateway → service calls (NestJS TCP) → `docs/adr/0005-gateway-service-transport-tcp.md`
 - UI kit (Angular Material) → `docs/adr/0006-ui-kit-angular-material.md`
 
