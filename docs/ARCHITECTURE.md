@@ -68,7 +68,7 @@ flowchart TB
 | Service | Owns | Publishes | Consumes |
 |---|---|---|---|
 | **Gateway** | nothing (stateless) | – | Redis pub/sub (fan-out to sockets) |
-| **Identity** | users, credentials, refresh tokens, verification status | `user.registered`, `user.verified`, `user.deletion_requested` | `payment.account_ready` |
+| **Identity** | users, credentials, refresh tokens, verification status | `user.registered`, `user.profile_updated`, `user.verified`, `user.deletion_requested` | `payment.account_ready` |
 | **Catalog** | items, categories, photos, location | `item.created`, `item.updated`, `item.deleted` | `user.deletion_requested`, `review.created` (item rating) |
 | **Bookings** | bookings, availability, handoffs, condition photos | `booking.requested`, `.accepted`, `.paid`, `.declined`, `.expired`, `.cancelled`, `.picked_up`, `.returned`, `.completed`, `.disputed` | `item.*`, `payment.captured`, `payment.failed`, `user.deletion_requested` |
 | **Payments** | Stripe accounts, payments, transfers, refunds, `stripe_events` | `payment.account_ready`, `payment.captured`, `payment.failed`, `payment.settled` | `booking.accepted`, `.cancelled`, `.completed`, `.disputed`, `dispute.resolved` |
