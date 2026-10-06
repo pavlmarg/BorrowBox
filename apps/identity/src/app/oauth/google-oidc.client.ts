@@ -115,6 +115,8 @@ export class GoogleOidcClient {
         this.config.get('GOOGLE_CLIENT_SECRET', { infer: true }),
       ),
       {
+        // Seconds, per request to Google. The gateway waits longer for the
+        // whole exchange (GOOGLE_EXCHANGE_TIMEOUT_MS); keep that above 3× this.
         timeout: 10,
         ...(local ? { execute: [oidc.allowInsecureRequests] } : {}),
       },

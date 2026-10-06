@@ -87,6 +87,7 @@ ADRs — read the relevant one before touching that area:
 - Public endpoints return `location_public` only — never `location`. Exact address only for a renter with a `PAID` booking, until completion.
 - Every uploaded photo goes through the media worker (EXIF/GPS stripped) before it's served.
 - Never log passwords, tokens, full addresses, or payment details.
+- Service error messages (`RpcErrorBody.message`) are passed through the gateway to the browser: never put personal data, input values or internals in them.
 - New personal data must be covered by `GET /me/export` and the `user.deletion_requested` handler for that service.
 - Validate all input with `class-validator`; resource-level authorization lives in the owning service.
 - Secrets come from env / Docker secrets. Never commit `.env` files or credentials.
