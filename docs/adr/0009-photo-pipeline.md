@@ -18,7 +18,7 @@ Items need photos (later, Bookings also needs condition photos). Photos from pho
   - A periodic sweeper re-enqueues photos left `PENDING` for too long (e.g. if the process stopped between the database commit and the enqueue).
   - A storage lifecycle rule deletes anything left in `incoming/` after 24 hours.
 - **Deletion.** Deleting a photo, an item, or an account (`user.deletion_requested`) removes the stored files through a job, after the database change commits.
-- **Limits** (defined in `libs/contracts`): 1–5 photos per item, each ≤ 10 MB, JPEG/PNG/WebP. iOS converts HEIC photos to JPEG when uploading from a browser, so HEIC isn't needed.
+- **Limits** (defined in `libs/contracts`): 1–10 photos per item (larger items need shots from every side), each ≤ 10 MB, JPEG/PNG/WebP. iOS converts HEIC photos to JPEG when uploading from a browser, so HEIC isn't needed.
 
 ## Consequences
 - The gateway stays small and stateless; large files never pass through it.
