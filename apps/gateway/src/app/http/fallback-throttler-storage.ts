@@ -2,7 +2,9 @@ import { Logger, type OnApplicationShutdown } from '@nestjs/common';
 import type { ThrottlerStorage } from '@nestjs/throttler';
 import type Redis from 'ioredis';
 
-type ThrottlerStorageRecord = Awaited<ReturnType<ThrottlerStorage['increment']>>;
+type ThrottlerStorageRecord = Awaited<
+  ReturnType<ThrottlerStorage['increment']>
+>;
 
 /**
  * Rate-limit counters in Redis (shared by every gateway instance), with an
@@ -21,7 +23,8 @@ export class FallbackThrottlerStorage
   constructor(
     private readonly redis: Pick<Redis, 'status'>,
     private readonly shared: ThrottlerStorage,
-    private readonly fallback: ThrottlerStorage & Partial<OnApplicationShutdown>,
+    private readonly fallback: ThrottlerStorage &
+      Partial<OnApplicationShutdown>,
   ) {}
 
   async increment(
