@@ -91,6 +91,7 @@ flowchart TB
 - **Security:**
   - Helmet, a CORS allow-list, a 100 kB body limit and `class-validator` DTOs.
   - Redis-backed rate limits per IP: 10/min for login, register and Google, 30/min for refresh, 120/min otherwise.
+  - While Redis is unreachable, each gateway instance counts in memory instead, so the limits stay in force and the API keeps answering. It switches back to Redis by itself once Redis recovers.
   - Every error has the shape `{ statusCode, code, message }` and never echoes the request body.
 - **OpenAPI:** `apps/gateway/openapi.json` is committed and regenerated with `nx run gateway:openapi`. A test fails if it drifts from the code. The PWA's API client is generated from it with `nx run web:api-client`.
 
@@ -285,3 +286,6 @@ Messaging and Reviews can start as modules inside Bookings and move into their o
 - Capacitor wrapper for app-store presence and better push support on iOS.
 - Meilisearch if Postgres full-text search stops being enough.
 - Community features: neighbourhood groups, "wanted" requests.
+
+### Side decisions (revisit once all phases are done)
+- **Rate-limiting algorithm.** The Redis store counts in a fixed window that starts at a client's first request, so a client can get about 2× the limit in a burst across a window boundary. The in-memory fallback is a sliding-window log, so it's slightly stricter. That's fine for brute-force protection today. Decide whether to switch Redis to a sliding window or a token bucket (a custom Lua script) for smoother limits.

@@ -41,7 +41,8 @@ const STATUS: Record<IdentityErrorCode, HttpStatus> = {
   REAUTHENTICATION_REQUIRED: HttpStatus.FORBIDDEN,
   EMAIL_TAKEN: HttpStatus.CONFLICT,
   OAUTH_EXCHANGE_FAILED: HttpStatus.BAD_GATEWAY,
-  OAUTH_EMAIL_NOT_VERIFIED: HttpStatus.BAD_GATEWAY,
+  // The user's Google email isn't verified: a refusal, not an upstream failure.
+  OAUTH_EMAIL_NOT_VERIFIED: HttpStatus.FORBIDDEN,
   INTERNAL: HttpStatus.INTERNAL_SERVER_ERROR,
 };
 
