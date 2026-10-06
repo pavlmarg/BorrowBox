@@ -3,13 +3,18 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ClientProxyFactory, Transport } from '@nestjs/microservices';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import {
+  ThrottlerGuard,
+  ThrottlerModule,
+  ThrottlerStorageService,
+} from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import type Redis from 'ioredis';
 import { AuthModule, pemFromEnv } from '@borrowbox/auth';
 import { AuthController } from './auth/auth.controller';
 import { validateConfig, type GatewayConfig } from './config';
 import { HealthController } from './health.controller';
+import { FallbackThrottlerStorage } from './http/fallback-throttler-storage';
 import { DEFAULT_LIMIT } from './http/rate-limits';
 import {
   IDENTITY_PROXY,
@@ -38,7 +43,11 @@ const configModule = ConfigModule.forRoot({
       inject: [REDIS],
       useFactory: (redis: Redis) => ({
         throttlers: [{ name: 'default', ...DEFAULT_LIMIT }],
-        storage: new ThrottlerStorageRedisService(redis),
+        storage: new FallbackThrottlerStorage(
+          redis,
+          new ThrottlerStorageRedisService(redis),
+          new ThrottlerStorageService(),
+        ),
       }),
     }),
     AuthModule.forRoot({

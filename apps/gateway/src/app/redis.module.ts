@@ -51,7 +51,12 @@ export class RedisModule implements OnApplicationShutdown {
   constructor(@Inject(REDIS) private readonly redis: Redis) {}
 
   async onApplicationShutdown(): Promise<void> {
-    if (this.redis.status !== 'end')
+    if (this.redis.status === 'ready') {
       await this.redis.quit().catch(() => undefined);
+    } else if (this.redis.status !== 'end') {
+      // During an outage quit() can't reach Redis and the reconnect loop
+      // would keep the process alive; disconnect() stops it at once.
+      this.redis.disconnect();
+    }
   }
 }

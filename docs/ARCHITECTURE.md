@@ -91,6 +91,7 @@ flowchart TB
 - **Security:**
   - Helmet, a CORS allow-list, a 100 kB body limit and `class-validator` DTOs.
   - Redis-backed rate limits per IP: 10/min for login, register and Google, 30/min for refresh, 120/min otherwise.
+  - While Redis is unreachable, each gateway instance counts in memory instead, so the limits stay in force and the API keeps answering. It switches back to Redis by itself once Redis recovers.
   - Every error has the shape `{ statusCode, code, message }` and never echoes the request body.
 - **OpenAPI:** `apps/gateway/openapi.json` is committed and regenerated with `nx run gateway:openapi`. A test fails if it drifts from the code. The PWA's API client is generated from it with `nx run web:api-client`.
 
