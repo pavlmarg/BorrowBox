@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as oidc from 'openid-client';
+import { GOOGLE_HTTP_TIMEOUT_MS } from '@borrowbox/contracts';
 import type { IdentityConfig } from '../config';
 import { IdentityError } from '../rpc/rpc-errors';
 
@@ -115,9 +116,9 @@ export class GoogleOidcClient {
         this.config.get('GOOGLE_CLIENT_SECRET', { infer: true }),
       ),
       {
-        // Seconds, per request to Google. The gateway waits longer for the
-        // whole exchange (GOOGLE_EXCHANGE_TIMEOUT_MS); keep that above 3× this.
-        timeout: 10,
+        // Seconds, per request to Google. Shared with the gateway, which
+        // derives its wait for the whole exchange from it.
+        timeout: GOOGLE_HTTP_TIMEOUT_MS / 1000,
         ...(local ? { execute: [oidc.allowInsecureRequests] } : {}),
       },
     );

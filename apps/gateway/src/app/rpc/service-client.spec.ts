@@ -1,11 +1,13 @@
 import { HttpException, HttpStatus, Logger } from '@nestjs/common';
 import type { ClientProxy } from '@nestjs/microservices';
 import { EMPTY, NEVER, of, throwError, type Observable } from 'rxjs';
-import { IdentityRpc } from '@borrowbox/contracts';
 import {
+  GOOGLE_EXCHANGE_MAX_REQUESTS,
   GOOGLE_EXCHANGE_TIMEOUT_MS,
-  IdentityClient,
-} from '../identity/identity.client';
+  GOOGLE_HTTP_TIMEOUT_MS,
+  IdentityRpc,
+} from '@borrowbox/contracts';
+import { IdentityClient } from '../identity/identity.client';
 import { ServiceClient } from './service-client';
 
 interface TestContract {
@@ -152,7 +154,7 @@ describe('ServiceClient', () => {
     }
   });
 
-  it('gives Google sign-in in Identity longer than three 10 s requests', async () => {
+  it('waits for Google sign-in longer than Identity waits for Google', async () => {
     jest.useFakeTimers();
     try {
       reply = () => NEVER;
@@ -172,9 +174,13 @@ describe('ServiceClient', () => {
         .catch(() => {
           settled = true;
         });
-      await jest.advanceTimersByTimeAsync(30_000);
+      // Still waiting after every Google request Identity may make has timed out.
+      const identityMax = GOOGLE_HTTP_TIMEOUT_MS * GOOGLE_EXCHANGE_MAX_REQUESTS;
+      await jest.advanceTimersByTimeAsync(identityMax);
       expect(settled).toBe(false);
-      await jest.advanceTimersByTimeAsync(GOOGLE_EXCHANGE_TIMEOUT_MS - 30_000);
+      await jest.advanceTimersByTimeAsync(
+        GOOGLE_EXCHANGE_TIMEOUT_MS - identityMax,
+      );
       await call;
       expect(settled).toBe(true);
     } finally {

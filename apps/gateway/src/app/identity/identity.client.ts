@@ -1,6 +1,7 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import type { ClientProxy } from '@nestjs/microservices';
 import {
+  GOOGLE_EXCHANGE_TIMEOUT_MS,
   IdentityRpc,
   type IdentityErrorCode,
   type IdentityRpcContract,
@@ -23,14 +24,6 @@ const STATUS: Record<IdentityErrorCode, HttpStatus> = {
   INTERNAL: HttpStatus.INTERNAL_SERVER_ERROR,
 };
 
-/**
- * Identity gives each request to Google 10 s (google-oidc.client.ts) and a
- * sign-in makes up to three: discovery (first time), token exchange, and
- * Google's signing keys. Wait longer than all of them, or a slow Google could
- * make the gateway report a failure for a sign-in Identity completes.
- */
-export const GOOGLE_EXCHANGE_TIMEOUT_MS = 35_000;
-
 /** Typed gateway → Identity client. */
 @Injectable()
 export class IdentityClient extends ServiceClient<
@@ -46,6 +39,8 @@ export class IdentityClient extends ServiceClient<
       proxy,
       defaultTimeoutMs: timeoutMs,
       statusByCode: STATUS,
+      // Derived from Identity's own Google timeouts (libs/contracts), so it
+      // always outlasts them.
       timeoutOverridesMs: {
         [IdentityRpc.googleExchange]: GOOGLE_EXCHANGE_TIMEOUT_MS,
       },
