@@ -76,7 +76,7 @@ flowchart TB
 | **Notifications** | preferences, push subscriptions, in-app inbox | – | nearly every event above |
 | **Reviews / Trust** | reviews, trust scores | `review.created` | `booking.completed`, `user.verified`, `booking.disputed` |
 
-**Media** is a shared library, not a service. It issues presigned upload URLs to a private `incoming/` prefix in object storage, and runs a BullMQ worker (inside the owning service) that strips all metadata with `sharp` and writes resized versions to a public prefix. Only processed photos are served. Stripping EXIF matters because photo GPS data would leak home locations. See [ADR-0009](adr/0009-photo-pipeline.md).
+**Media** is a shared library, not a service. It issues presigned upload URLs into a private uploads bucket, and runs a BullMQ worker (inside the owning service) that strips all metadata with `sharp` and writes resized versions to a separate public-read bucket. Only processed photos are served. Stripping EXIF matters because photo GPS data would leak home locations. See [ADR-0009](adr/0009-photo-pipeline.md).
 
 ### Gateway
 - REST under `/api`, calling services through typed clients (e.g. `IdentityClient`) over NestJS TCP ([ADR-0005](adr/0005-gateway-service-transport-tcp.md)). It forwards the caller's access token and an `X-Request-Id` correlation id with every call.
@@ -280,9 +280,10 @@ libs/
   observability/       logger, OpenTelemetry bootstrap
   testing/             Testcontainers helpers, factories
 infra/
-  docker-compose.yml   postgres+postgis, rabbitmq, redis, seaweedfs (S3), mailpit
+  docker-compose.yml   postgres+postgis, rabbitmq, redis, seaweedfs (S3) + storage-init, mailpit
   docker-compose.observability.yml
   postgres/init/       schemas + roles per service
+  storage/             SeaweedFS identities, bucket/CORS/expiry setup (also for R2)
 docs/
   ARCHITECTURE.md
   adr/
@@ -300,3 +301,4 @@ Messaging and Reviews can start as modules inside Bookings and move into their o
 ### Side decisions (revisit once all phases are done)
 - **Rate-limiting algorithm.** The Redis store counts in a fixed window that starts at a client's first request, so a client can get about 2× the limit in a burst across a window boundary. The in-memory fallback is a sliding-window log, so it's slightly stricter. That's fine for brute-force protection today. Decide whether to switch Redis to a sliding window or a token bucket (a custom Lua script) for smoother limits.
 - **Retries and a circuit breaker for gateway → service calls (revisit in Phase 7).** Today a failed call is not retried. Options: retry read-only calls once on a connection error, and/or a circuit breaker that fails fast while a service is down. Commands must not be retried blindly (they may already have run).
+- **CDN caching of public photos (decide at deployment, Phase 7).** If a CDN caches the public photo bucket, a deleted photo stays reachable at its old URL until its cache entry expires, which delays GDPR erasure. Choose a short cache lifetime, or purge the CDN on delete. Photo keys are random and never reused, so caching can't show the wrong photo.

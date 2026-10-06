@@ -67,30 +67,50 @@ services:
       timeout: 5s
       retries: 20
 
-  # S3-compatible object storage (Cloudflare R2 in production).
-  # Buckets are created on first upload (-s3.autoCreateBucket, admin identity only).
+  # S3-compatible object storage (Cloudflare R2 in production), ADR-0009:
+  # a private uploads bucket and a public-read bucket for processed photos.
+  # Identities (admin / catalog / anonymous) come from infra/storage/seaweedfs.sh.
   seaweedfs:
     image: chrislusf/seaweedfs:4.48
     environment:
-      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?set in infra/.env}
-      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?set in infra/.env}
-    entrypoint: ['/bin/sh', '-c']
-    command:
-      - |
-        cat > /tmp/s3.json <<EOF
-        {"identities":[{"name":"borrowbox","credentials":[{"accessKey":"$$S3_ACCESS_KEY_ID","secretKey":"$$S3_SECRET_ACCESS_KEY"}],"actions":["Admin","Read","Write","List","Tagging"]}]}
-        EOF
-        exec /usr/bin/weed -logtostderr=true server -dir=/data -volume.max=0 -master.volumeSizeLimitMB=1024 \
-          -s3 -s3.config=/tmp/s3.json -s3.port.iceberg=0 -s3.port.lance=0
+      S3_ADMIN_ACCESS_KEY_ID: ${S3_ADMIN_ACCESS_KEY_ID:?set in infra/.env}
+      S3_ADMIN_SECRET_ACCESS_KEY: ${S3_ADMIN_SECRET_ACCESS_KEY:?set in infra/.env}
+      S3_CATALOG_ACCESS_KEY_ID: ${S3_CATALOG_ACCESS_KEY_ID:?set in infra/.env}
+      S3_CATALOG_SECRET_ACCESS_KEY: ${S3_CATALOG_SECRET_ACCESS_KEY:?set in infra/.env}
+      S3_UPLOADS_BUCKET: ${S3_UPLOADS_BUCKET:-borrowbox-uploads}
+      S3_PUBLIC_BUCKET: ${S3_PUBLIC_BUCKET:-borrowbox-public}
+    entrypoint: ['/bin/sh', '/storage/seaweedfs.sh']
     ports:
       - '127.0.0.1:${S3_PORT:-8333}:8333' # S3 API
     volumes:
       - seaweedfs-data:/data
+      - ./storage/seaweedfs.sh:/storage/seaweedfs.sh:ro
     healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9333/cluster/status']
-      interval: 10s
+      # The S3 API answering with any HTTP status means SeaweedFS is ready.
+      test: ['CMD-SHELL', 'curl -s -o /dev/null http://127.0.0.1:8333/']
+      interval: 5s
       timeout: 5s
-      retries: 12
+      retries: 24
+
+  # One-shot: creates the buckets, upload CORS and the 1-day expiry on raw
+  # uploads, then exits. Safe to re-run; the same script sets up R2 in production.
+  storage-init:
+    image: amazon/aws-cli:2.31.13
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    environment:
+      S3_ENDPOINT: http://seaweedfs:8333
+      AWS_ACCESS_KEY_ID: ${S3_ADMIN_ACCESS_KEY_ID:?set in infra/.env}
+      AWS_SECRET_ACCESS_KEY: ${S3_ADMIN_SECRET_ACCESS_KEY:?set in infra/.env}
+      AWS_DEFAULT_REGION: us-east-1
+      S3_UPLOADS_BUCKET: ${S3_UPLOADS_BUCKET:-borrowbox-uploads}
+      S3_PUBLIC_BUCKET: ${S3_PUBLIC_BUCKET:-borrowbox-public}
+      S3_CORS_ORIGINS: ${S3_CORS_ORIGINS:-http://localhost:4200}
+    entrypoint: ['/bin/sh', '/storage/init.sh']
+    volumes:
+      - ./storage/init.sh:/storage/init.sh:ro
+    restart: 'no'
 
   # Catches all outgoing email in development. UI: http://localhost:8025
   mailpit:

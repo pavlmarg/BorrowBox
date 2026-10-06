@@ -79,10 +79,12 @@ npx nx affected -t lint test build
 | Postgres | `localhost:5432` (one role + schema per service, see `infra/postgres/init`) |
 | RabbitMQ | `localhost:5672`, management UI http://localhost:15672 |
 | Redis | `localhost:6379` |
-| S3 (SeaweedFS) | http://localhost:8333 |
+| S3 (SeaweedFS) | http://localhost:8333: private `borrowbox-uploads` and public-read `borrowbox-public` buckets, created by the one-shot `storage-init` container (see `infra/storage`) |
 | Mailpit | SMTP `localhost:1025`, UI http://localhost:8025 |
 
 Ports can be changed in `infra/.env` if they clash with something already running.
+
+> **Upgrading an existing `infra/.env`** (Phase 2): the single `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_BUCKET` were replaced by admin and catalog keys and two buckets. Copy the `S3_*` block from `infra/.env.example`, then run `docker compose -f infra/docker-compose.yml up -d --wait` again.
 
 ### Running the apps
 
