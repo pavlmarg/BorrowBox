@@ -11,7 +11,7 @@ Launch market: **Greece / EU** (GDPR, PSD2/SCA and DAC7 are considered in the de
 **Frontend**
 *   **Framework:** Angular (Standalone Components, Signals, NgRx SignalStore)
 *   **Type:** Progressive Web App (PWA) for mobile camera/QR access
-*   **Maps:** MapLibre GL + OpenStreetMap tiles, Nominatim/Photon geocoding
+*   **Maps:** MapLibre GL + MapTiler tiles (OpenStreetMap data); item locations are set by dropping a pin, with no address geocoding
 *   **i18n:** Greek & English
 
 **Backend (Event-Driven Microservices)**
@@ -49,7 +49,7 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
     *   Follow-ups:
         *   Publish a `user.profile_updated` event for Notifications' read model (Phase 3).
         *   Change / set password in the profile (also for Google-only accounts that want email + password sign-in), confirmed by an email link (Phase 3, needs Notifications).
-        *   Email verification and password reset (Phase 3, needs Notifications). Unverified accounts can sign in and browse, but listing, booking and messaging require a verified email.
+        *   Email verification and password reset (Phase 3, needs Notifications). Unverified accounts can sign in and browse, but listing, booking and messaging require a verified email. (Until verification exists, Phase 2 lets unverified accounts list items; Phase 3 enforces the rule.)
         *   Terms of Service / Privacy Policy pages, and recorded acceptance at sign-up — including the first Google sign-in that creates an account (GDPR).
         *   Upgrade to NestJS 12 once `@nx/nest` supports it.
 *   [ ] **Phase 2 – Catalog:** item CRUD, photo upload, geo search + map, fuzzed locations

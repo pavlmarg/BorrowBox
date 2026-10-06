@@ -10,7 +10,9 @@ ADRs — read the relevant one before touching that area:
 - Messaging / RabbitMQ topology → `docs/adr/0001-rabbitmq.md`
 - Monorepo layout, DB schemas & roles → `docs/adr/0002-nx-monorepo-schema-per-service.md`
 - Anything involving money / Stripe → `docs/adr/0003-stripe-separate-charges-transfers.md`
-- Item locations, maps, photos → `docs/adr/0004-location-fuzzing.md`
+- Item locations, maps, photos → `docs/adr/0004-location-fuzzing.md`, then `0007-location-privacy-search.md` (supersedes parts of 0004)
+- Map tiles, setting item locations → `docs/adr/0008-maps-pin-drop.md`
+- Photo uploads and processing → `docs/adr/0009-photo-pipeline.md`
 - Gateway → service calls (NestJS TCP) → `docs/adr/0005-gateway-service-transport-tcp.md`
 - UI kit (Angular Material) → `docs/adr/0006-ui-kit-angular-material.md`
 
@@ -103,10 +105,9 @@ ADRs — read the relevant one before touching that area:
 ## Open decisions — ask, don't pick
 
 These are inconsistent or undecided in the docs. Raise them when they become relevant:
-- Location fuzz: ADR-0004 says a random 150–300 m offset; ARCHITECTURE.md says a deterministic ~300 m offset.
-- Map tiles: README says OpenStreetMap tiles; ARCHITECTURE.md mentions MapTiler.
+- None open right now.
 
-Resolved: gateway → service transport is NestJS TCP (ADR-0005); UI kit is Angular Material (ADR-0006).
+Resolved: gateway → service transport is NestJS TCP (ADR-0005); UI kit is Angular Material (ADR-0006); location fuzzing and search (ADR-0007); map tiles and no geocoding (ADR-0008).
 
 ## Stop and ask when
 
