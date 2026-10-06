@@ -1,5 +1,21 @@
 import nx from '@nx/eslint-plugin';
 
+// Which projects may import which (tags in each project.json):
+// - scope:shared (contracts) runs in Node and the browser, so it imports nothing else.
+// - scope:node (services, gateway, server libs) must never end up in the PWA,
+//   and the PWA (scope:web) must never pull in server code.
+const scopeConstraints = [
+  { sourceTag: 'scope:shared', onlyDependOnLibsWithTags: ['scope:shared'] },
+  {
+    sourceTag: 'scope:node',
+    onlyDependOnLibsWithTags: ['scope:node', 'scope:shared'],
+  },
+  {
+    sourceTag: 'scope:web',
+    onlyDependOnLibsWithTags: ['scope:web', 'scope:shared'],
+  },
+];
+
 export default [
   ...nx.configs['flat/base'],
   ...nx.configs['flat/typescript'],
@@ -15,7 +31,7 @@ export default [
         {
           enforceBuildableLibDependency: true,
           allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
-          depConstraints: [{ sourceTag: '*', onlyDependOnLibsWithTags: ['*'] }],
+          depConstraints: scopeConstraints,
         },
       ],
       // Test helpers (Testcontainers etc.) must never ship in runtime code.
@@ -43,7 +59,7 @@ export default [
         {
           enforceBuildableLibDependency: false,
           allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
-          depConstraints: [{ sourceTag: '*', onlyDependOnLibsWithTags: ['*'] }],
+          depConstraints: scopeConstraints,
         },
       ],
       'no-restricted-imports': 'off',
