@@ -57,7 +57,7 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
 *   [ ] **Phase 4 – Payments:** Stripe Connect onboarding, checkout, webhooks, transfers & refunds (test mode)
 *   [ ] **Phase 5 – Handoff:** QR pickup/return protocol, condition photos, claim window
 *   [ ] **Phase 6 – Trust & Social:** chat, reviews, trust score, ID verification
-*   [ ] **Phase 7 – Hardening:** observability stack, e2e tests, GDPR endpoints, VPS deployment
+*   [ ] **Phase 7 – Hardening:** observability stack, e2e tests, VPS deployment
 
 ## 🚀 Getting Started
 
