@@ -17,6 +17,21 @@ export const UserRegisteredV1 = defineEvent<UserRegisteredV1Payload>()(
 );
 
 /**
+ * The user changed their profile (`PATCH /me`). Only sent when something
+ * actually changed. Carries the current values, so the newest event wins
+ * (consumers compare `occurredAt`). Catalog keeps lender names from it.
+ */
+export interface UserProfileUpdatedV1Payload {
+  userId: string;
+  displayName: string;
+  locale: Locale;
+}
+export const UserProfileUpdatedV1 = defineEvent<UserProfileUpdatedV1Payload>()(
+  'user.profile_updated',
+  1,
+);
+
+/**
  * The user asked to delete their account (`DELETE /me`). Identity has already
  * anonymised its own data; every other service must anonymise or delete what
  * it holds for `userId`, keeping only what the law requires.
