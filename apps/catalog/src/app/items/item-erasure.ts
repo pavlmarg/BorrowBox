@@ -6,6 +6,7 @@ import {
 } from '@borrowbox/contracts';
 import { addToOutbox } from '@borrowbox/outbox';
 import { lockLenderItems } from '../lenders/lenders.repository';
+import { removePhotos } from '../photos/photos.repository';
 import { tombstoneItems } from './items.repository';
 
 /**
@@ -14,8 +15,8 @@ import { tombstoneItems } from './items.repository';
  * transaction. Takes the lender's item lock first, so an item created with a
  * still-valid token can't slip past the erasure.
  *
- * Photos are not touched yet: their files must be deleted from storage
- * first, which arrives with the photo pipeline (step 10).
+ * Their photos go too: rows deleted and files listed for deletion (the
+ * caller queues a cleanup after the commit).
  *
  * @returns the ids of the items deleted now
  */
@@ -26,6 +27,7 @@ export async function eraseItemsOfLender(
 ): Promise<string[]> {
   await lockLenderItems(tx, lenderId);
   const ids = await tombstoneItems(tx, lenderId, null);
+  await removePhotos(tx, { itemIds: ids });
   for (const itemId of ids) {
     await addToOutbox(
       tx,

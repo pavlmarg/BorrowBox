@@ -77,6 +77,9 @@ flowchart TB
 | **Reviews / Trust** | reviews, trust scores | `review.created` | `booking.completed`, `user.verified`, `booking.disputed` |
 
 **Media** is a shared library, not a service. It issues presigned upload URLs into a private uploads bucket, and runs a BullMQ worker (inside the owning service) that strips all metadata with `sharp` and writes resized versions to a separate public-read bucket. Only processed photos are served. Stripping EXIF matters because photo GPS data would leak home locations. See [ADR-0009](adr/0009-photo-pipeline.md).
+- **Formats** ([ADR-0013](adr/0013-wider-photo-formats.md)): JPEG, PNG, WebP, AVIF, GIF and TIFF (never SVG); the PWA re-encodes photos, iPhone HEIC included, to JPEG before uploading. Photos narrower than 320 px, unreadable or of another real type than declared end `FAILED`; the owner sees them and removes them.
+- **No orphaned files:** removing a photo (itself, its item, or its owner's account) deletes the row and lists its files in `photo_file_deletions` in one transaction; a job deletes the files, then the entry. The worker lists the files it is about to write with a delay, so a crash mid-processing is cleaned up too.
+- **Sweeper** (every 10 minutes): re-queues confirmed photos whose processing was interrupted, removes uploads abandoned for a day, and retries due file deletions.
 
 ### Gateway
 - REST under `/api`, calling services through typed clients (e.g. `IdentityClient`) over NestJS TCP ([ADR-0005](adr/0005-gateway-service-transport-tcp.md)). It forwards the caller's access token and an `X-Request-Id` correlation id with every call.

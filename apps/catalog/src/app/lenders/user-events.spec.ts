@@ -10,8 +10,10 @@ import { EventBus, type MessagingLogger } from '@borrowbox/messaging';
 import {
   startPostgres,
   startRabbitMq,
+  startRedis,
   type TestPostgres,
   type TestRabbitMq,
+  type TestRedis,
 } from '@borrowbox/testing';
 import {
   startCatalog,
@@ -33,15 +35,21 @@ const silent: MessagingLogger = {
 describe('User events consumer (integration)', () => {
   let pg: TestPostgres;
   let rabbit: TestRabbitMq;
+  let redis: TestRedis;
   let catalog: CatalogHarness;
   let bus: EventBus;
   const savedEnv = { ...process.env };
 
   beforeAll(async () => {
-    [pg, rabbit] = await Promise.all([startPostgres(), startRabbitMq()]);
+    [pg, rabbit, redis] = await Promise.all([
+      startPostgres(),
+      startRabbitMq(),
+      startRedis(),
+    ]);
     catalog = await startCatalog({
       databaseUrl: pg.urlFor('catalog'),
       rabbitmqUrl: rabbit.url,
+      redisUrl: redis.url,
     });
     bus = await EventBus.connect({ url: rabbit.url, logger: silent });
   });
@@ -50,7 +58,7 @@ describe('User events consumer (integration)', () => {
     await bus?.close();
     await catalog?.close();
     process.env = savedEnv;
-    await Promise.all([pg?.stop(), rabbit?.stop()]);
+    await Promise.all([pg?.stop(), rabbit?.stop(), redis?.stop()]);
   });
 
   const at = (minute: number) => ({

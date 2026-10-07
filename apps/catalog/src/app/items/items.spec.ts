@@ -13,8 +13,10 @@ import {
 import {
   startPostgres,
   startRabbitMq,
+  startRedis,
   type TestPostgres,
   type TestRabbitMq,
+  type TestRedis,
 } from '@borrowbox/testing';
 import {
   startCatalog,
@@ -29,21 +31,27 @@ import {
 describe('Item commands (integration)', () => {
   let pg: TestPostgres;
   let rabbit: TestRabbitMq;
+  let redis: TestRedis;
   let catalog: CatalogHarness;
   const savedEnv = { ...process.env };
 
   beforeAll(async () => {
-    [pg, rabbit] = await Promise.all([startPostgres(), startRabbitMq()]);
+    [pg, rabbit, redis] = await Promise.all([
+      startPostgres(),
+      startRabbitMq(),
+      startRedis(),
+    ]);
     catalog = await startCatalog({
       databaseUrl: pg.urlFor('catalog'),
       rabbitmqUrl: rabbit.url,
+      redisUrl: redis.url,
     });
   });
 
   afterAll(async () => {
     await catalog?.close();
     process.env = savedEnv;
-    await Promise.all([pg?.stop(), rabbit?.stop()]);
+    await Promise.all([pg?.stop(), rabbit?.stop(), redis?.stop()]);
   });
 
   // --- helpers ----------------------------------------------------------------

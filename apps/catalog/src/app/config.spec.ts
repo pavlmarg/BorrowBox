@@ -6,6 +6,12 @@ const valid = {
   JWT_PUBLIC_KEY: '-----BEGIN PUBLIC KEY-----\\nabc\\n-----END PUBLIC KEY-----',
   JWT_KEY_ID: 'dev-1',
   PHOTOS_BASE_URL: 'http://localhost:8333/borrowbox-public',
+  REDIS_URL: 'redis://:secret-pw@localhost:6379',
+  S3_ENDPOINT: 'http://localhost:8333',
+  S3_ACCESS_KEY_ID: 'borrowbox-catalog',
+  S3_SECRET_ACCESS_KEY: 'secret-pw-s3',
+  S3_UPLOADS_BUCKET: 'borrowbox-uploads',
+  S3_PUBLIC_BUCKET: 'borrowbox-public',
 };
 
 describe('validateConfig', () => {
@@ -14,6 +20,7 @@ describe('validateConfig', () => {
     expect(config.CATALOG_HOST).toBe('127.0.0.1');
     expect(config.CATALOG_PORT).toBe(4002);
     expect(config.DB_MIGRATIONS_RUN).toBe(false);
+    expect(config.S3_REGION).toBe('us-east-1');
   });
 
   it('parses port and boolean strings from env', () => {
@@ -59,6 +66,12 @@ describe('validateConfig', () => {
       'JWT_PUBLIC_KEY',
       'JWT_KEY_ID',
       'PHOTOS_BASE_URL',
+      'REDIS_URL',
+      'S3_ENDPOINT',
+      'S3_ACCESS_KEY_ID',
+      'S3_SECRET_ACCESS_KEY',
+      'S3_UPLOADS_BUCKET',
+      'S3_PUBLIC_BUCKET',
     ]) {
       expect(message).toContain(name);
     }

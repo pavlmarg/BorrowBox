@@ -8,6 +8,7 @@ import { DatabaseModule } from './database/database.module';
 import { EventsModule } from './events/events.module';
 import { ItemsModule } from './items/items.module';
 import { LendersModule } from './lenders/lenders.module';
+import { PhotosModule } from './photos/photos.module';
 import { SearchModule } from './search/search.module';
 import { CatalogRpcExceptionFilter, rpcValidationPipe } from './rpc/rpc-errors';
 
@@ -36,6 +37,7 @@ export const configModule = ConfigModule.forRoot({
         keyId: config.get('JWT_KEY_ID', { infer: true }),
       }),
     }),
+    PhotosModule,
     LendersModule,
     ItemsModule,
     SearchModule,

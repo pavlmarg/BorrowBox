@@ -16,6 +16,7 @@ import { handleOnce } from '@borrowbox/outbox';
 import { DATA_SOURCE } from '../database/database.module';
 import { EVENT_BUS } from '../events/events.module';
 import { eraseItemsOfLender } from '../items/item-erasure';
+import { PhotoQueue } from '../photos/photo-queue';
 import { markLenderDeleted, saveLenderName } from './lenders.repository';
 import {
   InvalidEventError,
@@ -39,6 +40,7 @@ export class UserEventsConsumer implements OnApplicationBootstrap {
   constructor(
     @Inject(DATA_SOURCE) private readonly dataSource: DataSource,
     @Inject(EVENT_BUS) private readonly bus: EventBus,
+    private readonly photoQueue: PhotoQueue,
   ) {}
 
   /** The EventBus closes the subscription on shutdown, before the DataSource goes. */
@@ -78,6 +80,8 @@ export class UserEventsConsumer implements OnApplicationBootstrap {
           },
         );
         if (ran) {
+          // The photos' files, listed in the same transaction (P5).
+          await this.photoQueue.cleanup();
           this.logger.log(
             `Erased account data: ${erased.length} item(s) (eventId=${envelope.eventId})`,
           );

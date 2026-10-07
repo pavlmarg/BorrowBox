@@ -23,6 +23,8 @@ import {
   isLenderDeleted,
   lockLenderItems,
 } from '../lenders/lenders.repository';
+import { PhotoQueue } from '../photos/photo-queue';
+import { removePhotos } from '../photos/photos.repository';
 import { CatalogError } from '../rpc/rpc-errors';
 import type { CreateItemDto, UpdateItemDto } from './items.dto';
 import {
@@ -67,6 +69,7 @@ export class ItemsService {
 
   constructor(
     @Inject(DATA_SOURCE) private readonly dataSource: DataSource,
+    private readonly photoQueue: PhotoQueue,
     config: ConfigService<CatalogConfig, true>,
   ) {
     this.photosBaseUrl = config.get('PHOTOS_BASE_URL', { infer: true });
@@ -229,14 +232,22 @@ export class ItemsService {
     });
   }
 
-  /** Tombstones the item (D11: deleting it again succeeds, no second event). */
-  delete(user: AuthUser, itemId: string, correlationId: string): Promise<void> {
-    return this.dataSource.transaction(async (tx) => {
+  /**
+   * Tombstones the item and removes its photos (D11: deleting it again
+   * succeeds, no second event). Their files are deleted after the commit.
+   */
+  async delete(
+    user: AuthUser,
+    itemId: string,
+    correlationId: string,
+  ): Promise<void> {
+    await this.dataSource.transaction(async (tx) => {
       await this.assertLenderActive(tx, user);
       const row = await lockOwnItem(tx, itemId, user.userId);
       if (!row) throw NOT_FOUND();
       if (row.status === 'DELETED') return;
       await tombstoneItems(tx, user.userId, row.id);
+      await removePhotos(tx, { itemIds: [row.id] });
       await addToOutbox(
         tx,
         createEnvelope(
@@ -246,6 +257,7 @@ export class ItemsService {
         ),
       );
     });
+    await this.photoQueue.cleanup();
   }
 
   async getOwn(user: AuthUser, itemId: string): Promise<OwnItem> {
