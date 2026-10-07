@@ -106,12 +106,13 @@ export async function findOwnItem(
 export async function listOwnItems(
   tx: EntityManager,
   lenderId: string,
+  options: { includeDeleted?: boolean } = {},
 ): Promise<ItemRow[]> {
   return tx.query(
     ITEM_SELECT +
-      " WHERE lender_id = $1 AND status <> 'DELETED'" +
+      " WHERE lender_id = $1 AND ($2::boolean OR status <> 'DELETED')" +
       ' ORDER BY created_at DESC, id',
-    [lenderId],
+    [lenderId, options.includeDeleted ?? false],
   );
 }
 

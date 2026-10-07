@@ -104,6 +104,11 @@ export interface ReorderPhotosRequest extends ItemRef {
 /** Catalog's part of `GET /me/export`: the caller's own items, exact location included. */
 export interface CatalogDataExport {
   exportedAt: string;
+  /**
+   * Catalog's copy of the caller's name (kept from Identity's events, shown
+   * on their items), or null if Catalog hasn't received it.
+   */
+  lenderProfile: { displayName: string; updatedAt: string } | null;
   items: OwnItem[];
 }
 

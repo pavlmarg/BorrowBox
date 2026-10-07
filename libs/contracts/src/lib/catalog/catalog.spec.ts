@@ -34,6 +34,7 @@ import {
   SIMILAR_ITEMS_RADIUS_KM,
   SUGGEST_LIMIT,
   SUGGEST_MIN_LENGTH,
+  charLength,
   isCentsInRange,
   isValidPricing,
 } from './validation';
@@ -92,6 +93,15 @@ describe('catalog limits', () => {
       expect(new Set(list).size).toBe(list.length);
     }
     expect(Object.keys(PRICE_FIELD).sort()).toEqual([...PRICE_UNITS].sort());
+  });
+});
+
+describe('charLength', () => {
+  it('counts characters, not UTF-16 units', () => {
+    expect(charLength('Δράπανο')).toBe(7);
+    expect(charLength('🔨🪚🛠')).toBe(3);
+    expect('🔨🪚🛠'.length).toBe(6);
+    expect(charLength('')).toBe(0);
   });
 });
 

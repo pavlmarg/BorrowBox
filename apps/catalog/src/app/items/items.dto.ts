@@ -22,6 +22,7 @@ import {
   ITEM_TITLE_MIN_LENGTH,
   PRICE_FIELD,
   PRICE_UNITS,
+  charLength,
   isValidPricing,
   type CreateItemRequest,
   type GeoPoint,
@@ -56,8 +57,8 @@ export function CharLength(
       validator: {
         validate: (value: unknown) =>
           typeof value === 'string' &&
-          [...value].length >= min &&
-          [...value].length <= max,
+          charLength(value) >= min &&
+          charLength(value) <= max,
       },
     });
 }

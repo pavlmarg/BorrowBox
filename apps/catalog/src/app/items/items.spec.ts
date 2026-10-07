@@ -187,6 +187,7 @@ describe('Item commands (integration)', () => {
       CatalogRpc.delete,
       CatalogRpc.getOwn,
       CatalogRpc.listMine,
+      CatalogRpc.exportMe,
     ];
 
     it.each(patterns)('%s needs a valid access token', async (pattern) => {
@@ -949,6 +950,47 @@ describe('Item commands (integration)', () => {
   });
 
   // --- reads ------------------------------------------------------------------------------
+
+  describe('exportMe (GDPR)', () => {
+    it('exports the stored name and every item, tombstones included, and nothing of others', async () => {
+      const userId = randomUUID();
+      const located = await create(userId, { title: 'Located' });
+      await as(userId, CatalogRpc.setLocation, {
+        itemId: located.id,
+        location: ATHENS,
+      });
+      await addPhoto(located.id, 'READY');
+      const gone = await create(userId, { title: 'Gone' });
+      await as(userId, CatalogRpc.delete, { itemId: gone.id });
+      await create(randomUUID(), { title: 'Someone else' });
+
+      const before = await as(userId, CatalogRpc.exportMe, {});
+      expect(before.lenderProfile).toBeNull();
+      expect(before.exportedAt).toEqual(expect.any(String));
+      const byTitle = Object.fromEntries(before.items.map((i) => [i.title, i]));
+      expect(Object.keys(byTitle).sort()).toEqual(['Gone', 'Located']);
+      expect(byTitle['Located'].location).toEqual(ATHENS);
+      expect(byTitle['Located'].photos[0].urls?.small).toMatch(
+        new RegExp(`^${TEST_PHOTOS_BASE_URL}/`),
+      );
+      expect(byTitle['Gone']).toMatchObject({
+        status: 'DELETED',
+        description: '',
+        location: null,
+      });
+
+      await catalog.dataSource.query(
+        `INSERT INTO lenders (user_id, display_name, name_updated_at)
+         VALUES ($1, 'Maria', '2026-10-01T10:00:00Z')`,
+        [userId],
+      );
+      const after = await as(userId, CatalogRpc.exportMe, {});
+      expect(after.lenderProfile).toEqual({
+        displayName: 'Maria',
+        updatedAt: '2026-10-01T10:00:00.000Z',
+      });
+    });
+  });
 
   describe('getOwn and listMine', () => {
     it('lists only the caller’s items, newest first, with photos in order', async () => {

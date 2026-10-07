@@ -14,12 +14,14 @@ import {
   type GeoPoint,
   type ItemPricing,
   type ItemStatus,
+  type CatalogDataExport,
   type OwnItem,
 } from '@borrowbox/contracts';
 import { addToOutbox } from '@borrowbox/outbox';
 import type { CatalogConfig } from '../config';
 import { DATA_SOURCE } from '../database/database.module';
 import {
+  findLenderProfile,
   isLenderDeleted,
   lockLenderItems,
 } from '../lenders/lenders.repository';
@@ -276,6 +278,33 @@ export class ItemsService {
     return rows.map((row) =>
       toOwnItem(row, photos.get(row.id) ?? [], this.photosBaseUrl),
     );
+  }
+
+  /**
+   * Everything Catalog holds about the caller (GDPR Art. 15/20): their
+   * stored name and all their items, deleted ones' tombstones included,
+   * with exact locations and photo URLs.
+   */
+  async exportMe(user: AuthUser): Promise<CatalogDataExport> {
+    const tx = this.dataSource.manager;
+    const profile = await findLenderProfile(tx, user.userId);
+    const rows = await listOwnItems(tx, user.userId, { includeDeleted: true });
+    const photos = await listPhotos(
+      tx,
+      rows.map((r) => r.id),
+    );
+    return {
+      exportedAt: new Date().toISOString(),
+      lenderProfile: profile
+        ? {
+            displayName: profile.displayName,
+            updatedAt: profile.updatedAt.toISOString(),
+          }
+        : null,
+      items: rows.map((row) =>
+        toOwnItem(row, photos.get(row.id) ?? [], this.photosBaseUrl),
+      ),
+    };
   }
 
   // --- helpers ----------------------------------------------------------------
