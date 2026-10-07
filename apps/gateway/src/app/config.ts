@@ -107,6 +107,17 @@ export class GatewayConfig {
   @Max(65535)
   IDENTITY_PORT = 4001;
 
+  /** Catalog's TCP endpoint (ADR-0005). */
+  @IsString()
+  @IsNotEmpty()
+  CATALOG_HOST = '127.0.0.1';
+
+  @toInt()
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  CATALOG_PORT = 4002;
+
   @toInt()
   @IsInt()
   @Min(100)

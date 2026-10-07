@@ -20,6 +20,9 @@ import {
   ITEM_FREE_LIMIT,
   ITEM_PHOTOS_MAX,
   ITEM_PHOTOS_MIN_TO_PUBLISH,
+  PHOTO_CLIENT_MAX_EDGE_PX,
+  PHOTO_CONTENT_TYPES,
+  PHOTO_MIN_WIDTH_PX,
   ITEM_TITLE_MAX_LENGTH,
   ITEM_TITLE_MIN_LENGTH,
   RATE_MAX_CENTS,
@@ -31,6 +34,7 @@ import {
   SIMILAR_ITEMS_RADIUS_KM,
   SUGGEST_LIMIT,
   SUGGEST_MIN_LENGTH,
+  charLength,
   isCentsInRange,
   isValidPricing,
 } from './validation';
@@ -69,6 +73,8 @@ describe('catalog limits', () => {
     expect(RATE_MIN_CENTS).toBeLessThanOrEqual(RATE_MAX_CENTS);
     expect(DEPOSIT_MIN_CENTS).toBeLessThanOrEqual(DEPOSIT_MAX_CENTS);
     expect(ITEM_PHOTOS_MIN_TO_PUBLISH).toBeLessThanOrEqual(ITEM_PHOTOS_MAX);
+    expect(PHOTO_CONTENT_TYPES).not.toContain('image/svg+xml');
+    expect(PHOTO_MIN_WIDTH_PX).toBeLessThanOrEqual(PHOTO_CLIENT_MAX_EDGE_PX);
     expect(Number.isInteger(ITEM_FREE_LIMIT)).toBe(true);
     expect(ITEM_FREE_LIMIT).toBeGreaterThan(0);
     expect(SEARCH_PAGE_SIZE_DEFAULT).toBeLessThanOrEqual(SEARCH_PAGE_SIZE_MAX);
@@ -87,6 +93,15 @@ describe('catalog limits', () => {
       expect(new Set(list).size).toBe(list.length);
     }
     expect(Object.keys(PRICE_FIELD).sort()).toEqual([...PRICE_UNITS].sort());
+  });
+});
+
+describe('charLength', () => {
+  it('counts characters, not UTF-16 units', () => {
+    expect(charLength('Δράπανο')).toBe(7);
+    expect(charLength('🔨🪚🛠')).toBe(3);
+    expect('🔨🪚🛠'.length).toBe(6);
+    expect(charLength('')).toBe(0);
   });
 });
 

@@ -77,6 +77,9 @@ flowchart TB
 | **Reviews / Trust** | reviews, trust scores | `review.created` | `booking.completed`, `user.verified`, `booking.disputed` |
 
 **Media** is a shared library, not a service. It issues presigned upload URLs into a private uploads bucket, and runs a BullMQ worker (inside the owning service) that strips all metadata with `sharp` and writes resized versions to a separate public-read bucket. Only processed photos are served. Stripping EXIF matters because photo GPS data would leak home locations. See [ADR-0009](adr/0009-photo-pipeline.md).
+- **Formats** ([ADR-0013](adr/0013-wider-photo-formats.md)): JPEG, PNG, WebP, AVIF, GIF and TIFF (never SVG); the PWA re-encodes photos, iPhone HEIC included, to JPEG before uploading. Photos narrower than 320 px, unreadable or of another real type than declared end `FAILED`; the owner sees them and removes them.
+- **No orphaned files:** removing a photo (itself, its item, or its owner's account) deletes the row and lists its files in `photo_file_deletions` in one transaction; a job deletes the files, then the entry. The worker lists the files it is about to write with a delay, so a crash mid-processing is cleaned up too.
+- **Sweeper** (every 10 minutes): re-queues confirmed photos whose processing was interrupted, removes uploads abandoned for a day, and retries due file deletions.
 
 ### Gateway
 - REST under `/api`, calling services through typed clients (e.g. `IdentityClient`) over NestJS TCP ([ADR-0005](adr/0005-gateway-service-transport-tcp.md)). It forwards the caller's access token and an `X-Request-Id` correlation id with every call.
@@ -90,12 +93,17 @@ flowchart TB
   - `GET /api/auth/google` and `/google/callback`
   - `GET` / `PATCH` / `DELETE /api/me`, `GET /api/me/export`
   - `GET /api/health`
+- Phase 2 endpoints (Catalog):
+  - Public, no sign-in: `POST /api/items/search` and `/suggest` (the searcher's point travels in the body, so it never lands in URLs, access logs or browser history), `GET /api/items/:id` and `/:id/similar`.
+  - The signed-in lender's own items under `/api/me/items`: list, create, get, `PATCH`, `DELETE`, `PUT /:id/location`, `POST /:id/publish` / `pause` / `unpause`, and photos (`POST /:id/photos` for an upload URL, `POST …/photos/:photoId/confirm`, `DELETE …/photos/:photoId`, `PUT /:id/photos/order`).
+  - Catalog's state and limit refusals (`INVALID_STATE`, `NOT_PUBLISHABLE`, `ITEM_LIMIT_REACHED`, `PHOTO_LIMIT_REACHED`) are `409`; the PWA tells them apart by `code`.
+  - `GET /api/me/export` has one section per service (`identity`, `catalog`). If any service doesn't answer, the whole export fails with `503` rather than returning partial data.
 - **Cookies:**
   - The refresh token is set only as `bb_refresh` (httpOnly, Secure, SameSite=Strict, `Path=/api/auth`) and never appears in a response body.
   - Google sign-in keeps its state, nonce and PKCE verifier in a signed, 10-minute `bb_oauth` cookie. It is SameSite=Lax because Google's redirect back is a cross-site navigation.
 - **Security:**
   - Helmet, a CORS allow-list, a 100 kB body limit and `class-validator` DTOs.
-  - Redis-backed rate limits per IP: 10/min for login, register and Google, 30/min for refresh, 120/min otherwise.
+  - Redis-backed rate limits per IP: 10/min for login, register and Google, 30/min for refresh, 300/min for search-as-you-type, 120/min otherwise.
   - While Redis is unreachable, each gateway instance counts in memory instead, so the limits stay in force and the API keeps answering. It switches back to Redis by itself once Redis recovers.
   - Every error has the shape `{ statusCode, code, message }` and never echoes the request body.
 - **OpenAPI:** `apps/gateway/openapi.json` is committed and regenerated with `nx run gateway:openapi`. A test fails if it drifts from the code. The PWA's API client is generated from it with `nx run web:api-client`.

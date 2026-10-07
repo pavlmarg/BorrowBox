@@ -1,6 +1,6 @@
 import { Client } from 'pg';
 import {
-  CatalogRpc,
+  type CatalogRpcPattern,
   createEnvelope,
   ItemDeletedV1,
   type EventEnvelope,
@@ -10,8 +10,10 @@ import { addToOutbox } from '@borrowbox/outbox';
 import {
   startPostgres,
   startRabbitMq,
+  startRedis,
   type TestPostgres,
   type TestRabbitMq,
+  type TestRedis,
 } from '@borrowbox/testing';
 import { startCatalog, type CatalogHarness } from '../testing/catalog-harness';
 import { MIGRATIONS } from './database/database.module';
@@ -30,21 +32,27 @@ const silent: MessagingLogger = {
 describe('Catalog AppModule (integration)', () => {
   let pg: TestPostgres;
   let rabbit: TestRabbitMq;
+  let redis: TestRedis;
   let catalog: CatalogHarness;
   const savedEnv = { ...process.env };
 
   beforeAll(async () => {
-    [pg, rabbit] = await Promise.all([startPostgres(), startRabbitMq()]);
+    [pg, rabbit, redis] = await Promise.all([
+      startPostgres(),
+      startRabbitMq(),
+      startRedis(),
+    ]);
     catalog = await startCatalog({
       databaseUrl: pg.urlFor('catalog'),
       rabbitmqUrl: rabbit.url,
+      redisUrl: redis.url,
     });
   });
 
   afterAll(async () => {
     await catalog?.close();
     process.env = savedEnv;
-    await Promise.all([pg?.stop(), rabbit?.stop()]);
+    await Promise.all([pg?.stop(), rabbit?.stop(), redis?.stop()]);
   });
 
   it('migrates into the catalog schema only', async () => {
@@ -66,6 +74,7 @@ describe('Catalog AppModule (integration)', () => {
           'lenders',
           'migrations',
           'outbox',
+          'photo_file_deletions',
           'processed_events',
         ].map((table_name) => ({
           table_schema: 'catalog',
@@ -77,7 +86,7 @@ describe('Catalog AppModule (integration)', () => {
     }
     // Idempotent: nothing left to run.
     expect(await catalog.dataSource.showMigrations()).toBe(false);
-    expect(MIGRATIONS).toHaveLength(2);
+    expect(MIGRATIONS).toHaveLength(3);
   });
 
   it('publishes outbox events to RabbitMQ through the relay', async () => {
@@ -116,7 +125,7 @@ describe('Catalog AppModule (integration)', () => {
     // Nest's TCP server replies at once with a plain string (not an
     // RpcErrorBody); the gateway logs it and answers 500 INTERNAL.
     await expect(
-      catalog.send(CatalogRpc.createPhotoUpload, {}),
+      catalog.send('catalog.no.such.pattern' as CatalogRpcPattern, {}),
     ).rejects.toMatch(/no matching message handler/i);
   });
 });

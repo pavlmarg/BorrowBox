@@ -12,7 +12,7 @@ ADRs — read the relevant one before touching that area:
 - Anything involving money / Stripe → `docs/adr/0003-stripe-separate-charges-transfers.md`
 - Item locations, maps, photos → `docs/adr/0004-location-fuzzing.md`, then `0007-location-privacy-search.md` (supersedes parts of 0004), then `0011-one-offset-per-place.md` (amends 0007's offset rule)
 - Map tiles, setting item locations → `docs/adr/0008-maps-pin-drop.md`
-- Photo uploads and processing → `docs/adr/0009-photo-pipeline.md`
+- Photo uploads and processing → `docs/adr/0009-photo-pipeline.md`, then `0013-wider-photo-formats.md` (formats, browser conversion, camera)
 - Item pricing (rate card, free items) and its effects on Bookings/Payments → `docs/adr/0010-flexible-pricing.md`, then `0012-free-items-match-price-limits.md` (search price filter)
 - Gateway → service calls (NestJS TCP) → `docs/adr/0005-gateway-service-transport-tcp.md`
 - UI kit (Angular Material) → `docs/adr/0006-ui-kit-angular-material.md`

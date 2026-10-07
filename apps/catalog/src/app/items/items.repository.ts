@@ -106,12 +106,13 @@ export async function findOwnItem(
 export async function listOwnItems(
   tx: EntityManager,
   lenderId: string,
+  options: { includeDeleted?: boolean } = {},
 ): Promise<ItemRow[]> {
   return tx.query(
     ITEM_SELECT +
-      " WHERE lender_id = $1 AND status <> 'DELETED'" +
+      " WHERE lender_id = $1 AND ($2::boolean OR status <> 'DELETED')" +
       ' ORDER BY created_at DESC, id',
-    [lenderId],
+    [lenderId, options.includeDeleted ?? false],
   );
 }
 
@@ -273,7 +274,7 @@ export async function countReadyPhotos(
 /**
  * Turns items into minimal tombstones (ADR-0007, GDPR): no location, offset
  * or description. All of `lenderId`'s items, or just `itemId` if given.
- * Photos are handled with the photo pipeline (step 10).
+ * Photos are removed separately (`removePhotos`), in the same transaction.
  *
  * @returns the ids tombstoned now (already-deleted ones are left alone)
  */
@@ -320,8 +321,14 @@ export async function listPhotos(
 }
 
 /** Where a processed photo's sizes live in the public bucket (ADR-0009). */
+/** A processed photo size's key in the public bucket (written by the photo worker). */
+export function publicPhotoObjectKey(publicKey: string, width: number): string {
+  return `items/${publicKey}/${width}.webp`;
+}
+
 export function photoUrls(baseUrl: string, publicKey: string): PhotoUrls {
-  const url = (width: number) => `${baseUrl}/items/${publicKey}/${width}.webp`;
+  const url = (width: number) =>
+    `${baseUrl}/${publicPhotoObjectKey(publicKey, width)}`;
   return {
     small: url(PHOTO_VARIANTS.small),
     medium: url(PHOTO_VARIANTS.medium),
@@ -370,6 +377,22 @@ function point(lat: number | null, lng: number | null): GeoPoint | null {
   return lat === null || lng === null ? null : { lat, lng };
 }
 
+/** A photo as its owner sees it; URLs only once READY. */
+export function toPhotoView(
+  photo: Pick<PhotoRow, 'id' | 'status' | 'position' | 'public_key'>,
+  photosBaseUrl: string,
+): PhotoView {
+  return {
+    id: photo.id,
+    status: photo.status,
+    position: photo.position,
+    urls:
+      photo.status === 'READY' && photo.public_key
+        ? photoUrls(photosBaseUrl, photo.public_key)
+        : null,
+  };
+}
+
 /** The owner's view, exact location included. */
 export function toOwnItem(
   row: ItemRow,
@@ -386,15 +409,7 @@ export function toOwnItem(
     depositCents: row.deposit_cents,
     location: point(row.lat, row.lng),
     approximateLocation: point(row.public_lat, row.public_lng),
-    photos: photos.map((p): PhotoView => ({
-      id: p.id,
-      status: p.status,
-      position: p.position,
-      urls:
-        p.status === 'READY' && p.public_key
-          ? photoUrls(photosBaseUrl, p.public_key)
-          : null,
-    })),
+    photos: photos.map((p) => toPhotoView(p, photosBaseUrl)),
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
     publishedAt: row.published_at?.toISOString() ?? null,

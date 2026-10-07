@@ -26,12 +26,24 @@ export const ITEM_FREE_LIMIT = 10;
 export const ITEM_PHOTOS_MIN_TO_PUBLISH = 1;
 export const ITEM_PHOTOS_MAX = 10;
 export const PHOTO_MAX_BYTES = 10 * 1024 * 1024;
+/**
+ * Accepted upload types (ADR-0013). GIF and TIFF: first frame/page only.
+ * Never SVG (a document that can carry scripts). HEIC can't be decoded on
+ * the server: the PWA converts it (and every photo) to JPEG first.
+ */
 export const PHOTO_CONTENT_TYPES = [
   'image/jpeg',
   'image/png',
   'image/webp',
+  'image/avif',
+  'image/gif',
+  'image/tiff',
 ] as const;
 export type PhotoContentType = (typeof PHOTO_CONTENT_TYPES)[number];
+/** Narrower photos are rejected, so every photo fills the smallest size. */
+export const PHOTO_MIN_WIDTH_PX = 320;
+/** The PWA re-encodes photos to JPEG at most this long on their longer side. */
+export const PHOTO_CLIENT_MAX_EDGE_PX = 2048;
 
 export const SEARCH_QUERY_MAX_LENGTH = 100;
 export const SEARCH_PAGE_SIZE_DEFAULT = 20;
@@ -44,6 +56,16 @@ export const SUGGEST_LIMIT = 5;
 /** Similar items: at most this many, within this distance of the item. */
 export const SIMILAR_ITEMS_MAX = 8;
 export const SIMILAR_ITEMS_RADIUS_KM = 10;
+
+/**
+ * Text length in characters (Unicode code points), the way Catalog's
+ * database counts (`char_length`). Use it for every title/description/search
+ * limit in the PWA, the gateway and Catalog: `"🔨🪚🛠".length` is 6 in
+ * JavaScript, but 3 characters here and in Postgres.
+ */
+export function charLength(text: string): number {
+  return [...text].length;
+}
 
 /** True if `cents` is a whole number of cents within [min, max]. */
 export function isCentsInRange(

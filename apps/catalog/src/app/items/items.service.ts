@@ -14,15 +14,19 @@ import {
   type GeoPoint,
   type ItemPricing,
   type ItemStatus,
+  type CatalogDataExport,
   type OwnItem,
 } from '@borrowbox/contracts';
 import { addToOutbox } from '@borrowbox/outbox';
 import type { CatalogConfig } from '../config';
 import { DATA_SOURCE } from '../database/database.module';
 import {
+  findLenderProfile,
   isLenderDeleted,
   lockLenderItems,
 } from '../lenders/lenders.repository';
+import { PhotoQueue } from '../photos/photo-queue';
+import { removePhotos } from '../photos/photos.repository';
 import { CatalogError } from '../rpc/rpc-errors';
 import type { CreateItemDto, UpdateItemDto } from './items.dto';
 import {
@@ -67,6 +71,7 @@ export class ItemsService {
 
   constructor(
     @Inject(DATA_SOURCE) private readonly dataSource: DataSource,
+    private readonly photoQueue: PhotoQueue,
     config: ConfigService<CatalogConfig, true>,
   ) {
     this.photosBaseUrl = config.get('PHOTOS_BASE_URL', { infer: true });
@@ -229,14 +234,22 @@ export class ItemsService {
     });
   }
 
-  /** Tombstones the item (D11: deleting it again succeeds, no second event). */
-  delete(user: AuthUser, itemId: string, correlationId: string): Promise<void> {
-    return this.dataSource.transaction(async (tx) => {
+  /**
+   * Tombstones the item and removes its photos (D11: deleting it again
+   * succeeds, no second event). Their files are deleted after the commit.
+   */
+  async delete(
+    user: AuthUser,
+    itemId: string,
+    correlationId: string,
+  ): Promise<void> {
+    await this.dataSource.transaction(async (tx) => {
       await this.assertLenderActive(tx, user);
       const row = await lockOwnItem(tx, itemId, user.userId);
       if (!row) throw NOT_FOUND();
       if (row.status === 'DELETED') return;
       await tombstoneItems(tx, user.userId, row.id);
+      await removePhotos(tx, { itemIds: [row.id] });
       await addToOutbox(
         tx,
         createEnvelope(
@@ -246,6 +259,7 @@ export class ItemsService {
         ),
       );
     });
+    await this.photoQueue.cleanup();
   }
 
   async getOwn(user: AuthUser, itemId: string): Promise<OwnItem> {
@@ -264,6 +278,33 @@ export class ItemsService {
     return rows.map((row) =>
       toOwnItem(row, photos.get(row.id) ?? [], this.photosBaseUrl),
     );
+  }
+
+  /**
+   * Everything Catalog holds about the caller (GDPR Art. 15/20): their
+   * stored name and all their items, deleted ones' tombstones included,
+   * with exact locations and photo URLs.
+   */
+  async exportMe(user: AuthUser): Promise<CatalogDataExport> {
+    const tx = this.dataSource.manager;
+    const profile = await findLenderProfile(tx, user.userId);
+    const rows = await listOwnItems(tx, user.userId, { includeDeleted: true });
+    const photos = await listPhotos(
+      tx,
+      rows.map((r) => r.id),
+    );
+    return {
+      exportedAt: new Date().toISOString(),
+      lenderProfile: profile
+        ? {
+            displayName: profile.displayName,
+            updatedAt: profile.updatedAt.toISOString(),
+          }
+        : null,
+      items: rows.map((row) =>
+        toOwnItem(row, photos.get(row.id) ?? [], this.photosBaseUrl),
+      ),
+    };
   }
 
   // --- helpers ----------------------------------------------------------------

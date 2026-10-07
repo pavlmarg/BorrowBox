@@ -61,6 +61,40 @@ export class CatalogConfig {
     message: 'PHOTOS_BASE_URL must be an http(s):// URL',
   })
   PHOTOS_BASE_URL!: string;
+
+  /** BullMQ (photo jobs). Includes the password: `redis://:<password>@host:port`. */
+  @Matches(/^rediss?:\/\//, { message: 'REDIS_URL must be a redis:// URL' })
+  REDIS_URL!: string;
+
+  /** Object storage (ADR-0009): SeaweedFS in dev, R2 in production. */
+  @Matches(/^https?:\/\/[^\s]+$/, {
+    message: 'S3_ENDPOINT must be an http(s):// URL',
+  })
+  S3_ENDPOINT!: string;
+
+  /** `us-east-1` for SeaweedFS, `auto` for R2. */
+  @IsString()
+  @IsNotEmpty()
+  S3_REGION = 'us-east-1';
+
+  /** Catalog's scoped key: read/write on the two buckets only. */
+  @IsString()
+  @IsNotEmpty()
+  S3_ACCESS_KEY_ID!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  S3_SECRET_ACCESS_KEY!: string;
+
+  /** Private: raw uploads under incoming/. */
+  @IsString()
+  @IsNotEmpty()
+  S3_UPLOADS_BUCKET!: string;
+
+  /** Public-read: processed photos only. */
+  @IsString()
+  @IsNotEmpty()
+  S3_PUBLIC_BUCKET!: string;
 }
 
 /** For `ConfigModule.forRoot({ validate })`. Error messages name variables, never values. */

@@ -1,7 +1,11 @@
 import { Controller, UseGuards } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { CurrentUser, RpcJwtAuthGuard, type AuthUser } from '@borrowbox/auth';
-import { CatalogRpc, type OwnItem } from '@borrowbox/contracts';
+import {
+  CatalogRpc,
+  type CatalogDataExport,
+  type OwnItem,
+} from '@borrowbox/contracts';
 import { CorrelationIdPipe } from '../rpc/correlation-id.pipe';
 import {
   CreateItemDto,
@@ -93,5 +97,11 @@ export class ItemsController {
   @MessagePattern(CatalogRpc.listMine)
   listMine(@CurrentUser() user: AuthUser): Promise<OwnItem[]> {
     return this.items.listMine(user);
+  }
+
+  /** GDPR export: Catalog's part of `GET /me/export`. */
+  @MessagePattern(CatalogRpc.exportMe)
+  exportMe(@CurrentUser() user: AuthUser): Promise<CatalogDataExport> {
+    return this.items.exportMe(user);
   }
 }

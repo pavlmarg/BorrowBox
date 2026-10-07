@@ -377,6 +377,33 @@ describe('Catalog schema (integration)', () => {
     });
   });
 
+  describe('photo_file_deletions', () => {
+    it('lists each stored file once, of a known kind', async () => {
+      const key = `items/${randomUUID()}`;
+      await db.query(
+        `INSERT INTO photo_file_deletions (kind, key) VALUES ('PUBLIC_PHOTO', $1)`,
+        [key],
+      );
+      // The same file again is a no-op with ON CONFLICT, an error without.
+      await expect(
+        db.query(
+          `INSERT INTO photo_file_deletions (kind, key) VALUES ('PUBLIC_PHOTO', $1)`,
+          [key],
+        ),
+      ).rejects.toThrow(/photo_file_deletions_kind_key_key/);
+      await db.query(
+        `INSERT INTO photo_file_deletions (kind, key) VALUES ('UPLOAD', $1)`,
+        [key],
+      );
+      await expect(
+        db.query(
+          `INSERT INTO photo_file_deletions (kind, key) VALUES ('THUMBNAIL', $1)`,
+          [key],
+        ),
+      ).rejects.toThrow(/photo_file_deletions_kind_check/);
+    });
+  });
+
   describe('lenders', () => {
     it('needs a name until the account is deleted', async () => {
       await db.query(
@@ -398,12 +425,21 @@ describe('Catalog schema (integration)', () => {
 
   // Last: it drops and recreates the tables.
   it('can be reverted and applied again', async () => {
-    await db.undoLastMigration();
-    const [{ count }] = await db.query(
-      `SELECT count(*)::int AS count FROM information_schema.tables
-        WHERE table_schema = 'catalog' AND table_name IN ('items', 'item_photos', 'lenders')`,
-    );
-    expect(count).toBe(0);
-    expect(await runMigrations(db)).toBe(1);
+    const tables = async (): Promise<string[]> =>
+      (
+        await db.query(
+          `SELECT table_name FROM information_schema.tables
+            WHERE table_schema = 'catalog'
+              AND table_name IN ('items', 'item_photos', 'lenders', 'photo_file_deletions')
+            ORDER BY table_name`,
+        )
+      ).map((r: { table_name: string }) => r.table_name);
+
+    await db.undoLastMigration(); // photo pipeline
+    expect(await tables()).toEqual(['item_photos', 'items', 'lenders']);
+    await db.undoLastMigration(); // initial
+    expect(await tables()).toEqual([]);
+    expect(await runMigrations(db)).toBe(2);
+    expect(await tables()).toHaveLength(4);
   });
 });

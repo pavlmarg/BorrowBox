@@ -78,3 +78,18 @@ export async function isLenderDeleted(
   );
   return rows.length > 0;
 }
+
+/** The live lender's stored name, for their data export; null if unknown or deleted. */
+export async function findLenderProfile(
+  tx: EntityManager,
+  lenderId: string,
+): Promise<{ displayName: string; updatedAt: Date } | null> {
+  const [row] = await tx.query(
+    `SELECT display_name, name_updated_at FROM lenders
+      WHERE user_id = $1 AND deleted_at IS NULL`,
+    [lenderId],
+  );
+  return row
+    ? { displayName: row.display_name, updatedAt: row.name_updated_at }
+    : null;
+}

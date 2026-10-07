@@ -10,13 +10,14 @@ import {
   type AccessTokenSigner,
 } from '@borrowbox/auth';
 import {
+  CatalogRpc,
   IdentityRpc,
   type AuthSession,
   type RpcRequest,
   type UserProfile,
 } from '@borrowbox/contracts';
 import { startRedis, type TestRedis } from '@borrowbox/testing';
-import { FakeIdentity } from '../testing/fake-identity';
+import { FakeCatalog, FakeIdentity } from '../testing/fake-service';
 
 const WEB = 'http://localhost:4200';
 const GOOGLE_AUTH = 'https://accounts.example/o/oauth2/auth';
@@ -44,6 +45,7 @@ const session = (n = 1): AuthSession => ({
 describe('Gateway (integration)', () => {
   let redis: TestRedis;
   let identity: FakeIdentity;
+  let catalog: FakeCatalog;
   let app: NestExpressApplication;
   let signer: AccessTokenSigner;
   let otherSigner: AccessTokenSigner;
@@ -53,7 +55,8 @@ describe('Gateway (integration)', () => {
   beforeAll(async () => {
     redis = await startRedis();
     identity = new FakeIdentity();
-    await identity.start();
+    catalog = new FakeCatalog();
+    await Promise.all([identity.start(), catalog.start()]);
 
     const keys = generateKeyPairSync('ed25519', {
       publicKeyEncoding: { type: 'spki', format: 'pem' },
@@ -76,6 +79,8 @@ describe('Gateway (integration)', () => {
       REDIS_URL: redis.url,
       IDENTITY_HOST: '127.0.0.1',
       IDENTITY_PORT: String(identity.port),
+      CATALOG_HOST: '127.0.0.1',
+      CATALOG_PORT: String(catalog.port),
       RPC_TIMEOUT_MS: '1000',
       COOKIE_SECRET: 'test-cookie-secret-0123456789abcdef',
       JWT_PUBLIC_KEY: keys.publicKey,
@@ -104,7 +109,7 @@ describe('Gateway (integration)', () => {
 
   afterAll(async () => {
     await app?.close();
-    await identity?.stop();
+    await Promise.all([identity?.stop(), catalog?.stop()]);
     await redisClient?.quit();
     process.env = savedEnv;
     await redis?.stop();
@@ -112,6 +117,7 @@ describe('Gateway (integration)', () => {
 
   beforeEach(async () => {
     identity.reset();
+    catalog.reset();
     await redisClient.flushall(); // rate-limit counters
   });
 
@@ -431,14 +437,35 @@ describe('Gateway (integration)', () => {
         oauthIdentities: [],
         sessions: [],
       };
+      const catalogExport = {
+        exportedAt: '2026-09-29T00:00:00.000Z',
+        lenderProfile: null,
+        items: [],
+      };
       identity.on(IdentityRpc.exportMe, () => exported);
+      catalog.on(CatalogRpc.exportMe, () => catalogExport);
       const res = await http()
         .get('/api/me/export')
         .set('Authorization', await bearer())
         .expect(200);
-      expect(res.body).toEqual({ identity: exported });
+      expect(res.body).toEqual({ identity: exported, catalog: catalogExport });
+      // Both services verify the same token again.
+      expect(catalog.callsTo(CatalogRpc.exportMe)[0].message.accessToken).toBe(
+        identity.callsTo(IdentityRpc.exportMe)[0].message.accessToken,
+      );
       expect(res.headers['content-disposition']).toMatch(/^attachment;/);
       expect(res.headers['cache-control']).toBe('no-store');
+    });
+
+    it('fails the whole export with 503 when a service does not answer', async () => {
+      identity.on(IdentityRpc.exportMe, () => ({ exportedAt: 'x' }));
+      catalog.on(CatalogRpc.exportMe, () => new Promise(() => undefined));
+      const res = await http()
+        .get('/api/me/export')
+        .set('Authorization', await bearer())
+        .expect(503);
+      expect(res.body.code).toBe('SERVICE_UNAVAILABLE');
+      expect(JSON.stringify(res.body)).not.toContain('exportedAt');
     });
 
     it('DELETE forwards the password, answers 204 and clears the cookie', async () => {

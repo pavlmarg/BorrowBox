@@ -370,6 +370,7 @@
     },
     "/api/me/export": {
       "get": {
+        "description": "One section per service. If any service is unavailable, the whole export fails with 503: try again.",
         "operationId": "MeController_export",
         "parameters": [],
         "responses": {
@@ -402,6 +403,1170 @@
         "summary": "Download all my personal data (GDPR Art. 15/20)",
         "tags": [
           "me"
+        ]
+      }
+    },
+    "/api/me/items": {
+      "get": {
+        "operationId": "MyItemsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OwnItemResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "My items (not deleted), newest first",
+        "tags": [
+          "my items"
+        ]
+      },
+      "post": {
+        "description": "The client picks the id; repeating the same create returns the same item. At most 10 items at once, drafts included.",
+        "operationId": "MyItemsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateItemBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnItemResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ITEM_LIMIT_REACHED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create an item (a draft)",
+        "tags": [
+          "my items"
+        ]
+      }
+    },
+    "/api/me/items/{itemId}": {
+      "get": {
+        "operationId": "MyItemsController_get",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnItemResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "One of my items, exact location included",
+        "tags": [
+          "my items"
+        ]
+      },
+      "patch": {
+        "operationId": "MyItemsController_update",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateItemBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnItemResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Change the fields sent",
+        "tags": [
+          "my items"
+        ]
+      },
+      "delete": {
+        "operationId": "MyItemsController_delete",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete an item and its photos (repeating is fine)",
+        "tags": [
+          "my items"
+        ]
+      }
+    },
+    "/api/me/items/{itemId}/location": {
+      "put": {
+        "description": "Everyone else sees a point 150-300 m away (ADR-0007, ADR-0011).",
+        "operationId": "MyItemsController_setLocation",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetItemLocationBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnItemResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Set the exact pin",
+        "tags": [
+          "my items"
+        ]
+      }
+    },
+    "/api/me/items/{itemId}/publish": {
+      "post": {
+        "operationId": "MyItemsController_publish",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnItemResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "NOT_PUBLISHABLE, INVALID_STATE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Publish a draft (needs a location and a processed photo)",
+        "tags": [
+          "my items"
+        ]
+      }
+    },
+    "/api/me/items/{itemId}/pause": {
+      "post": {
+        "operationId": "MyItemsController_pause",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnItemResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Hide a published item from search",
+        "tags": [
+          "my items"
+        ]
+      }
+    },
+    "/api/me/items/{itemId}/unpause": {
+      "post": {
+        "operationId": "MyItemsController_unpause",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnItemResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "NOT_PUBLISHABLE, INVALID_STATE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Show a paused item again",
+        "tags": [
+          "my items"
+        ]
+      }
+    },
+    "/api/me/items/{itemId}/photos": {
+      "post": {
+        "description": "Returns a presigned URL: PUT the file there with uploadHeaders, then confirm. At most 10 photos per item.",
+        "operationId": "MyItemsController_createPhotoUpload",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePhotoUploadBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PHOTO_LIMIT_REACHED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Start a photo upload",
+        "tags": [
+          "my items"
+        ]
+      }
+    },
+    "/api/me/items/{itemId}/photos/{photoId}/confirm": {
+      "post": {
+        "description": "Poll the item until the photo is READY or FAILED.",
+        "operationId": "MyItemsController_confirmPhoto",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "photoId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoViewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE (the file hasn't arrived)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The upload finished: process the photo",
+        "tags": [
+          "my items"
+        ]
+      }
+    },
+    "/api/me/items/{itemId}/photos/{photoId}": {
+      "delete": {
+        "operationId": "MyItemsController_deletePhoto",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "photoId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE (an active item's last processed photo)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a photo and its files",
+        "tags": [
+          "my items"
+        ]
+      }
+    },
+    "/api/me/items/{itemId}/photos/order": {
+      "put": {
+        "operationId": "MyItemsController_reorderPhotos",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderPhotosBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PhotoViewResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reorder photos (the first is the cover)",
+        "tags": [
+          "my items"
+        ]
+      }
+    },
+    "/api/items/search": {
+      "post": {
+        "description": "Nearest first (by the fuzzed point). Page with nextCursor. The point is used for this search only.",
+        "operationId": "PublicItemsController_search",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchItemsBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchItemsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Search active items near a point",
+        "tags": [
+          "items"
+        ]
+      }
+    },
+    "/api/items/suggest": {
+      "post": {
+        "description": "From 2 characters; 300 requests per minute per IP.",
+        "operationId": "PublicItemsController_suggest",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuggestItemsBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestItemsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (300 per minute)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Search as you type: up to 5 nearby matches",
+        "tags": [
+          "items"
+        ]
+      }
+    },
+    "/api/items/{itemId}": {
+      "get": {
+        "operationId": "PublicItemsController_get",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicItemDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "An active item’s public page",
+        "tags": [
+          "items"
+        ]
+      }
+    },
+    "/api/items/{itemId}/similar": {
+      "get": {
+        "operationId": "PublicItemsController_similar",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimilarItemsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Up to 8 similar items from other lenders nearby",
+        "tags": [
+          "items"
         ]
       }
     },
@@ -735,15 +1900,295 @@
           "sessions"
         ]
       },
+      "LenderProfileResponse": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "displayName",
+          "updatedAt"
+        ]
+      },
+      "ItemStatus": {
+        "type": "string",
+        "enum": [
+          "DRAFT",
+          "ACTIVE",
+          "PAUSED",
+          "DELETED"
+        ]
+      },
+      "ItemCategory": {
+        "type": "string",
+        "enum": [
+          "tools",
+          "diy-ladders",
+          "garden",
+          "cleaning",
+          "kitchen",
+          "electronics",
+          "photo-video",
+          "music",
+          "sports",
+          "camping",
+          "travel",
+          "kids",
+          "party",
+          "vehicles",
+          "other"
+        ]
+      },
+      "ItemPricingBody": {
+        "type": "object",
+        "properties": {
+          "free": {
+            "type": "boolean",
+            "description": "Free items offer no rates"
+          },
+          "hourlyCents": {
+            "type": "number",
+            "minimum": 10,
+            "maximum": 100000
+          },
+          "dailyCents": {
+            "type": "number",
+            "minimum": 10,
+            "maximum": 100000
+          },
+          "weeklyCents": {
+            "type": "number",
+            "minimum": 10,
+            "maximum": 100000
+          },
+          "monthlyCents": {
+            "type": "number",
+            "minimum": 10,
+            "maximum": 100000
+          }
+        },
+        "required": [
+          "free"
+        ]
+      },
+      "GeoPointResponse": {
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "number"
+          },
+          "lng": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "lat",
+          "lng"
+        ]
+      },
+      "PhotoStatus": {
+        "type": "string",
+        "enum": [
+          "PENDING",
+          "READY",
+          "FAILED"
+        ]
+      },
+      "PhotoUrlsResponse": {
+        "type": "object",
+        "properties": {
+          "small": {
+            "type": "string",
+            "description": "320 px wide WebP"
+          },
+          "medium": {
+            "type": "string",
+            "description": "800 px wide WebP (or the original width)"
+          },
+          "large": {
+            "type": "string",
+            "description": "1600 px wide WebP (or the original width)"
+          }
+        },
+        "required": [
+          "small",
+          "medium",
+          "large"
+        ]
+      },
+      "PhotoViewResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PhotoStatus"
+              }
+            ]
+          },
+          "position": {
+            "type": "number",
+            "description": "0 is the cover"
+          },
+          "urls": {
+            "nullable": true,
+            "description": "Set once READY",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PhotoUrlsResponse"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "position",
+          "urls"
+        ]
+      },
+      "OwnItemResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ItemStatus"
+              }
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ItemCategory"
+              }
+            ]
+          },
+          "pricing": {
+            "$ref": "#/components/schemas/ItemPricingBody"
+          },
+          "depositCents": {
+            "type": "number"
+          },
+          "location": {
+            "nullable": true,
+            "description": "The exact pin; only ever sent to the owner",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GeoPointResponse"
+              }
+            ]
+          },
+          "approximateLocation": {
+            "nullable": true,
+            "description": "What everyone else sees (ADR-0007)",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GeoPointResponse"
+              }
+            ]
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PhotoViewResponse"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "title",
+          "description",
+          "category",
+          "pricing",
+          "depositCents",
+          "location",
+          "approximateLocation",
+          "photos",
+          "createdAt",
+          "updatedAt",
+          "publishedAt"
+        ]
+      },
+      "CatalogDataExportResponse": {
+        "type": "object",
+        "properties": {
+          "exportedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lenderProfile": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LenderProfileResponse"
+              }
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OwnItemResponse"
+            }
+          }
+        },
+        "required": [
+          "exportedAt",
+          "lenderProfile",
+          "items"
+        ]
+      },
       "DataExportResponse": {
         "type": "object",
         "properties": {
           "identity": {
             "$ref": "#/components/schemas/IdentityDataExportResponse"
+          },
+          "catalog": {
+            "$ref": "#/components/schemas/CatalogDataExportResponse"
           }
         },
         "required": [
-          "identity"
+          "identity",
+          "catalog"
         ]
       },
       "DeleteAccountBody": {
@@ -756,6 +2201,539 @@
             "description": "Required when the account has a password (`UserProfile.hasPassword`). Otherwise the session must be less than 5 minutes old."
           }
         }
+      },
+      "CreateItemBody": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A new random UUID chosen by the client once per item: sending the same create again returns the same item."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 80
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "default": ""
+          },
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ItemCategory"
+              }
+            ]
+          },
+          "pricing": {
+            "$ref": "#/components/schemas/ItemPricingBody"
+          },
+          "depositCents": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 500000
+          }
+        },
+        "required": [
+          "itemId",
+          "title",
+          "category",
+          "pricing",
+          "depositCents"
+        ]
+      },
+      "UpdateItemBody": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 80
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ItemCategory"
+              }
+            ]
+          },
+          "pricing": {
+            "$ref": "#/components/schemas/ItemPricingBody"
+          },
+          "depositCents": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 500000
+          }
+        }
+      },
+      "GeoPointBody": {
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90,
+            "example": 37.9838
+          },
+          "lng": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180,
+            "example": 23.7275
+          }
+        },
+        "required": [
+          "lat",
+          "lng"
+        ]
+      },
+      "SetItemLocationBody": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "description": "The exact point (a dropped pin). Only the owner ever sees it; everyone else sees a point 150-300 m away (ADR-0007).",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GeoPointBody"
+              }
+            ]
+          }
+        },
+        "required": [
+          "location"
+        ]
+      },
+      "PhotoContentType": {
+        "type": "string",
+        "enum": [
+          "image/jpeg",
+          "image/png",
+          "image/webp",
+          "image/avif",
+          "image/gif",
+          "image/tiff"
+        ]
+      },
+      "CreatePhotoUploadBody": {
+        "type": "object",
+        "properties": {
+          "contentType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PhotoContentType"
+              }
+            ]
+          },
+          "sizeBytes": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 10485760
+          }
+        },
+        "required": [
+          "contentType",
+          "sizeBytes"
+        ]
+      },
+      "PhotoUploadResponse": {
+        "type": "object",
+        "properties": {
+          "photoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "uploadUrl": {
+            "type": "string",
+            "description": "PUT the file here, before expiresAt"
+          },
+          "uploadHeaders": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Headers the PUT must send exactly"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "photoId",
+          "uploadUrl",
+          "uploadHeaders",
+          "expiresAt"
+        ]
+      },
+      "ReorderPhotosBody": {
+        "type": "object",
+        "properties": {
+          "photoIds": {
+            "maxItems": 10,
+            "description": "Every photo of the item, in the new order",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "photoIds"
+        ]
+      },
+      "SearchRadiusKm": {
+        "type": "number",
+        "enum": [
+          1,
+          2,
+          5,
+          10,
+          25,
+          50
+        ]
+      },
+      "PriceUnit": {
+        "type": "string",
+        "enum": [
+          "HOUR",
+          "DAY",
+          "WEEK",
+          "MONTH"
+        ]
+      },
+      "SearchItemsBody": {
+        "type": "object",
+        "properties": {
+          "near": {
+            "description": "Used for this search only; never stored or logged.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GeoPointBody"
+              }
+            ]
+          },
+          "radiusKm": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SearchRadiusKm"
+              }
+            ]
+          },
+          "q": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ItemCategory"
+              }
+            ]
+          },
+          "freeOnly": {
+            "type": "boolean"
+          },
+          "maxPriceCents": {
+            "type": "number",
+            "minimum": 10,
+            "maximum": 100000,
+            "description": "With priceUnit: items offering that unit at or below this rate, and free items (ADR-0012)"
+          },
+          "priceUnit": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriceUnit"
+              }
+            ]
+          },
+          "cursor": {
+            "type": "string",
+            "description": "From the previous page's nextCursor"
+          },
+          "limit": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 20
+          }
+        },
+        "required": [
+          "near",
+          "radiusKm"
+        ]
+      },
+      "LenderSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "displayName"
+        ]
+      },
+      "DistanceBand": {
+        "type": "string",
+        "enum": [
+          "UNDER_1_KM",
+          "1_2_KM",
+          "2_5_KM",
+          "5_10_KM",
+          "OVER_10_KM"
+        ]
+      },
+      "PublicItemSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ItemCategory"
+              }
+            ]
+          },
+          "pricing": {
+            "$ref": "#/components/schemas/ItemPricingBody"
+          },
+          "depositCents": {
+            "type": "number"
+          },
+          "coverPhoto": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PhotoUrlsResponse"
+              }
+            ]
+          },
+          "lender": {
+            "$ref": "#/components/schemas/LenderSummaryResponse"
+          },
+          "approximateLocation": {
+            "$ref": "#/components/schemas/GeoPointResponse"
+          },
+          "distanceBand": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DistanceBand"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "category",
+          "pricing",
+          "depositCents",
+          "coverPhoto",
+          "lender",
+          "approximateLocation",
+          "distanceBand"
+        ]
+      },
+      "SearchItemsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicItemSummaryResponse"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Null on the last page"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "SuggestItemsBody": {
+        "type": "object",
+        "properties": {
+          "near": {
+            "description": "Used for this request only; never stored or logged.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GeoPointBody"
+              }
+            ]
+          },
+          "radiusKm": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SearchRadiusKm"
+              }
+            ]
+          },
+          "q": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100,
+            "description": "What has been typed so far"
+          }
+        },
+        "required": [
+          "near",
+          "radiusKm",
+          "q"
+        ]
+      },
+      "ItemSuggestionResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "thumbnailUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "distanceBand": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DistanceBand"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "thumbnailUrl",
+          "distanceBand"
+        ]
+      },
+      "SuggestItemsResponse": {
+        "type": "object",
+        "properties": {
+          "suggestions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemSuggestionResponse"
+            }
+          }
+        },
+        "required": [
+          "suggestions"
+        ]
+      },
+      "PublicPhotoResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "urls": {
+            "$ref": "#/components/schemas/PhotoUrlsResponse"
+          }
+        },
+        "required": [
+          "id",
+          "urls"
+        ]
+      },
+      "PublicItemDetailResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ItemCategory"
+              }
+            ]
+          },
+          "pricing": {
+            "$ref": "#/components/schemas/ItemPricingBody"
+          },
+          "depositCents": {
+            "type": "number"
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicPhotoResponse"
+            }
+          },
+          "lender": {
+            "$ref": "#/components/schemas/LenderSummaryResponse"
+          },
+          "approximateLocation": {
+            "$ref": "#/components/schemas/GeoPointResponse"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "category",
+          "pricing",
+          "depositCents",
+          "photos",
+          "lender",
+          "approximateLocation",
+          "publishedAt"
+        ]
+      },
+      "SimilarItemsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "description": "distanceBand is measured from the item",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicItemSummaryResponse"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
       },
       "HealthResponse": {
         "type": "object",

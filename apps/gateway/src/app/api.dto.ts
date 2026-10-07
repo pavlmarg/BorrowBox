@@ -21,6 +21,8 @@ import {
   type OAuthProvider,
 } from '@borrowbox/contracts';
 
+import { CatalogDataExportResponse } from './items/items.api';
+
 // HTTP DTOs: validated here, validated again by Identity (never trust the
 // edge alone), and the source of the OpenAPI spec the PWA client is generated from.
 
@@ -179,6 +181,9 @@ export class IdentityDataExportResponse {
 export class DataExportResponse {
   @ApiProperty({ type: IdentityDataExportResponse })
   identity!: IdentityDataExportResponse;
+
+  @ApiProperty({ type: CatalogDataExportResponse })
+  catalog!: CatalogDataExportResponse;
 }
 
 export class ApiErrorResponse {

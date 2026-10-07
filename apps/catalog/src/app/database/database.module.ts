@@ -10,12 +10,14 @@ import { DataSource } from 'typeorm';
 import { CreateOutboxTables1759140000000 } from '@borrowbox/outbox';
 import type { CatalogConfig } from '../config';
 import { CatalogInitial1759800000000 } from './migrations/1759800000000-catalog-initial';
+import { CatalogPhotoPipeline1759900000000 } from './migrations/1759900000000-catalog-photo-pipeline';
 
 export const DATA_SOURCE = Symbol('DATA_SOURCE');
 
 export const MIGRATIONS = [
   CreateOutboxTables1759140000000,
   CatalogInitial1759800000000,
+  CatalogPhotoPipeline1759900000000,
 ];
 
 export function createCatalogDataSource(url: string): DataSource {
