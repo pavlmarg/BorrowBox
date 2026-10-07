@@ -21,6 +21,7 @@
       "@borrowbox/contracts": ["./libs/contracts/src/index.ts"],
       "@borrowbox/testing": ["./libs/testing/src/index.ts"],
       "@borrowbox/messaging": ["./libs/messaging/src/index.ts"],
+      "@borrowbox/media": ["./libs/media/src/index.ts"],
       "@borrowbox/outbox": ["./libs/outbox/src/index.ts"],
       "@borrowbox/auth": ["./libs/auth/src/index.ts"]
     },

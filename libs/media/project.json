@@ -1,0 +1,19 @@
+{
+  "name": "media",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/media/src",
+  "projectType": "library",
+  "tags": ["scope:node"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/media",
+        "main": "libs/media/src/index.ts",
+        "tsConfig": "libs/media/tsconfig.lib.json",
+        "assets": ["libs/media/*.md"]
+      }
+    }
+  }
+}
