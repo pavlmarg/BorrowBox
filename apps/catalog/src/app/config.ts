@@ -48,6 +48,19 @@ export class CatalogConfig {
   @IsString()
   @IsNotEmpty()
   JWT_KEY_ID!: string;
+
+  /**
+   * Where browsers load processed photos from: the public bucket, e.g.
+   * `http://localhost:8333/borrowbox-public` in dev, the R2 custom domain in
+   * production. No default, so production never serves the dev address.
+   */
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.replace(/\/+$/, '') : value,
+  )
+  @Matches(/^https?:\/\/[^\s]+$/, {
+    message: 'PHOTOS_BASE_URL must be an http(s):// URL',
+  })
+  PHOTOS_BASE_URL!: string;
 }
 
 /** For `ConfigModule.forRoot({ validate })`. Error messages name variables, never values. */

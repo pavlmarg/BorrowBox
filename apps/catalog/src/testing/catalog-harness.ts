@@ -1,7 +1,7 @@
 // Test-only (excluded from the app build): boots Catalog as a real TCP
 // microservice against the given Postgres/RabbitMQ and talks to it the way the
 // gateway will, through a ClientProxy.
-import { generateKeyPairSync } from 'node:crypto';
+import { generateKeyPairSync, randomUUID } from 'node:crypto';
 import { createServer } from 'node:net';
 import type { INestMicroservice } from '@nestjs/common';
 import {
@@ -12,6 +12,7 @@ import {
 import { Test } from '@nestjs/testing';
 import { lastValueFrom } from 'rxjs';
 import type { DataSource } from 'typeorm';
+import { createAccessTokenSigner } from '@borrowbox/auth';
 import type {
   CatalogRpcContract,
   CatalogRpcPattern,
@@ -19,10 +20,15 @@ import type {
 } from '@borrowbox/contracts';
 import { DATA_SOURCE } from '../app/database/database.module';
 
+/** What photo URLs start with in tests. */
+export const TEST_PHOTOS_BASE_URL = 'https://photos.test/borrowbox-public';
+
 export interface CatalogHarness {
   app: INestMicroservice;
   dataSource: DataSource;
   keys: { publicKeyPem: string; privateKeyPem: string; keyId: string };
+  /** A valid access token for `userId`, signed as Identity would. */
+  tokenFor(userId: string): Promise<string>;
   /** Resolves with the response, rejects with the `RpcErrorBody`. */
   send<P extends CatalogRpcPattern>(
     pattern: P,
@@ -71,6 +77,7 @@ export async function startCatalog(urls: {
     // `keys.privateKeyPem`, playing Identity's part.
     JWT_PUBLIC_KEY: keys.publicKeyPem,
     JWT_KEY_ID: keys.keyId,
+    PHOTOS_BASE_URL: TEST_PHOTOS_BASE_URL,
   });
 
   // ConfigModule.forRoot validates env when app.module is first imported,
@@ -91,10 +98,17 @@ export async function startCatalog(urls: {
   });
   await client.connect();
 
+  const signer = await createAccessTokenSigner({
+    privateKeyPem: keys.privateKeyPem,
+    keyId: keys.keyId,
+  });
+
   return {
     app,
     dataSource: app.get<DataSource>(DATA_SOURCE),
     keys,
+    tokenFor: async (userId) =>
+      (await signer.sign({ userId, sessionId: randomUUID() })).token,
     send: (pattern, data, options = {}) => {
       const message: RpcRequest<unknown> = {
         correlationId: options.correlationId ?? 'test-correlation',
