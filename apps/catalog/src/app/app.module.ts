@@ -6,6 +6,7 @@ import { AuthModule, pemFromEnv } from '@borrowbox/auth';
 import { validateConfig, type CatalogConfig } from './config';
 import { DatabaseModule } from './database/database.module';
 import { EventsModule } from './events/events.module';
+import { LendersModule } from './lenders/lenders.module';
 import { CatalogRpcExceptionFilter, rpcValidationPipe } from './rpc/rpc-errors';
 
 /** Dev reads `apps/catalog/.env` (gitignored); elsewhere env comes from the environment. */
@@ -33,6 +34,7 @@ export const configModule = ConfigModule.forRoot({
         keyId: config.get('JWT_KEY_ID', { infer: true }),
       }),
     }),
+    LendersModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: rpcValidationPipe },

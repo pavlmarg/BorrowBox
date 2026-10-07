@@ -9,11 +9,12 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { DataSource } from 'typeorm';
 import { EventBus, type MessagingLogger } from '@borrowbox/messaging';
-import { OutboxRelay } from '@borrowbox/outbox';
+import { OutboxRelay, pruneProcessedEvents } from '@borrowbox/outbox';
 import type { CatalogConfig } from '../config';
 import { DATA_SOURCE } from '../database/database.module';
 
 export const EVENT_BUS = Symbol('EVENT_BUS');
+const PRUNE_INTERVAL_MS = 60 * 60 * 1000;
 export const OUTBOX_RELAY = Symbol('OUTBOX_RELAY');
 
 /** Adapts Nest's Logger to the structured logger the libs expect. Never log payloads. */
@@ -60,17 +61,40 @@ function nestLogger(context: string): MessagingLogger {
 export class EventsModule
   implements OnApplicationBootstrap, BeforeApplicationShutdown
 {
+  private readonly logger = new Logger('ProcessedEvents');
+  private pruneTimer?: NodeJS.Timeout;
+
   constructor(
     @Inject(EVENT_BUS) private readonly bus: EventBus,
     @Inject(OUTBOX_RELAY) private readonly relay: OutboxRelay,
+    @Inject(DATA_SOURCE) private readonly dataSource: DataSource,
   ) {}
 
   onApplicationBootstrap(): void {
     this.relay.start();
+    // Dedupe entries only need to outlive redeliveries (ARCHITECTURE.md §4).
+    this.pruneTimer = setInterval(
+      () => void this.pruneProcessedEvents(),
+      PRUNE_INTERVAL_MS,
+    );
+    this.pruneTimer.unref();
+  }
+
+  /** Deletes `processed_events` entries past the retention period; never throws. */
+  async pruneProcessedEvents(): Promise<void> {
+    try {
+      const deleted = await pruneProcessedEvents(this.dataSource);
+      if (deleted > 0) this.logger.log(`Pruned ${deleted} entries`);
+    } catch (err) {
+      this.logger.warn(
+        `Prune failed: ${err instanceof Error ? err.name : 'unknown'}`,
+      );
+    }
   }
 
   /** Runs before DatabaseModule destroys the DataSource: relay first (finishes its in-flight batch), then the connection. */
   async beforeApplicationShutdown(): Promise<void> {
+    clearInterval(this.pruneTimer);
     await this.relay.stop();
     await this.bus.close();
   }

@@ -117,6 +117,10 @@ files and `GOOGLE_CLIENT_SECRET` in Identity's only. Left empty, Google sign-in 
 
 Tests never read these `.env` files (`NODE_ENV=test`); they set their own environment.
 
+Catalog learns display names from Identity's `user.*` events, and RabbitMQ only delivers to queues that already
+exist. Accounts registered before Catalog first ran are therefore unknown to it, and their items won't show
+publicly. To fix such a local account, change its display name once in Settings.
+
 After changing gateway endpoints, run `npx nx run gateway:openapi` and then `npx nx run web:api-client` to
 regenerate the spec and the PWA's typed client.
 
