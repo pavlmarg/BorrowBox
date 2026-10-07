@@ -53,6 +53,9 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
         *   Terms of Service / Privacy Policy pages, and recorded acceptance at sign-up — including the first Google sign-in that creates an account (GDPR).
         *   Upgrade to NestJS 12 once `@nx/nest` supports it.
 *   [ ] **Phase 2 – Catalog:** item CRUD, photo upload, geo search + map, fuzzed locations
+    *   Follow-ups:
+        *   Identity and Catalog share copied service boilerplate (config, database, events, RPC errors, test harness). Move it into a shared lib when Bookings, the third service, arrives (Phase 3).
+        *   A managed Postgres in production needs `CREATE EXTENSION postgis` run by an admin; locally the PostGIS image does it (Phase 7).
 *   [ ] **Phase 3 – Bookings:** availability, request / accept / decline, state machine, email notifications
 *   [ ] **Phase 4 – Payments:** Stripe Connect onboarding, checkout, webhooks, transfers & refunds (test mode)
 *   [ ] **Phase 5 – Handoff:** QR pickup/return protocol, condition photos, claim window
@@ -91,17 +94,19 @@ Ports can be changed in `infra/.env` if they clash with something already runnin
 ```sh
 # 1. Config for each app (gitignored). Use the passwords from infra/.env.
 cp apps/identity/.env.example apps/identity/.env
+cp apps/catalog/.env.example apps/catalog/.env
 cp apps/gateway/.env.example apps/gateway/.env
 
 # 2. Token signing keys: paste all three lines into apps/identity/.env, and
-#    only JWT_KEY_ID + JWT_PUBLIC_KEY into apps/gateway/.env.
+#    only JWT_KEY_ID + JWT_PUBLIC_KEY into apps/catalog/.env and apps/gateway/.env.
 node tools/gen-jwt-keys.mjs
 
 # 3. Set COOKIE_SECRET in apps/gateway/.env (32+ random characters):
 node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 
-# 4. Start them (three terminals)
+# 4. Start them (one terminal each)
 npx nx serve identity   # TCP :4001, runs DB migrations in dev
+npx nx serve catalog    # TCP :4002, runs DB migrations in dev
 npx nx serve gateway    # http://localhost:3000/api (Swagger UI at /api/docs)
 npx nx serve web        # http://localhost:4200 (proxies /api to the gateway)
 ```
