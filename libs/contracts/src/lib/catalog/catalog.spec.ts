@@ -9,7 +9,9 @@ import {
   SEARCH_RADIUS_KM,
   type ItemPricing,
   type PublicItemDetail,
+  type ItemSuggestion,
   type PublicItemSummary,
+  type SimilarItemsResponse,
 } from './items';
 import { CatalogRpc, type CatalogRpcPattern } from './rpc';
 import {
@@ -24,6 +26,11 @@ import {
   RATE_MIN_CENTS,
   SEARCH_PAGE_SIZE_DEFAULT,
   SEARCH_PAGE_SIZE_MAX,
+  SEARCH_QUERY_MAX_LENGTH,
+  SIMILAR_ITEMS_MAX,
+  SIMILAR_ITEMS_RADIUS_KM,
+  SUGGEST_LIMIT,
+  SUGGEST_MIN_LENGTH,
   isCentsInRange,
   isValidPricing,
 } from './validation';
@@ -38,6 +45,8 @@ export type PublicShapesHaveNoExactLocation = [
   Expect<HasNoExactLocation<PublicItemDetail>>,
   Expect<HasNoExactLocation<PublicItemSummary['lender']>>,
   Expect<HasNoExactLocation<PublicItemDetail['lender']>>,
+  Expect<HasNoExactLocation<ItemSuggestion>>,
+  Expect<HasNoExactLocation<SimilarItemsResponse['items'][number]>>,
 ];
 
 describe('categories', () => {
@@ -63,6 +72,11 @@ describe('catalog limits', () => {
     expect(Number.isInteger(ITEM_FREE_LIMIT)).toBe(true);
     expect(ITEM_FREE_LIMIT).toBeGreaterThan(0);
     expect(SEARCH_PAGE_SIZE_DEFAULT).toBeLessThanOrEqual(SEARCH_PAGE_SIZE_MAX);
+    expect(SUGGEST_MIN_LENGTH).toBeGreaterThan(0);
+    expect(SUGGEST_MIN_LENGTH).toBeLessThanOrEqual(SEARCH_QUERY_MAX_LENGTH);
+    expect(SUGGEST_LIMIT).toBeGreaterThan(0);
+    expect(SIMILAR_ITEMS_MAX).toBeGreaterThan(0);
+    expect(SEARCH_RADIUS_KM).toContain(SIMILAR_ITEMS_RADIUS_KM);
     expect([...SEARCH_RADIUS_KM]).toEqual(
       [...SEARCH_RADIUS_KM].sort((a, b) => a - b),
     );
@@ -141,6 +155,6 @@ describe('CatalogRpc patterns', () => {
   it('each have a contract entry', () => {
     // Compile-time check: every pattern is a key of CatalogRpcContract.
     const typed: CatalogRpcPattern[] = patterns;
-    expect(typed).toHaveLength(16);
+    expect(typed).toHaveLength(18);
   });
 });

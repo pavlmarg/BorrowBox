@@ -150,7 +150,10 @@ export interface SearchItemsRequest {
   q?: string;
   category?: ItemCategory;
   freeOnly?: boolean;
-  /** With `priceUnit`: items offering that unit at or below this rate. */
+  /**
+   * With `priceUnit`: items offering that unit at or below this rate, and
+   * free items (ADR-0012).
+   */
   maxPriceCents?: number;
   priceUnit?: PriceUnit;
   /** Opaque, from the previous page's `nextCursor`. */
@@ -158,6 +161,7 @@ export interface SearchItemsRequest {
   limit?: number;
 }
 
+/** Nearest first (by the public point), ties broken by id. */
 export interface SearchItemsResponse {
   items: PublicItemSummary[];
   /** Null on the last page. */
@@ -167,3 +171,38 @@ export interface SearchItemsResponse {
 /** Allowed search radii (ADR-0007): fixed steps, so the radius can't be used to probe. */
 export const SEARCH_RADIUS_KM = [1, 2, 5, 10, 25, 50] as const;
 export type SearchRadiusKm = (typeof SEARCH_RADIUS_KM)[number];
+
+// --- Search as you type -------------------------------------------------------------
+
+/** A few nearby items whose words start with what has been typed so far. */
+export interface SuggestItemsRequest {
+  /** The searcher's chosen point; used for this query only, never stored or logged. */
+  near: GeoPoint;
+  radiusKm: SearchRadiusKm;
+  /** What has been typed: `SUGGEST_MIN_LENGTH` to `SEARCH_QUERY_MAX_LENGTH` characters. */
+  q: string;
+}
+
+export interface ItemSuggestion {
+  id: string;
+  title: string;
+  /** The cover photo's smallest size, or null. */
+  thumbnailUrl: string | null;
+  distanceBand: DistanceBand;
+}
+
+/** Nearest first; at most `SUGGEST_LIMIT`. */
+export interface SuggestItemsResponse {
+  suggestions: ItemSuggestion[];
+}
+
+// --- Similar items ------------------------------------------------------------------
+
+/**
+ * Other lenders' items like this one, for its public page: same category,
+ * near the item, most shared title words first, then nearest. At most
+ * `SIMILAR_ITEMS_MAX`; each `distanceBand` is measured from this item.
+ */
+export interface SimilarItemsResponse {
+  items: PublicItemSummary[];
+}

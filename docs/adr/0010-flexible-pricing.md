@@ -1,6 +1,6 @@
 # ADR-0010: Flexible item pricing: hourly to monthly rates, or free
 
-**Status:** Accepted
+**Status:** Accepted. The search-filter rule is amended by [ADR-0012](0012-free-items-match-price-limits.md): free items also match a maximum-price filter.
 
 ## Context
 The first plan gave each item a single daily price of at least €1. Lenders need more freedom:

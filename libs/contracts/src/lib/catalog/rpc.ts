@@ -15,6 +15,9 @@ import type {
   PublicItemDetail,
   SearchItemsRequest,
   SearchItemsResponse,
+  SimilarItemsResponse,
+  SuggestItemsRequest,
+  SuggestItemsResponse,
 } from './items';
 import type { PhotoContentType } from './validation';
 
@@ -109,7 +112,9 @@ export interface CatalogDataExport {
 export const CatalogRpc = {
   // Public (no token needed).
   search: 'catalog.items.search',
+  suggest: 'catalog.items.suggest',
   getPublic: 'catalog.items.public.get',
+  similar: 'catalog.items.similar',
   // The caller's own items.
   create: 'catalog.items.create',
   update: 'catalog.items.update',
@@ -135,7 +140,12 @@ export interface CatalogRpcContract {
     request: SearchItemsRequest;
     response: SearchItemsResponse;
   };
+  [CatalogRpc.suggest]: {
+    request: SuggestItemsRequest;
+    response: SuggestItemsResponse;
+  };
   [CatalogRpc.getPublic]: { request: ItemRef; response: PublicItemDetail };
+  [CatalogRpc.similar]: { request: ItemRef; response: SimilarItemsResponse };
   [CatalogRpc.create]: { request: CreateItemRequest; response: OwnItem };
   [CatalogRpc.update]: { request: UpdateItemRequest; response: OwnItem };
   [CatalogRpc.setLocation]: {

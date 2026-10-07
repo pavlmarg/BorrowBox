@@ -37,6 +37,14 @@ export const SEARCH_QUERY_MAX_LENGTH = 100;
 export const SEARCH_PAGE_SIZE_DEFAULT = 20;
 export const SEARCH_PAGE_SIZE_MAX = 50;
 
+/** Search as you type starts at this many characters and returns at most `SUGGEST_LIMIT`. */
+export const SUGGEST_MIN_LENGTH = 2;
+export const SUGGEST_LIMIT = 5;
+
+/** Similar items: at most this many, within this distance of the item. */
+export const SIMILAR_ITEMS_MAX = 8;
+export const SIMILAR_ITEMS_RADIUS_KM = 10;
+
 /** True if `cents` is a whole number of cents within [min, max]. */
 export function isCentsInRange(
   cents: unknown,
