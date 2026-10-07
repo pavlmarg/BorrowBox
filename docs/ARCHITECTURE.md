@@ -134,6 +134,10 @@ flowchart TB
   - The exact point is visible to its owner, and later to a renter with a `PAID` booking until it completes.
 - **Setting the location:** lenders drop a pin on the map or use their device location; no address is geocoded ([ADR-0008](adr/0008-maps-pin-drop.md)).
 - **Pricing:** a rate card per item: any of hourly, daily, weekly and monthly rates (each €0.10–€1,000), or free, plus a separate deposit. Bookings computes what a booking costs ([ADR-0010](adr/0010-flexible-pricing.md)).
+- **Item lifecycle:** `DRAFT` → `ACTIVE` (publishing needs a location and a processed photo) ⇄ `PAUSED`; any of them → `DELETED`, a tombstone without location or description. `item.created` / `item.updated` carry a snapshot without location or description; `item.updated` is only sent when the snapshot changes.
+- **Commands are safe to repeat:** the client picks a new item's id (a UUID), so a retried create returns the same item; repeating a publish, pause, unpause or delete that already took effect succeeds without a second event.
+- **Limits:** a lender may have 10 items at once, drafts included (`ITEM_FREE_LIMIT`). Creates and the account's erasure share a per-lender lock, so parallel creates can't exceed the limit and an item can't slip past an erasure.
+- **Deleted accounts:** access tokens stay valid for up to 15 minutes, so once Catalog has processed `user.deletion_requested`, it refuses that account's write commands.
 
 ### Bookings
 - Double-booking is prevented at the DB level:

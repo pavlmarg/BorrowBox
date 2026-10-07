@@ -56,6 +56,7 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
     *   Follow-ups:
         *   Identity and Catalog share copied service boilerplate (config, database, events, RPC errors, test harness). Move it into a shared lib when Bookings, the third service, arrives (Phase 3).
         *   A managed Postgres in production needs `CREATE EXTENSION postgis` run by an admin; locally the PostGIS image does it (Phase 7).
+        *   Paid extra listing slots (e.g. packs of 5 or 10 beyond the free 10 items): after Phase 4 (Payments), and only after an ADR on pricing, one-off vs subscription, what happens to items over the limit when it ends, refunds and EU VAT.
 *   [ ] **Phase 3 – Bookings:** availability, request / accept / decline, state machine, email notifications
 *   [ ] **Phase 4 – Payments:** Stripe Connect onboarding, checkout, webhooks, transfers & refunds (test mode)
 *   [ ] **Phase 5 – Handoff:** QR pickup/return protocol, condition photos, claim window

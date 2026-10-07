@@ -6,6 +6,7 @@ import { AuthModule, pemFromEnv } from '@borrowbox/auth';
 import { validateConfig, type CatalogConfig } from './config';
 import { DatabaseModule } from './database/database.module';
 import { EventsModule } from './events/events.module';
+import { ItemsModule } from './items/items.module';
 import { LendersModule } from './lenders/lenders.module';
 import { CatalogRpcExceptionFilter, rpcValidationPipe } from './rpc/rpc-errors';
 
@@ -35,6 +36,7 @@ export const configModule = ConfigModule.forRoot({
       }),
     }),
     LendersModule,
+    ItemsModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: rpcValidationPipe },
