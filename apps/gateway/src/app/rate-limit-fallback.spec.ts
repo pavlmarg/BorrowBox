@@ -4,7 +4,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { IdentityRpc } from '@borrowbox/contracts';
-import { FakeIdentity } from '../testing/fake-identity';
+import { FakeIdentity } from '../testing/fake-service';
 
 /** A local port with nothing listening on it. */
 async function closedPort(): Promise<number> {

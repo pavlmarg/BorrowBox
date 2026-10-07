@@ -93,12 +93,17 @@ flowchart TB
   - `GET /api/auth/google` and `/google/callback`
   - `GET` / `PATCH` / `DELETE /api/me`, `GET /api/me/export`
   - `GET /api/health`
+- Phase 2 endpoints (Catalog):
+  - Public, no sign-in: `POST /api/items/search` and `/suggest` (the searcher's point travels in the body, so it never lands in URLs, access logs or browser history), `GET /api/items/:id` and `/:id/similar`.
+  - The signed-in lender's own items under `/api/me/items`: list, create, get, `PATCH`, `DELETE`, `PUT /:id/location`, `POST /:id/publish` / `pause` / `unpause`, and photos (`POST /:id/photos` for an upload URL, `POST …/photos/:photoId/confirm`, `DELETE …/photos/:photoId`, `PUT /:id/photos/order`).
+  - Catalog's state and limit refusals (`INVALID_STATE`, `NOT_PUBLISHABLE`, `ITEM_LIMIT_REACHED`, `PHOTO_LIMIT_REACHED`) are `409`; the PWA tells them apart by `code`.
+  - `GET /api/me/export` has one section per service (`identity`, `catalog`). If any service doesn't answer, the whole export fails with `503` rather than returning partial data.
 - **Cookies:**
   - The refresh token is set only as `bb_refresh` (httpOnly, Secure, SameSite=Strict, `Path=/api/auth`) and never appears in a response body.
   - Google sign-in keeps its state, nonce and PKCE verifier in a signed, 10-minute `bb_oauth` cookie. It is SameSite=Lax because Google's redirect back is a cross-site navigation.
 - **Security:**
   - Helmet, a CORS allow-list, a 100 kB body limit and `class-validator` DTOs.
-  - Redis-backed rate limits per IP: 10/min for login, register and Google, 30/min for refresh, 120/min otherwise.
+  - Redis-backed rate limits per IP: 10/min for login, register and Google, 30/min for refresh, 300/min for search-as-you-type, 120/min otherwise.
   - While Redis is unreachable, each gateway instance counts in memory instead, so the limits stay in force and the API keeps answering. It switches back to Redis by itself once Redis recovers.
   - Every error has the shape `{ statusCode, code, message }` and never echoes the request body.
 - **OpenAPI:** `apps/gateway/openapi.json` is committed and regenerated with `nx run gateway:openapi`. A test fails if it drifts from the code. The PWA's API client is generated from it with `nx run web:api-client`.

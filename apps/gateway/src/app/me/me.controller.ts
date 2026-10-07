@@ -20,7 +20,7 @@ import {
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '@borrowbox/auth';
-import { IdentityRpc } from '@borrowbox/contracts';
+import { CatalogRpc, IdentityRpc } from '@borrowbox/contracts';
 import {
   ApiErrorResponse,
   DataExportResponse,
@@ -28,6 +28,7 @@ import {
   UpdateProfileBody,
   UserProfileResponse,
 } from '../api.dto';
+import { CatalogClient } from '../catalog/catalog.client';
 import { clearRefreshCookie } from '../http/cookies';
 import { AuthRateLimit } from '../http/rate-limits';
 import { AccessToken, CorrelationId } from '../http/request-context';
@@ -47,7 +48,10 @@ import { IdentityClient } from '../identity/identity.client';
 @UseGuards(JwtAuthGuard)
 @Controller('me')
 export class MeController {
-  constructor(private readonly identity: IdentityClient) {}
+  constructor(
+    private readonly identity: IdentityClient,
+    private readonly catalog: CatalogClient,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'My profile' })
@@ -88,19 +92,24 @@ export class MeController {
     'attachment; filename="borrowbox-data-export.json"',
   )
   @Header('Cache-Control', 'no-store')
-  @ApiOperation({ summary: 'Download all my personal data (GDPR Art. 15/20)' })
+  @ApiOperation({
+    summary: 'Download all my personal data (GDPR Art. 15/20)',
+    description:
+      'One section per service. If any service is unavailable, the whole export fails with 503: try again.',
+  })
   @ApiOkResponse({ type: DataExportResponse })
   async export(
     @AccessToken() accessToken: string,
     @CorrelationId() correlationId: string,
   ): Promise<DataExportResponse> {
-    return {
-      identity: await this.identity.call(
-        IdentityRpc.exportMe,
-        {},
-        { accessToken, correlationId },
-      ),
-    };
+    // All or nothing (G4): if any service doesn't answer, the whole export
+    // fails and can be retried, rather than silently missing data.
+    const context = { accessToken, correlationId };
+    const [identity, catalog] = await Promise.all([
+      this.identity.call(IdentityRpc.exportMe, {}, context),
+      this.catalog.call(CatalogRpc.exportMe, {}, context),
+    ]);
+    return { identity, catalog };
   }
 
   @Delete()

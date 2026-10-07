@@ -11,3 +11,10 @@ export const AuthRateLimit = () =>
 
 export const RefreshRateLimit = () =>
   Throttle({ default: { limit: 30, ttl: MINUTE } });
+
+/**
+ * Search as you type: one request per pause in typing, so bursts of a few
+ * per second are normal (G6).
+ */
+export const SuggestRateLimit = () =>
+  Throttle({ default: { limit: 300, ttl: MINUTE } });

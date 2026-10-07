@@ -12,10 +12,13 @@ import type Redis from 'ioredis';
 import { AuthModule, pemFromEnv } from '@borrowbox/auth';
 import { AuthController } from './auth/auth.controller';
 import { validateConfig, type GatewayConfig } from './config';
+import { CATALOG_PROXY, CatalogClient } from './catalog/catalog.client';
 import { HealthController } from './health.controller';
 import { FallbackThrottlerStorage } from './http/fallback-throttler-storage';
 import { DEFAULT_LIMIT } from './http/rate-limits';
 import { IDENTITY_PROXY, IdentityClient } from './identity/identity.client';
+import { MyItemsController } from './items/my-items.controller';
+import { PublicItemsController } from './items/public-items.controller';
 import { MeController } from './me/me.controller';
 import { REDIS, RedisModule } from './redis.module';
 import { rpcTimeoutProvider, tcpClientProvider } from './rpc/rpc.providers';
@@ -57,11 +60,19 @@ const configModule = ConfigModule.forRoot({
       }),
     }),
   ],
-  controllers: [AuthController, MeController, HealthController],
+  controllers: [
+    AuthController,
+    MeController,
+    MyItemsController,
+    PublicItemsController,
+    HealthController,
+  ],
   providers: [
     rpcTimeoutProvider,
     tcpClientProvider(IDENTITY_PROXY, 'IDENTITY_HOST', 'IDENTITY_PORT'),
     IdentityClient,
+    tcpClientProvider(CATALOG_PROXY, 'CATALOG_HOST', 'CATALOG_PORT'),
+    CatalogClient,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
