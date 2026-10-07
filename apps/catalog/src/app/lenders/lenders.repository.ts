@@ -47,9 +47,10 @@ export async function markLenderDeleted(
 }
 
 /**
- * Serialises, per lender, everything that adds items or erases them: two
- * creates can't both slip under the item limit, and a create can't run
- * alongside the account's erasure (and survive it). Held until the
+ * Serialises, per lender, everything that adds, places or erases items: two
+ * creates can't both slip under the item limit, a create can't run
+ * alongside the account's erasure (and survive it), and two items placed at
+ * once can't draw two offsets for one place (ADR-0011). Held until the
  * transaction ends. Different lenders never wait for each other (unless
  * their ids hash alike, which only costs a brief wait).
  */

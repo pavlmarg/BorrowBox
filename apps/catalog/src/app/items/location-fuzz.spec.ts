@@ -56,26 +56,54 @@ describe('location fuzzing', () => {
     const stored = { distanceM: 210, bearingDeg: 33 };
     const fresh = () => 0.5;
 
-    it('draws an offset for a first pin', () => {
-      expect(offsetForPin(null, null, fresh)).toEqual({
-        distanceM: 225,
-        bearingDeg: 180,
-      });
+    const sibling = { distanceM: 160, bearingDeg: 300 };
+    const drawn = { distanceM: 225, bearingDeg: 180 };
+    const pin = (
+      context: Partial<Parameters<typeof offsetForPin>[0]>,
+    ): Parameters<typeof offsetForPin>[0] => ({
+      sibling: null,
+      current: null,
+      movedM: null,
+      ...context,
+    });
+
+    it('draws an offset for a first pin in a new place', () => {
+      expect(offsetForPin(pin({}), fresh)).toEqual(drawn);
     });
 
     it('keeps the stored offset for a move under 300 m, including none', () => {
-      expect(offsetForPin(stored, 0, fresh)).toBe(stored);
-      expect(offsetForPin(stored, NEW_PLACE_MIN_MOVE_M - 0.001, fresh)).toBe(
+      expect(offsetForPin(pin({ current: stored, movedM: 0 }), fresh)).toBe(
         stored,
       );
+      expect(
+        offsetForPin(
+          pin({ current: stored, movedM: NEW_PLACE_MIN_MOVE_M - 0.001 }),
+          fresh,
+        ),
+      ).toBe(stored);
     });
 
     it('draws a new offset for a move of 300 m or more', () => {
-      expect(offsetForPin(stored, NEW_PLACE_MIN_MOVE_M, fresh)).toEqual({
-        distanceM: 225,
-        bearingDeg: 180,
-      });
-      expect(offsetForPin(stored, 5_000, fresh)).not.toBe(stored);
+      expect(
+        offsetForPin(
+          pin({ current: stored, movedM: NEW_PLACE_MIN_MOVE_M }),
+          fresh,
+        ),
+      ).toEqual(drawn);
+      expect(
+        offsetForPin(pin({ current: stored, movedM: 5_000 }), fresh),
+      ).not.toBe(stored);
+    });
+
+    it("shares a sibling's offset in the same place (ADR-0011)", () => {
+      expect(offsetForPin(pin({ sibling }), fresh)).toBe(sibling);
+      // Even over the item's own offset, so a place never holds two offsets.
+      expect(
+        offsetForPin(pin({ sibling, current: stored, movedM: 10 }), fresh),
+      ).toBe(sibling);
+      expect(
+        offsetForPin(pin({ sibling, current: stored, movedM: 900 }), fresh),
+      ).toBe(sibling);
     });
   });
 });

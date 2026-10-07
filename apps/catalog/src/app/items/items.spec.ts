@@ -562,21 +562,20 @@ describe('Item commands (integration)', () => {
       }
     });
 
-    it('spreads offsets over the whole range across many items', async () => {
+    it('spreads offsets over the whole range across many lenders', async () => {
       const distances: number[] = [];
       const bearings: number[] = [];
-      for (let lender = 0; lender < 6; lender++) {
+      // One item per lender: a lender's items at one place share an offset.
+      for (let lender = 0; lender < 60; lender++) {
         const userId = randomUUID();
-        for (let i = 0; i < ITEM_FREE_LIMIT; i++) {
-          const item = await create(userId);
-          await as(userId, CatalogRpc.setLocation, {
-            itemId: item.id,
-            location: ATHENS,
-          });
-          const p = await placement(item.id);
-          distances.push(p.fuzz_m);
-          bearings.push(p.offset_bearing);
-        }
+        const item = await create(userId);
+        await as(userId, CatalogRpc.setLocation, {
+          itemId: item.id,
+          location: ATHENS,
+        });
+        const p = await placement(item.id);
+        distances.push(p.fuzz_m);
+        bearings.push(p.offset_bearing);
       }
       // 60 independent draws: all in range, and not bunched in one part of it.
       expect(Math.min(...distances)).toBeGreaterThanOrEqual(150 - 0.001);
@@ -667,6 +666,113 @@ describe('Item commands (integration)', () => {
           )
         ).code,
       ).toBe('VALIDATION_FAILED');
+    });
+  });
+
+  // --- one offset per place (ADR-0011) ---------------------------------------------
+
+  describe('one offset per place, per lender', () => {
+    async function place(userId: string, itemId: string, at: GeoPoint) {
+      return as(userId, CatalogRpc.setLocation, { itemId, location: at });
+    }
+
+    it('gives all of a lender’s items at home one public point, so averaging reveals nothing', async () => {
+      const userId = randomUUID();
+      const items: OwnItem[] = [];
+      for (let i = 0; i < ITEM_FREE_LIMIT; i++) {
+        const item = await create(userId);
+        items.push(await place(userId, item.id, ATHENS));
+      }
+      const publicPoints = new Set(
+        items.map((i) => JSON.stringify(i.approximateLocation)),
+      );
+      expect(publicPoints.size).toBe(1);
+
+      // The attack: average the public points. It stays 150-300 m off.
+      const [{ error_m }] = await catalog.dataSource.query(
+        `SELECT ST_Distance(
+                  ST_SetSRID(ST_MakePoint(avg(ST_X(location_public::geometry)),
+                                          avg(ST_Y(location_public::geometry))), 4326)::geography,
+                  ST_SetSRID(ST_MakePoint($2::float8, $3::float8), 4326)::geography) AS error_m
+           FROM items WHERE lender_id = $1`,
+        [userId, ATHENS.lng, ATHENS.lat],
+      );
+      expect(error_m).toBeGreaterThanOrEqual(150 - 0.001);
+      expect(error_m).toBeLessThanOrEqual(300 + 0.001);
+    });
+
+    it('shares the offset for pins a little apart, keeping their spacing', async () => {
+      const userId = randomUUID();
+      const first = await create(userId);
+      await place(userId, first.id, ATHENS);
+      const second = await create(userId);
+      const nearby = await pointFrom(ATHENS, 120, 200);
+      await place(userId, second.id, nearby);
+
+      const [a, b] = [await placement(first.id), await placement(second.id)];
+      expect([b.offset_m, b.offset_bearing]).toEqual([
+        a.offset_m,
+        a.offset_bearing,
+      ]);
+    });
+
+    it('draws an independent offset for a place 300 m or more away', async () => {
+      const userId = randomUUID();
+      const home = await create(userId);
+      await place(userId, home.id, ATHENS);
+      const elsewhere = await create(userId);
+      await place(userId, elsewhere.id, await pointFrom(ATHENS, 1_000, 90));
+      const [a, b] = [await placement(home.id), await placement(elsewhere.id)];
+      expect([b.offset_m, b.offset_bearing]).not.toEqual([
+        a.offset_m,
+        a.offset_bearing,
+      ]);
+    });
+
+    it("prefers a sibling's offset over the item's own when moved next to it", async () => {
+      const userId = randomUUID();
+      const home = await create(userId);
+      await place(userId, home.id, ATHENS);
+      const roaming = await create(userId);
+      await place(userId, roaming.id, await pointFrom(ATHENS, 400, 0));
+      // A 200 m move would normally keep its own offset, but it lands 200 m
+      // from the other item: one place, one offset.
+      await place(userId, roaming.id, await pointFrom(ATHENS, 200, 0));
+      const [a, b] = [await placement(home.id), await placement(roaming.id)];
+      expect([b.offset_m, b.offset_bearing]).toEqual([
+        a.offset_m,
+        a.offset_bearing,
+      ]);
+    });
+
+    it('never shares offsets between lenders', async () => {
+      const [x, y] = [randomUUID(), randomUUID()];
+      const mine = await create(x);
+      const theirs = await create(y);
+      await place(x, mine.id, ATHENS);
+      await place(y, theirs.id, ATHENS);
+      const [a, b] = [await placement(mine.id), await placement(theirs.id)];
+      expect([b.offset_m, b.offset_bearing]).not.toEqual([
+        a.offset_m,
+        a.offset_bearing,
+      ]);
+    });
+
+    it('gives items placed at the same moment one offset', async () => {
+      const userId = randomUUID();
+      const items = await Promise.all(
+        Array.from({ length: 6 }, () => create(userId)),
+      );
+      await Promise.all(items.map((item) => place(userId, item.id, ATHENS)));
+      const offsets = new Set(
+        await Promise.all(
+          items.map(async (item) => {
+            const p = await placement(item.id);
+            return `${p.offset_m}/${p.offset_bearing}`;
+          }),
+        ),
+      );
+      expect(offsets.size).toBe(1);
     });
   });
 

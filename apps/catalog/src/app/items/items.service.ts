@@ -35,6 +35,7 @@ import {
   listOwnItems,
   listPhotos,
   lockOwnItem,
+  nearestSiblingOffset,
   setItemLocation,
   setItemStatus,
   toFields,
@@ -45,7 +46,7 @@ import {
   type ItemFields,
   type ItemRow,
 } from './items.repository';
-import { offsetForPin } from './location-fuzz';
+import { NEW_PLACE_MIN_MOVE_M, offsetForPin } from './location-fuzz';
 
 const NOT_FOUND = () => new CatalogError('NOT_FOUND', 'Item not found');
 const ID_TAKEN = () =>
@@ -158,20 +159,33 @@ export class ItemsService {
   }
 
   /**
-   * Stores the exact pin and moves the public point with it (ADR-0007). No
-   * event: the snapshot carries no location.
+   * Stores the exact pin and derives the public point (ADR-0007, ADR-0011).
+   * No event: the snapshot carries no location.
    */
   setLocation(user: AuthUser, itemId: string, pin: GeoPoint): Promise<OwnItem> {
     return this.dataSource.transaction(async (tx) => {
+      // Two of the lender's items placed at once must not draw two offsets
+      // for one place. Lender lock first, then the row, like erasure.
+      await lockLenderItems(tx, user.userId);
       await this.assertLenderActive(tx, user);
       const row = await this.lockLive(tx, itemId, user);
       const current =
         row.offset_m !== null && row.offset_bearing !== null
           ? { distanceM: row.offset_m, bearingDeg: row.offset_bearing }
           : null;
-      const movedM =
-        row.lat === null ? null : await distanceFromPin(tx, row.id, pin);
-      await setItemLocation(tx, row.id, pin, offsetForPin(current, movedM));
+      const offset = offsetForPin({
+        sibling: await nearestSiblingOffset(
+          tx,
+          user.userId,
+          row.id,
+          pin,
+          NEW_PLACE_MIN_MOVE_M,
+        ),
+        current,
+        movedM:
+          row.lat === null ? null : await distanceFromPin(tx, row.id, pin),
+      });
+      await setItemLocation(tx, row.id, pin, offset);
       return this.view(tx, await this.mustFind(tx, row.id, user));
     });
   }

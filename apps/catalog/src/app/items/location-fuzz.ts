@@ -34,18 +34,31 @@ export function drawOffset(
   };
 }
 
+export interface PinContext {
+  /**
+   * The offset of the lender's nearest other item whose exact point is
+   * within {@link NEW_PLACE_MIN_MOVE_M} of the new pin, if any.
+   */
+  sibling: LocationOffset | null;
+  /** This item's stored offset, if it has a location. */
+  current: LocationOffset | null;
+  /** Distance from this item's old exact point, or null if there was none. */
+  movedM: number | null;
+}
+
 /**
- * The offset for a pin being set or moved: the stored one if the pin moved
- * less than {@link NEW_PLACE_MIN_MOVE_M} (so the public point moves exactly
- * as far as the pin did), otherwise a fresh one.
- *
- * @param movedM distance from the old exact point, or null if there was none
+ * The offset for a pin being set or moved, in this order:
+ * 1. the same place as another of the lender's items: share its offset
+ *    (ADR-0011), so averaging their public points reveals nothing;
+ * 2. this item moved less than {@link NEW_PLACE_MIN_MOVE_M}: keep its
+ *    offset, so the public point moves exactly as far as the pin (ADR-0007);
+ * 3. otherwise a new place: a fresh offset.
  */
 export function offsetForPin(
-  current: LocationOffset | null,
-  movedM: number | null,
+  { sibling, current, movedM }: PinContext,
   random: () => number = secureRandomUnit,
 ): LocationOffset {
+  if (sibling) return sibling;
   if (current && movedM !== null && movedM < NEW_PLACE_MIN_MOVE_M) {
     return current;
   }

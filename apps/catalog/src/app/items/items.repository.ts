@@ -192,6 +192,31 @@ export async function distanceFromPin(
 }
 
 /**
+ * The offset of the lender's nearest other item whose exact point is within
+ * `withinM` of `pin` (ADR-0011), or null if there is none.
+ */
+export async function nearestSiblingOffset(
+  tx: EntityManager,
+  lenderId: string,
+  itemId: string,
+  pin: GeoPoint,
+  withinM: number,
+): Promise<LocationOffset | null> {
+  const [row] = await tx.query(
+    `SELECT offset_m, offset_bearing FROM items
+      WHERE lender_id = $1 AND id <> $2 AND status <> 'DELETED'
+        AND location IS NOT NULL
+        AND ST_DWithin(location, ST_SetSRID(ST_MakePoint($3::float8, $4::float8), 4326)::geography, $5::float8)
+      ORDER BY ST_Distance(location, ST_SetSRID(ST_MakePoint($3::float8, $4::float8), 4326)::geography), id
+      LIMIT 1`,
+    [lenderId, itemId, pin.lng, pin.lat, withinM],
+  );
+  return row
+    ? { distanceM: row.offset_m, bearingDeg: row.offset_bearing }
+    : null;
+}
+
+/**
  * Stores the exact pin and the offset, and derives the public point from
  * them in the same statement (ADR-0007).
  */

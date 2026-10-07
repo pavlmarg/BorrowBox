@@ -1,6 +1,6 @@
 # ADR-0007: Location privacy: fixed fuzz offset and search on the public point
 
-**Status:** Accepted. Supersedes parts of [ADR-0004](0004-location-fuzzing.md): the offset rules and where search runs.
+**Status:** Accepted. Supersedes parts of [ADR-0004](0004-location-fuzzing.md): the offset rules and where search runs. The offset rule is amended by [ADR-0011](0011-one-offset-per-place.md): a lender's items in one place share one offset.
 
 ## Context
 ADR-0004 stores a private exact point (`location`) and a public fuzzed point (`location_public`) per item. Two parts of it needed revisiting before Catalog is built:
