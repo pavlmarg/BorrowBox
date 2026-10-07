@@ -3,10 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import type { DataSource } from 'typeorm';
 import {
   SEARCH_PAGE_SIZE_DEFAULT,
+  SIMILAR_ITEMS_MAX,
+  SIMILAR_ITEMS_RADIUS_KM,
   SUGGEST_LIMIT,
   type PublicItemDetail,
   type PublicItemSummary,
   type SearchItemsResponse,
+  type SimilarItemsResponse,
   type SuggestItemsResponse,
 } from '@borrowbox/contracts';
 import type { CatalogConfig } from '../config';
@@ -20,6 +23,7 @@ import {
   findPublicItem,
   listPublicPhotos,
   searchItems,
+  similarItems,
   suggestItems,
   type PublicItemRow,
 } from './search.repository';
@@ -116,6 +120,24 @@ export class SearchService {
       // ACTIVE items always have one (a database CHECK).
       publishedAt: (row.published_at as Date).toISOString(),
     };
+  }
+
+  /**
+   * Other lenders' items like this one, for its page. NOT_FOUND exactly when
+   * the item's own page would be.
+   */
+  async similar(itemId: string): Promise<SimilarItemsResponse> {
+    const tx = this.dataSource.manager;
+    if (!(await findPublicItem(tx, itemId))) {
+      throw new CatalogError('NOT_FOUND', 'Item not found');
+    }
+    const rows = await similarItems(
+      tx,
+      itemId,
+      SIMILAR_ITEMS_RADIUS_KM * 1000,
+      SIMILAR_ITEMS_MAX,
+    );
+    return { items: rows.map((row) => this.toSummary(row)) };
   }
 
   /** A search result card; also used by similar items. */

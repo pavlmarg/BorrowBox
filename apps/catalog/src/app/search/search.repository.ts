@@ -143,6 +143,44 @@ export async function suggestItems(
   );
 }
 
+/**
+ * Other lenders' visible items like `itemId` (S1–S4): same category, public
+ * point within `radiusM` of its public point, most shared title words first
+ * (titles are the search vector's weight-A words), then nearest, then id.
+ * `distance_m` is measured from the item. Empty if the item isn't visible.
+ */
+export async function similarItems(
+  tx: EntityManager,
+  itemId: string,
+  radiusM: number,
+  limit: number,
+): Promise<Array<PublicItemRow & { shared_words: number }>> {
+  return tx.query(
+    `WITH base AS (
+       SELECT i.id, i.lender_id, i.category, i.location_public,
+              tsvector_to_array(ts_filter(i.search_vector, '{a}')) AS words
+         FROM items i
+         JOIN lenders l ON l.user_id = i.lender_id AND l.deleted_at IS NULL
+        WHERE i.id = $1 AND i.status = 'ACTIVE')
+     SELECT ` +
+      PUBLIC_COLUMNS +
+      ', ST_Distance(i.location_public, b.location_public) AS distance_m,' +
+      ' cardinality(ARRAY(' +
+      "   SELECT unnest(tsvector_to_array(ts_filter(i.search_vector, '{a}')))" +
+      '   INTERSECT SELECT unnest(b.words))) AS shared_words' +
+      VISIBLE +
+      ` CROSS JOIN base b
+       WHERE i.status = 'ACTIVE'
+         AND i.id <> b.id
+         AND i.lender_id <> b.lender_id
+         AND i.category = b.category
+         AND ST_DWithin(i.location_public, b.location_public, $2::float8)
+       ORDER BY shared_words DESC, distance_m, i.id
+       LIMIT $3::int`,
+    [itemId, radiusM, limit],
+  );
+}
+
 /** The public item, or null if it isn't publicly visible. */
 export async function findPublicItem(
   tx: EntityManager,

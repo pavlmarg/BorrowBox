@@ -4,6 +4,7 @@ import {
   CatalogRpc,
   type PublicItemDetail,
   type SearchItemsResponse,
+  type SimilarItemsResponse,
   type SuggestItemsResponse,
 } from '@borrowbox/contracts';
 import { ItemRefDto } from '../items/items.dto';
@@ -30,5 +31,10 @@ export class SearchController {
   @MessagePattern(CatalogRpc.getPublic)
   getPublic(@Payload('data') dto: ItemRefDto): Promise<PublicItemDetail> {
     return this.search.getPublic(dto.itemId);
+  }
+
+  @MessagePattern(CatalogRpc.similar)
+  similar(@Payload('data') dto: ItemRefDto): Promise<SimilarItemsResponse> {
+    return this.search.similar(dto.itemId);
   }
 }

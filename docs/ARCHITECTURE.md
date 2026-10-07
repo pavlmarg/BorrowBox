@@ -129,6 +129,8 @@ flowchart TB
 ### Catalog
 - `items.location` (private) and `items.location_public` are `geography(Point, 4326)`. Search uses `ST_DWithin(location_public, :point, :radius)` with a GiST index, combined with a Greek + English `tsvector` full-text index and category/price filters.
 - **Search** is public (no sign-in needed) and shows only `ACTIVE` items of known, non-deleted lenders. Results are nearest first by the public point, paged with an opaque cursor (the last item's distance and id). A maximum-price filter also matches free items ([ADR-0012](adr/0012-free-items-match-price-limits.md)). The searcher's point and text are never stored or logged.
+- **Search as you type:** the 5 nearest visible items whose words all start with (or share a Greek/English stem with) what has been typed, from 2 characters.
+- **Similar items** on an item's page: up to 8 other lenders' items in the same category within 10 km of the item's public point, most shared title words first, then nearest. People are never searchable by name.
 - **Location privacy** ([ADR-0004](adr/0004-location-fuzzing.md), [ADR-0007](adr/0007-location-privacy-search.md)):
   - `location_public` is the exact point moved by one random offset (150–300 m, random direction), stored per item. A pin moved by less than 300 m keeps the same offset.
   - A lender's items in one place (exact points within 300 m) share one offset, so averaging their public points reveals nothing ([ADR-0011](adr/0011-one-offset-per-place.md)).

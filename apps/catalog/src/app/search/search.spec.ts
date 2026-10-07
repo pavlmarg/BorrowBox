@@ -566,6 +566,119 @@ describe('Search and public item pages (integration)', () => {
     });
   });
 
+  // --- similar items (9c) -----------------------------------------------------------------
+
+  describe('similar', () => {
+    async function similar(itemId: string): Promise<PublicItemSummary[]> {
+      const response = await catalog.send(CatalogRpc.similar, { itemId });
+      responses.push(response);
+      return response.items;
+    }
+
+    it('ranks other lenders’ items in the same category by shared title words, then distance', async () => {
+      const centre = newArea();
+      const [me, a, b] = [await lender(), await lender('A'), await lender('B')];
+      const base = await seed({
+        lenderId: me,
+        publicAt: centre,
+        title: 'Cordless drill Bosch',
+      });
+      const at = (m: number) => pointFrom(centre, m, 150);
+      const twoWords = await seed({
+        lenderId: a,
+        publicAt: await at(3_000),
+        title: 'Bosch cordless screwdriver',
+      });
+      const oneWordFar = await seed({
+        lenderId: b,
+        publicAt: await at(1_500),
+        title: 'Hammer drill',
+      });
+      const oneWordNear = await seed({
+        lenderId: a,
+        publicAt: await at(500),
+        title: 'Drill bits set',
+      });
+      const noWords = await seed({
+        lenderId: b,
+        publicAt: await at(100),
+        title: 'Angle grinder',
+      });
+      // Left out: my own item, another category, too far, not visible.
+      await seed({
+        lenderId: me,
+        publicAt: await at(50),
+        title: 'Cordless drill',
+      });
+      await seed({
+        lenderId: a,
+        publicAt: await at(50),
+        title: 'Cordless drill tent',
+        category: 'camping',
+      });
+      await seed({
+        lenderId: a,
+        publicAt: await at(12_000),
+        title: 'Cordless drill',
+      });
+      await seed({
+        lenderId: a,
+        publicAt: await at(50),
+        title: 'Cordless drill',
+        status: 'PAUSED',
+      });
+
+      const items = await similar(base);
+      expect(items.map((i) => i.id)).toEqual([
+        twoWords,
+        oneWordNear,
+        oneWordFar,
+        noWords,
+      ]);
+      expect(items.map((i) => i.distanceBand)).toEqual([
+        '2_5_KM',
+        'UNDER_1_KM',
+        '1_2_KM',
+        'UNDER_1_KM',
+      ]);
+      expect(items[0].lender).toEqual({ id: a, displayName: 'A' });
+    });
+
+    it('returns at most 8, and an empty list when nothing is similar', async () => {
+      const centre = newArea();
+      const base = await seed({ lenderId: await lender(), publicAt: centre });
+      expect(await similar(base)).toEqual([]);
+
+      const other = await lender('Other');
+      for (let i = 0; i < 10; i++) {
+        await seed({
+          lenderId: other,
+          publicAt: await pointFrom(centre, 100 + i * 50, 0),
+        });
+      }
+      expect(await similar(base)).toHaveLength(8);
+    });
+
+    it('answers NOT_FOUND exactly when the item page would', async () => {
+      const centre = newArea();
+      const owner = await lender();
+      for (const status of ['DRAFT', 'PAUSED', 'DELETED'] as const) {
+        const itemId = await seed({
+          lenderId: owner,
+          publicAt: centre,
+          status,
+        });
+        expect(
+          await failure(catalog.send(CatalogRpc.similar, { itemId })),
+        ).toEqual({ code: 'NOT_FOUND', message: 'Item not found' });
+      }
+      expect(
+        (await failure(catalog.send(CatalogRpc.similar, { itemId: 'nope' })))
+          .code,
+      ).toBe('VALIDATION_FAILED');
+    });
+  });
+
   // --- privacy across everything above ----------------------------------------------------
 
   it('never returns an exact point or an offset', () => {
