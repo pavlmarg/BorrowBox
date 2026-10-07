@@ -3,20 +3,24 @@ import { ConfigService } from '@nestjs/config';
 import type { DataSource } from 'typeorm';
 import {
   SEARCH_PAGE_SIZE_DEFAULT,
+  SUGGEST_LIMIT,
   type PublicItemDetail,
   type PublicItemSummary,
   type SearchItemsResponse,
+  type SuggestItemsResponse,
 } from '@borrowbox/contracts';
 import type { CatalogConfig } from '../config';
 import { DATA_SOURCE } from '../database/database.module';
 import { photoUrls, toPricing } from '../items/items.repository';
 import { CatalogError } from '../rpc/rpc-errors';
 import { decodeCursor, distanceBand, encodeCursor } from './search-paging';
-import type { SearchItemsDto } from './search.dto';
+import { typedWords } from './typed-words';
+import type { SearchItemsDto, SuggestItemsDto } from './search.dto';
 import {
   findPublicItem,
   listPublicPhotos,
   searchItems,
+  suggestItems,
   type PublicItemRow,
 } from './search.repository';
 
@@ -62,6 +66,29 @@ export class SearchService {
         rows.length > limit && last
           ? encodeCursor({ distanceM: last.distance_m, itemId: last.id })
           : null,
+    };
+  }
+
+  /** Search as you type: the nearest few items matching what was typed. */
+  async suggest(dto: SuggestItemsDto): Promise<SuggestItemsResponse> {
+    const words = typedWords(dto.q);
+    if (words.length === 0) return { suggestions: [] };
+    const rows = await suggestItems(
+      this.dataSource.manager,
+      dto.near,
+      dto.radiusKm * 1000,
+      words,
+      SUGGEST_LIMIT,
+    );
+    return {
+      suggestions: rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        thumbnailUrl: row.cover_key
+          ? photoUrls(this.photosBaseUrl, row.cover_key).small
+          : null,
+        distanceBand: distanceBand(row.distance_m),
+      })),
     };
   }
 

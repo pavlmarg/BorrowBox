@@ -110,6 +110,39 @@ export async function searchItems(
   );
 }
 
+/**
+ * Search as you type: the nearest visible items in which every word matches
+ * as a prefix of a stored word ("δραπ" → "Δράπανο"), or its Greek or
+ * English stem does ("σκάλες" → "Σκάλα", "μπαταρια" → "μπαταρίας",
+ * "drills" → "drill"). `words` must contain only letters and digits, so
+ * `to_tsquery` can't meet any syntax.
+ */
+export async function suggestItems(
+  tx: EntityManager,
+  near: GeoPoint,
+  radiusM: number,
+  words: string[],
+  limit: number,
+): Promise<PublicItemRow[]> {
+  return tx.query(
+    'SELECT ' +
+      PUBLIC_COLUMNS +
+      ', ST_Distance(i.location_public, p.pt) AS distance_m' +
+      VISIBLE +
+      ' CROSS JOIN (SELECT ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography AS pt) p' +
+      ` WHERE i.status = 'ACTIVE'
+          AND ST_DWithin(i.location_public, p.pt, $3::float8)
+          AND NOT EXISTS (
+            SELECT 1 FROM unnest($4::text[]) AS w(word)
+             WHERE NOT (i.search_vector @@ (to_tsquery('simple', w.word || ':*')
+                                         || to_tsquery('greek', w.word || ':*')
+                                         || to_tsquery('english', w.word || ':*'))))
+        ORDER BY distance_m, i.id
+        LIMIT $5::int`,
+    [near.lng, near.lat, radiusM, words, limit],
+  );
+}
+
 /** The public item, or null if it isn't publicly visible. */
 export async function findPublicItem(
   tx: EntityManager,

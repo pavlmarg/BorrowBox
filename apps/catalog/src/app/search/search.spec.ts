@@ -437,6 +437,135 @@ describe('Search and public item pages (integration)', () => {
     );
   });
 
+  // --- search as you type (9b) -------------------------------------------------------------
+
+  describe('suggest', () => {
+    async function suggest(near: GeoPoint, q: string, radiusKm = 5) {
+      const response = await catalog.send(CatalogRpc.suggest, {
+        near,
+        radiusKm,
+        q,
+      });
+      responses.push(response);
+      return response.suggestions;
+    }
+
+    it('matches what has been typed so far, in Greek and English', async () => {
+      const centre = newArea();
+      const owner = await lender();
+      const near = await pointFrom(centre, 300, 30);
+      const drill = await seed({
+        lenderId: owner,
+        publicAt: near,
+        title: 'Δράπανο μπαταρίας',
+        description: 'Cordless drill, two batteries',
+      });
+      const ladder = await seed({
+        lenderId: owner,
+        publicAt: near,
+        title: 'Σκάλα αλουμινίου',
+        description: '',
+      });
+      const typed = async (q: string) =>
+        (await suggest(centre, q)).map((s) => s.id).sort();
+
+      for (const q of [
+        'δρ',
+        'δραπ',
+        'ΔΡΆΠ',
+        'δράπανο',
+        'μπαταρια',
+        'dri',
+        'drills',
+        'batter',
+      ]) {
+        expect(await typed(q)).toEqual([drill]);
+      }
+      for (const q of ['σκ', 'σκαλα', 'σκάλες', 'αλουμ']) {
+        expect(await typed(q)).toEqual([ladder]);
+      }
+      // Every word must match.
+      expect(await typed('δραπ σκαλ')).toEqual([]);
+      expect(await typed('δραπ batt')).toEqual([drill]);
+      expect(await typed('xyz')).toEqual([]);
+    });
+
+    it('returns the nearest five visible items, with thumbnails and bands', async () => {
+      const centre = newArea();
+      const owner = await lender();
+      const byDistance: string[] = [];
+      for (const m of [700, 100, 1_500, 300, 2_500, 900]) {
+        byDistance.push(
+          await seed({
+            lenderId: owner,
+            publicAt: await pointFrom(centre, m, 60),
+          }),
+        );
+      }
+      await seed({
+        lenderId: owner,
+        publicAt: await pointFrom(centre, 50, 60),
+        status: 'PAUSED',
+      });
+      await seed({
+        lenderId: owner,
+        publicAt: await pointFrom(centre, 8_000, 60),
+      });
+
+      const suggestions = await suggest(centre, 'cord', 5);
+      // 100, 300, 700, 900 and 1,500 m.
+      expect(suggestions.map((s) => s.id)).toEqual([
+        byDistance[1],
+        byDistance[3],
+        byDistance[0],
+        byDistance[5],
+        byDistance[2],
+      ]);
+      expect(suggestions[0]).toEqual({
+        id: byDistance[1],
+        title: 'Cordless drill',
+        thumbnailUrl: expect.stringMatching(
+          new RegExp(
+            `^${TEST_PHOTOS_BASE_URL}/items/[0-9a-f-]{36}/320\\.webp$`,
+          ),
+        ),
+        distanceBand: 'UNDER_1_KM',
+      });
+      expect(suggestions[4].distanceBand).toBe('1_2_KM');
+    });
+
+    it('treats punctuation and search syntax as plain separators', async () => {
+      const centre = newArea();
+      const owner = await lender();
+      const drill = await seed({
+        lenderId: owner,
+        publicAt: await pointFrom(centre, 200, 0),
+      });
+      expect((await suggest(centre, 'dr:* | !(')).map((s) => s.id)).toEqual([
+        drill,
+      ]);
+      expect(await suggest(centre, '!!!')).toEqual([]);
+    });
+
+    it.each([
+      ['one character', { q: 'δ' }],
+      ['blank text', { q: '     ' }],
+      ['text over the maximum', { q: 'a'.repeat(101) }],
+      ['a radius that is not a step', { q: 'drill', radiusKm: 4 }],
+      ['no point', { q: 'drill', near: undefined }],
+    ])('rejects %s', async (_, overrides) => {
+      const error = await failure(
+        catalog.send(CatalogRpc.suggest, {
+          near: { lat: 37.123456789, lng: 23.987654321 },
+          radiusKm: 5,
+          ...overrides,
+        }),
+      );
+      expect(error.code).toBe('VALIDATION_FAILED');
+      expect(error.message).not.toMatch(/37\.12|23\.98/);
+    });
+  });
+
   // --- privacy across everything above ----------------------------------------------------
 
   it('never returns an exact point or an offset', () => {

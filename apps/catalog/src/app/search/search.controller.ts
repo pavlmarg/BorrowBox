@@ -4,9 +4,10 @@ import {
   CatalogRpc,
   type PublicItemDetail,
   type SearchItemsResponse,
+  type SuggestItemsResponse,
 } from '@borrowbox/contracts';
 import { ItemRefDto } from '../items/items.dto';
-import { SearchItemsDto } from './search.dto';
+import { SearchItemsDto, SuggestItemsDto } from './search.dto';
 import { SearchService } from './search.service';
 
 /** Public: no access token needed (signed-out visitors may browse). */
@@ -17,6 +18,13 @@ export class SearchController {
   @MessagePattern(CatalogRpc.search)
   find(@Payload('data') dto: SearchItemsDto): Promise<SearchItemsResponse> {
     return this.search.search(dto);
+  }
+
+  @MessagePattern(CatalogRpc.suggest)
+  suggest(
+    @Payload('data') dto: SuggestItemsDto,
+  ): Promise<SuggestItemsResponse> {
+    return this.search.suggest(dto);
   }
 
   @MessagePattern(CatalogRpc.getPublic)

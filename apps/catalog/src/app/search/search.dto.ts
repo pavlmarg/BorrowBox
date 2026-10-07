@@ -20,10 +20,12 @@ import {
   SEARCH_PAGE_SIZE_MAX,
   SEARCH_QUERY_MAX_LENGTH,
   SEARCH_RADIUS_KM,
+  SUGGEST_MIN_LENGTH,
   type ItemCategory,
   type PriceUnit,
   type SearchItemsRequest,
   type SearchRadiusKm,
+  type SuggestItemsRequest,
 } from '@borrowbox/contracts';
 import { CharLength, GeoPointDto } from '../items/items.dto';
 
@@ -83,4 +85,20 @@ export class SearchItemsDto implements SearchItemsRequest {
   @Min(1)
   @Max(SEARCH_PAGE_SIZE_MAX)
   limit?: number;
+}
+
+export class SuggestItemsDto implements SuggestItemsRequest {
+  /** Used for this query only: never stored, logged or echoed in errors. */
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => GeoPointDto)
+  near!: GeoPointDto;
+
+  @IsIn(SEARCH_RADIUS_KM)
+  radiusKm!: SearchRadiusKm;
+
+  @Transform(trim)
+  @IsString()
+  @CharLength(SUGGEST_MIN_LENGTH, SEARCH_QUERY_MAX_LENGTH)
+  q!: string;
 }
