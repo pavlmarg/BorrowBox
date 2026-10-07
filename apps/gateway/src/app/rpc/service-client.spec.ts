@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus, Logger } from '@nestjs/common';
 import type { ClientProxy } from '@nestjs/microservices';
+import { NO_MESSAGE_HANDLER } from '@nestjs/microservices/constants';
 import { EMPTY, NEVER, of, throwError, type Observable } from 'rxjs';
 import {
   GOOGLE_EXCHANGE_MAX_REQUESTS,
@@ -100,6 +101,18 @@ describe('ServiceClient', () => {
     });
     expect(logError).toHaveBeenCalledWith(
       expect.stringContaining('unmapped error code BRAND_NEW_CODE'),
+    );
+  });
+
+  it('answers 500 INTERNAL when the service has no handler for the pattern', async () => {
+    // What Nest's TCP server replies with: a plain string, not an RpcErrorBody.
+    reply = () => throwError(() => NO_MESSAGE_HANDLER);
+    expect(await failure(client.call('test.echo', { text: '' }, ctx))).toEqual({
+      status: 500,
+      body: { statusCode: 500, code: 'INTERNAL', message: 'Internal error' },
+    });
+    expect(logError).toHaveBeenCalledWith(
+      'Test has no handler for test.echo (correlationId=corr-1)',
     );
   });
 

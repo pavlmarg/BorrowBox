@@ -5,6 +5,7 @@ import {
   type OnApplicationShutdown,
 } from '@nestjs/common';
 import type { ClientProxy } from '@nestjs/microservices';
+import { NO_MESSAGE_HANDLER } from '@nestjs/microservices/constants';
 import { lastValueFrom, timeout, TimeoutError } from 'rxjs';
 import type { RpcErrorBody, RpcRequest } from '@borrowbox/contracts';
 import { apiError } from '../http/api-error';
@@ -47,6 +48,7 @@ const UNAVAILABLE_MESSAGE = 'Service temporarily unavailable, try again later';
  *   its message is passed through (services must never put personal data or
  *   internals in it).
  * - A code the table doesn't know means the contracts drifted: 500 INTERNAL.
+ * - A pattern the service has no handler for (deploy out of step): 500 INTERNAL.
  * - No answer (timeout, connection failure): 503 SERVICE_UNAVAILABLE.
  * - No retries: a command might already have run (see ARCHITECTURE.md §10).
  */
@@ -103,11 +105,15 @@ export abstract class ServiceClient<
       this.logger.error(
         `${this.options.name} call ${pattern} returned unmapped error code ${err.code} (correlationId=${correlationId})`,
       );
-      return apiError(
-        HttpStatus.INTERNAL_SERVER_ERROR,
-        'INTERNAL',
-        'Internal error',
+      return internalError();
+    }
+    // Nest's own reply, sent before the service's filters run: the service is
+    // up but doesn't know the pattern (e.g. deployed out of step with us).
+    if (err === NO_MESSAGE_HANDLER) {
+      this.logger.error(
+        `${this.options.name} has no handler for ${pattern} (correlationId=${correlationId})`,
       );
+      return internalError();
     }
     const reason =
       err instanceof TimeoutError
@@ -124,6 +130,14 @@ export abstract class ServiceClient<
       UNAVAILABLE_MESSAGE,
     );
   }
+}
+
+function internalError(): HttpException {
+  return apiError(
+    HttpStatus.INTERNAL_SERVER_ERROR,
+    'INTERNAL',
+    'Internal error',
+  );
 }
 
 /**
