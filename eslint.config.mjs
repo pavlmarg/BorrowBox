@@ -48,6 +48,18 @@ export default [
           ],
         },
       ],
+      // SQL injection guard: values go in as $1, $2, … parameters, never
+      // into the SQL text. Optional filters use fixed SQL such as
+      // `($3::text IS NULL OR category = $3)`.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.property.name='query'] > TemplateLiteral.arguments:first-child[expressions.length>0]",
+          message:
+            'No ${…} in SQL text: pass values as $1, $2, … parameters instead.',
+        },
+      ],
     },
   },
   {
@@ -63,6 +75,8 @@ export default [
         },
       ],
       'no-restricted-imports': 'off',
+      // Tests build SQL for setup and assertions, never from user input.
+      'no-restricted-syntax': 'off',
     },
   },
   {
