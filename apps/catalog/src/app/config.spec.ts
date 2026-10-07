@@ -5,6 +5,7 @@ const valid = {
   RABBITMQ_URL: 'amqp://borrowbox:secret-pw@localhost:5672',
   JWT_PUBLIC_KEY: '-----BEGIN PUBLIC KEY-----\\nabc\\n-----END PUBLIC KEY-----',
   JWT_KEY_ID: 'dev-1',
+  PHOTOS_BASE_URL: 'http://localhost:8333/borrowbox-public',
 };
 
 describe('validateConfig', () => {
@@ -29,6 +30,18 @@ describe('validateConfig', () => {
     ).toBe(false);
   });
 
+  it('drops a trailing slash from PHOTOS_BASE_URL and rejects other schemes', () => {
+    expect(
+      validateConfig({
+        ...valid,
+        PHOTOS_BASE_URL: 'https://photos.example.gr/',
+      }).PHOTOS_BASE_URL,
+    ).toBe('https://photos.example.gr');
+    expect(() =>
+      validateConfig({ ...valid, PHOTOS_BASE_URL: 'ftp://photos.example.gr' }),
+    ).toThrow(/PHOTOS_BASE_URL/);
+  });
+
   it('names every missing or invalid variable without echoing values', () => {
     let message = '';
     try {
@@ -45,6 +58,7 @@ describe('validateConfig', () => {
       'CATALOG_PORT',
       'JWT_PUBLIC_KEY',
       'JWT_KEY_ID',
+      'PHOTOS_BASE_URL',
     ]) {
       expect(message).toContain(name);
     }

@@ -15,6 +15,9 @@ import type {
   PublicItemDetail,
   SearchItemsRequest,
   SearchItemsResponse,
+  SimilarItemsResponse,
+  SuggestItemsRequest,
+  SuggestItemsResponse,
 } from './items';
 import type { PhotoContentType } from './validation';
 
@@ -31,6 +34,8 @@ export type CatalogErrorCode =
   | 'NOT_PUBLISHABLE'
   /** The item already has the maximum number of photos. */
   | 'PHOTO_LIMIT_REACHED'
+  /** The lender already has `ITEM_FREE_LIMIT` items (drafts included). */
+  | 'ITEM_LIMIT_REACHED'
   /** The action doesn't fit the item's status, e.g. pausing a draft. */
   | 'INVALID_STATE'
   /** Unexpected failure; details are only in Catalog's logs. */
@@ -43,6 +48,12 @@ export interface ItemRef {
 }
 
 export interface CreateItemRequest {
+  /**
+   * A new random UUID chosen by the client (`crypto.randomUUID()`), once per
+   * item. Sending the same create again returns the existing item instead of
+   * making a second one, so retrying after a lost response is safe.
+   */
+  itemId: string;
   title: string;
   /** Defaults to an empty description. */
   description?: string;
@@ -101,7 +112,9 @@ export interface CatalogDataExport {
 export const CatalogRpc = {
   // Public (no token needed).
   search: 'catalog.items.search',
+  suggest: 'catalog.items.suggest',
   getPublic: 'catalog.items.public.get',
+  similar: 'catalog.items.similar',
   // The caller's own items.
   create: 'catalog.items.create',
   update: 'catalog.items.update',
@@ -127,7 +140,12 @@ export interface CatalogRpcContract {
     request: SearchItemsRequest;
     response: SearchItemsResponse;
   };
+  [CatalogRpc.suggest]: {
+    request: SuggestItemsRequest;
+    response: SuggestItemsResponse;
+  };
   [CatalogRpc.getPublic]: { request: ItemRef; response: PublicItemDetail };
+  [CatalogRpc.similar]: { request: ItemRef; response: SimilarItemsResponse };
   [CatalogRpc.create]: { request: CreateItemRequest; response: OwnItem };
   [CatalogRpc.update]: { request: UpdateItemRequest; response: OwnItem };
   [CatalogRpc.setLocation]: {

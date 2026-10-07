@@ -128,12 +128,20 @@ flowchart TB
 
 ### Catalog
 - `items.location` (private) and `items.location_public` are `geography(Point, 4326)`. Search uses `ST_DWithin(location_public, :point, :radius)` with a GiST index, combined with a Greek + English `tsvector` full-text index and category/price filters.
+- **Search** is public (no sign-in needed) and shows only `ACTIVE` items of known, non-deleted lenders. Results are nearest first by the public point, paged with an opaque cursor (the last item's distance and id). A maximum-price filter also matches free items ([ADR-0012](adr/0012-free-items-match-price-limits.md)). The searcher's point and text are never stored or logged.
+- **Search as you type:** the 5 nearest visible items whose words all start with (or share a Greek/English stem with) what has been typed, from 2 characters.
+- **Similar items** on an item's page: up to 8 other lenders' items in the same category within 10 km of the item's public point, most shared title words first, then nearest. People are never searchable by name.
 - **Location privacy** ([ADR-0004](adr/0004-location-fuzzing.md), [ADR-0007](adr/0007-location-privacy-search.md)):
   - `location_public` is the exact point moved by one random offset (150–300 m, random direction), stored per item. A pin moved by less than 300 m keeps the same offset.
+  - A lender's items in one place (exact points within 300 m) share one offset, so averaging their public points reveals nothing ([ADR-0011](adr/0011-one-offset-per-place.md)).
   - Public responses and **all searches** use only `location_public`. The search radius is one of 1, 2, 5, 10, 25 or 50 km, and distances are shown as bands.
   - The exact point is visible to its owner, and later to a renter with a `PAID` booking until it completes.
 - **Setting the location:** lenders drop a pin on the map or use their device location; no address is geocoded ([ADR-0008](adr/0008-maps-pin-drop.md)).
 - **Pricing:** a rate card per item: any of hourly, daily, weekly and monthly rates (each €0.10–€1,000), or free, plus a separate deposit. Bookings computes what a booking costs ([ADR-0010](adr/0010-flexible-pricing.md)).
+- **Item lifecycle:** `DRAFT` → `ACTIVE` (publishing needs a location and a processed photo) ⇄ `PAUSED`; any of them → `DELETED`, a tombstone without location or description. `item.created` / `item.updated` carry a snapshot without location or description; `item.updated` is only sent when the snapshot changes.
+- **Commands are safe to repeat:** the client picks a new item's id (a UUID), so a retried create returns the same item; repeating a publish, pause, unpause or delete that already took effect succeeds without a second event.
+- **Limits:** a lender may have 10 items at once, drafts included (`ITEM_FREE_LIMIT`). Creates and the account's erasure share a per-lender lock, so parallel creates can't exceed the limit and an item can't slip past an erasure.
+- **Deleted accounts:** access tokens stay valid for up to 15 minutes, so once Catalog has processed `user.deletion_requested`, it refuses that account's write commands.
 
 ### Bookings
 - Double-booking is prevented at the DB level:
@@ -301,4 +309,5 @@ Messaging and Reviews can start as modules inside Bookings and move into their o
 ### Side decisions (revisit once all phases are done)
 - **Rate-limiting algorithm.** The Redis store counts in a fixed window that starts at a client's first request, so a client can get about 2× the limit in a burst across a window boundary. The in-memory fallback is a sliding-window log, so it's slightly stricter. That's fine for brute-force protection today. Decide whether to switch Redis to a sliding window or a token bucket (a custom Lua script) for smoother limits.
 - **Retries and a circuit breaker for gateway → service calls (revisit in Phase 7).** Today a failed call is not retried. Options: retry read-only calls once on a connection error, and/or a circuit breaker that fails fast while a service is down. Commands must not be retried blindly (they may already have run).
+- **Offsets derived from a secret (revisit in Phase 7).** A lender who moves a pin 300 m or more away and back draws a new offset each time, so someone recording one item's public point over weeks could average several offsets for the same home ([ADR-0011](adr/0011-one-offset-per-place.md)). The robust fix derives the offset from a server secret, the lender and a coarse area, so a place always gets the same offset.
 - **CDN caching of public photos (decide at deployment, Phase 7).** If a CDN caches the public photo bucket, a deleted photo stays reachable at its old URL until its cache entry expires, which delays GDPR erasure. Choose a short cache lifetime, or purge the CDN on delete. Photo keys are random and never reused, so caching can't show the wrong photo.

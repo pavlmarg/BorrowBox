@@ -16,6 +16,12 @@ export const RATE_MAX_CENTS = 100_000;
 export const DEPOSIT_MIN_CENTS = 0;
 export const DEPOSIT_MAX_CENTS = 500_000;
 
+/**
+ * How many items a lender may have at once: drafts, active and paused ones
+ * (deleting one frees a slot). Paid extra slots may come after Phase 4.
+ */
+export const ITEM_FREE_LIMIT = 10;
+
 /** A published item needs at least one processed photo (ADR-0009). */
 export const ITEM_PHOTOS_MIN_TO_PUBLISH = 1;
 export const ITEM_PHOTOS_MAX = 10;
@@ -30,6 +36,14 @@ export type PhotoContentType = (typeof PHOTO_CONTENT_TYPES)[number];
 export const SEARCH_QUERY_MAX_LENGTH = 100;
 export const SEARCH_PAGE_SIZE_DEFAULT = 20;
 export const SEARCH_PAGE_SIZE_MAX = 50;
+
+/** Search as you type starts at this many characters and returns at most `SUGGEST_LIMIT`. */
+export const SUGGEST_MIN_LENGTH = 2;
+export const SUGGEST_LIMIT = 5;
+
+/** Similar items: at most this many, within this distance of the item. */
+export const SIMILAR_ITEMS_MAX = 8;
+export const SIMILAR_ITEMS_RADIUS_KM = 10;
 
 /** True if `cents` is a whole number of cents within [min, max]. */
 export function isCentsInRange(

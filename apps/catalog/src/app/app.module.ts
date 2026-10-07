@@ -6,7 +6,9 @@ import { AuthModule, pemFromEnv } from '@borrowbox/auth';
 import { validateConfig, type CatalogConfig } from './config';
 import { DatabaseModule } from './database/database.module';
 import { EventsModule } from './events/events.module';
+import { ItemsModule } from './items/items.module';
 import { LendersModule } from './lenders/lenders.module';
+import { SearchModule } from './search/search.module';
 import { CatalogRpcExceptionFilter, rpcValidationPipe } from './rpc/rpc-errors';
 
 /** Dev reads `apps/catalog/.env` (gitignored); elsewhere env comes from the environment. */
@@ -35,6 +37,8 @@ export const configModule = ConfigModule.forRoot({
       }),
     }),
     LendersModule,
+    ItemsModule,
+    SearchModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: rpcValidationPipe },
