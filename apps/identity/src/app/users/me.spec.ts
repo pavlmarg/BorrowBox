@@ -119,6 +119,68 @@ describe('Identity me.* (integration)', () => {
       expect(partial.displayName).toBe('Ελένη');
     });
 
+    const profileEvents = (userId: string) =>
+      identity.dataSource.query(
+        `SELECT envelope FROM outbox
+          WHERE routing_key = 'user.profile_updated.v1'
+            AND envelope->'payload'->>'userId' = $1
+          ORDER BY id`,
+        [userId],
+      ) as Promise<Array<{ envelope: Record<string, unknown> }>>;
+
+    it('emits one user.profile_updated.v1 with the full current values', async () => {
+      const s = await signUp();
+      await identity.send(
+        IdentityRpc.updateMe,
+        { displayName: 'Νίκος' },
+        as(s, 'rename-1'),
+      );
+
+      const events = await profileEvents(s.user.id);
+      expect(events).toHaveLength(1);
+      expect(events[0].envelope).toMatchObject({
+        type: 'user.profile_updated',
+        version: 1,
+        correlationId: 'rename-1',
+        causationId: null,
+        // The unchanged locale is included too: the newest event is enough on its own.
+        payload: { userId: s.user.id, displayName: 'Νίκος', locale: 'el' },
+      });
+    });
+
+    it('emits on a language-only change too', async () => {
+      const s = await signUp();
+      await identity.send(IdentityRpc.updateMe, { locale: 'en' }, as(s));
+      const events = await profileEvents(s.user.id);
+      expect(events.map((e) => e.envelope['payload'])).toEqual([
+        { userId: s.user.id, displayName: s.user.displayName, locale: 'en' },
+      ]);
+    });
+
+    it('writes nothing when nothing changes', async () => {
+      const s = await signUp();
+      const updatedAt = async () =>
+        (
+          await identity.dataSource.query(
+            `SELECT updated_at FROM users WHERE id = $1`,
+            [s.user.id],
+          )
+        )[0].updated_at as Date;
+      const before = await updatedAt();
+
+      for (const data of [
+        {},
+        { displayName: s.user.displayName },
+        { displayName: ` ${s.user.displayName} `, locale: s.user.locale },
+      ]) {
+        await expect(
+          identity.send(IdentityRpc.updateMe, data, as(s)),
+        ).resolves.toEqual(s.user);
+      }
+      expect(await profileEvents(s.user.id)).toEqual([]);
+      expect(await updatedAt()).toEqual(before);
+    });
+
     it.each([
       ['a blank name', { displayName: ' ' }],
       ['a 51-char name', { displayName: 'x'.repeat(51) }],
@@ -198,6 +260,11 @@ describe('Identity me.* (integration)', () => {
         `INSERT INTO oauth_identities (provider, subject, user_id) VALUES ('google', $1, $2)`,
         [`sub-${s.user.id}`, s.user.id],
       );
+      await identity.send(
+        IdentityRpc.updateMe,
+        { displayName: 'Renamed Before Deletion' },
+        as(s),
+      );
 
       await expect(
         deleteMe(s, { password: PASSWORD }, 'delete-flow-1'),
@@ -229,9 +296,13 @@ describe('Identity me.* (integration)', () => {
         [s.user.id],
       );
       expect(events.map((e: { routing_key: string }) => e.routing_key)).toEqual(
-        ['user.registered.v1', 'user.deletion_requested.v1'],
+        [
+          'user.registered.v1',
+          'user.profile_updated.v1',
+          'user.deletion_requested.v1',
+        ],
       );
-      expect(events[1].envelope).toMatchObject({
+      expect(events[2].envelope).toMatchObject({
         correlationId: 'delete-flow-1',
         payload: { userId: s.user.id },
       });
@@ -242,7 +313,14 @@ describe('Identity me.* (integration)', () => {
         displayName: 'Deleted user',
         locale: 'el',
       });
+      // …and the kept user.profile_updated row no longer holds the new name.
+      expect(events[1].envelope.payload).toEqual({
+        userId: s.user.id,
+        displayName: 'Deleted user',
+        locale: 'el',
+      });
       expect(JSON.stringify(events)).not.toContain(s.user.email);
+      expect(JSON.stringify(events)).not.toContain('Renamed Before Deletion');
 
       // Every way back in is closed.
       const calls = [

@@ -40,12 +40,9 @@ import {
   setRefreshCookie,
 } from '../http/cookies';
 import { AuthRateLimit, RefreshRateLimit } from '../http/rate-limits';
+import { apiError, type ApiErrorBody } from '../http/api-error';
 import { CorrelationId } from '../http/request-context';
-import {
-  IdentityClient,
-  apiError,
-  type ApiErrorBody,
-} from '../identity/identity.client';
+import { IdentityClient } from '../identity/identity.client';
 
 /** Hands the refresh token to the cookie and returns the rest. */
 function toAuthResponse(res: Response, session: AuthSession): AuthResponse {

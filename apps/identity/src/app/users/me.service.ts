@@ -3,6 +3,7 @@ import type { DataSource, EntityManager } from 'typeorm';
 import type { AuthUser } from '@borrowbox/auth';
 import {
   UserDeletionRequestedV1,
+  UserProfileUpdatedV1,
   UserRegisteredV1,
   createEnvelope,
   type IdentityDataExport,
@@ -15,7 +16,7 @@ import { PasswordHasher } from '../auth/password-hasher';
 import { DATA_SOURCE } from '../database/database.module';
 import { IdentityError } from '../rpc/rpc-errors';
 import type { DeleteAccountDto, UpdateProfileDto } from './me.dto';
-import { findProfile } from './user-profile';
+import { findProfile, loadProfile } from './user-profile';
 
 /** Accounts without a password must have signed in this recently to delete themselves. */
 export const REAUTH_MAX_AGE_MS = 5 * 60 * 1000;
@@ -41,21 +42,46 @@ export class MeService {
     return profile;
   }
 
-  async update(auth: AuthUser, dto: UpdateProfileDto): Promise<UserProfile> {
+  /**
+   * Applies the change and, only if something actually changed, emits
+   * `user.profile_updated` with the full current values in the same
+   * transaction. The row lock orders concurrent updates, so their events'
+   * `occurredAt` follow the order of the changes (consumers keep the newest).
+   */
+  async update(
+    auth: AuthUser,
+    dto: UpdateProfileDto,
+    correlationId: string,
+  ): Promise<UserProfile> {
     return this.dataSource.transaction(async (tx) => {
       await assertLiveSession(tx, auth);
-      await tx.query(
-        `UPDATE users
-            SET display_name = COALESCE($2, display_name),
-                locale       = COALESCE($3, locale),
-                updated_at   = now()
-          WHERE id = $1 AND deleted_at IS NULL`,
-        [auth.userId, dto.displayName ?? null, dto.locale ?? null],
-      );
-      // Null if the account was deleted meanwhile.
-      const profile = await findProfile(tx, auth.userId);
-      if (!profile) throw UNAUTHENTICATED();
-      return profile;
+      const [current]: Array<{ display_name: string; locale: Locale }> =
+        await tx.query(
+          `SELECT display_name, locale FROM users
+            WHERE id = $1 AND deleted_at IS NULL
+            FOR UPDATE`,
+          [auth.userId],
+        );
+      if (!current) throw UNAUTHENTICATED(); // deleted meanwhile
+
+      const displayName = dto.displayName ?? current.display_name;
+      const locale = dto.locale ?? current.locale;
+      if (displayName !== current.display_name || locale !== current.locale) {
+        await tx.query(
+          `UPDATE users SET display_name = $2, locale = $3, updated_at = now()
+            WHERE id = $1`,
+          [auth.userId, displayName, locale],
+        );
+        await addToOutbox(
+          tx,
+          createEnvelope(
+            UserProfileUpdatedV1,
+            { userId: auth.userId, displayName, locale },
+            { correlationId },
+          ),
+        );
+      }
+      return loadProfile(tx, auth.userId);
     });
   }
 
@@ -148,7 +174,7 @@ export class MeService {
       await tx.query(`DELETE FROM refresh_tokens WHERE user_id = $1`, [
         auth.userId,
       ]);
-      await redactRegisteredEvents(tx, auth.userId);
+      await redactUserEvents(tx, auth.userId);
 
       await addToOutbox(
         tx,
@@ -231,11 +257,12 @@ async function assertLiveSession(
 }
 
 /**
- * Published outbox rows are kept for a week (see @borrowbox/outbox), so
- * the `user.registered` envelope would otherwise keep the email and name
- * after erasure until then. Replace them with the anonymised values; the contract shape stays valid.
+ * Published outbox rows are kept for a week (see @borrowbox/outbox), so the
+ * `user.registered` (email, name) and `user.profile_updated` (name) envelopes
+ * would otherwise keep personal data after erasure until then. Replace it
+ * with the anonymised values; the contract shapes stay valid.
  */
-async function redactRegisteredEvents(
+async function redactUserEvents(
   tx: EntityManager,
   userId: string,
 ): Promise<void> {
@@ -252,5 +279,12 @@ async function redactRegisteredEvents(
       ANONYMISED_DISPLAY_NAME,
       UserRegisteredV1.routingKey,
     ],
+  );
+  await tx.query(
+    `UPDATE outbox
+        SET envelope = jsonb_set(envelope, '{payload,displayName}', to_jsonb($2::text))
+      WHERE routing_key = $3
+        AND envelope->'payload'->>'userId' = $1`,
+    [userId, ANONYMISED_DISPLAY_NAME, UserProfileUpdatedV1.routingKey],
   );
 }

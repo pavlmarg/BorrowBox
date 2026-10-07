@@ -2,7 +2,6 @@ import { join } from 'node:path';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
-import { ClientProxyFactory, Transport } from '@nestjs/microservices';
 import {
   ThrottlerGuard,
   ThrottlerModule,
@@ -16,13 +15,10 @@ import { validateConfig, type GatewayConfig } from './config';
 import { HealthController } from './health.controller';
 import { FallbackThrottlerStorage } from './http/fallback-throttler-storage';
 import { DEFAULT_LIMIT } from './http/rate-limits';
-import {
-  IDENTITY_PROXY,
-  IdentityClient,
-  RPC_TIMEOUT_MS,
-} from './identity/identity.client';
+import { IDENTITY_PROXY, IdentityClient } from './identity/identity.client';
 import { MeController } from './me/me.controller';
 import { REDIS, RedisModule } from './redis.module';
+import { rpcTimeoutProvider, tcpClientProvider } from './rpc/rpc.providers';
 
 /** Dev reads `apps/gateway/.env` (gitignored); elsewhere env comes from the environment. */
 const configModule = ConfigModule.forRoot({
@@ -63,24 +59,8 @@ const configModule = ConfigModule.forRoot({
   ],
   controllers: [AuthController, MeController, HealthController],
   providers: [
-    {
-      provide: IDENTITY_PROXY,
-      inject: [ConfigService],
-      useFactory: (config: ConfigService<GatewayConfig, true>) =>
-        ClientProxyFactory.create({
-          transport: Transport.TCP,
-          options: {
-            host: config.get('IDENTITY_HOST', { infer: true }),
-            port: config.get('IDENTITY_PORT', { infer: true }),
-          },
-        }),
-    },
-    {
-      provide: RPC_TIMEOUT_MS,
-      inject: [ConfigService],
-      useFactory: (config: ConfigService<GatewayConfig, true>) =>
-        config.get('RPC_TIMEOUT_MS', { infer: true }),
-    },
+    rpcTimeoutProvider,
+    tcpClientProvider(IDENTITY_PROXY, 'IDENTITY_HOST', 'IDENTITY_PORT'),
     IdentityClient,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],

@@ -1,6 +1,21 @@
 import { UserDeletionRequestedV1, UserRegisteredV1 } from './events';
 import { IdentityRpc, type IdentityRpcPattern } from './rpc';
+import {
+  GOOGLE_EXCHANGE_MAX_REQUESTS,
+  GOOGLE_EXCHANGE_TIMEOUT_MS,
+  GOOGLE_HTTP_TIMEOUT_MS,
+} from './timeouts';
 import { isValidPassword } from './validation';
+
+describe('Google sign-in timeouts', () => {
+  it('give the gateway longer than every Google request Identity may make', () => {
+    expect(GOOGLE_EXCHANGE_TIMEOUT_MS).toBeGreaterThan(
+      GOOGLE_HTTP_TIMEOUT_MS * GOOGLE_EXCHANGE_MAX_REQUESTS,
+    );
+    // openid-client takes whole seconds.
+    expect(GOOGLE_HTTP_TIMEOUT_MS % 1000).toBe(0);
+  });
+});
 
 describe('isValidPassword', () => {
   it.each(['abcdefg1', 'correct horse 42', 'κωδικός9', 'a1'.repeat(32)])(

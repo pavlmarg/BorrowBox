@@ -7,7 +7,7 @@ import {
   type ExceptionFilter,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import type { ApiErrorBody } from '../identity/identity.client';
+import type { ApiErrorBody } from './api-error';
 
 const DEFAULT_CODES: Partial<Record<number, string>> = {
   [HttpStatus.BAD_REQUEST]: 'VALIDATION_FAILED',

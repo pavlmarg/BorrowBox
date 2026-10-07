@@ -20,7 +20,7 @@ flowchart LR
     bb --> stripe[Stripe Connect / Identity]
     bb --> email[Email provider<br/>Resend / Postmark]
     bb --> push[Web Push services]
-    pwa --> tiles[Map tiles / Geocoding<br/>MapTiler, Nominatim]
+    pwa --> tiles[Map tiles<br/>MapTiler]
     stripe -- webhooks --> bb
 ```
 
@@ -68,7 +68,7 @@ flowchart TB
 | Service | Owns | Publishes | Consumes |
 |---|---|---|---|
 | **Gateway** | nothing (stateless) | – | Redis pub/sub (fan-out to sockets) |
-| **Identity** | users, credentials, refresh tokens, verification status | `user.registered`, `user.verified`, `user.deletion_requested` | `payment.account_ready` |
+| **Identity** | users, credentials, refresh tokens, verification status | `user.registered`, `user.profile_updated`, `user.verified`, `user.deletion_requested` | `payment.account_ready` |
 | **Catalog** | items, categories, photos, location | `item.created`, `item.updated`, `item.deleted` | `user.deletion_requested`, `review.created` (item rating) |
 | **Bookings** | bookings, availability, handoffs, condition photos | `booking.requested`, `.accepted`, `.paid`, `.declined`, `.expired`, `.cancelled`, `.picked_up`, `.returned`, `.completed`, `.disputed` | `item.*`, `payment.captured`, `payment.failed`, `user.deletion_requested` |
 | **Payments** | Stripe accounts, payments, transfers, refunds, `stripe_events` | `payment.account_ready`, `payment.captured`, `payment.failed`, `payment.settled` | `booking.accepted`, `.cancelled`, `.completed`, `.disputed`, `dispute.resolved` |
@@ -76,10 +76,15 @@ flowchart TB
 | **Notifications** | preferences, push subscriptions, in-app inbox | – | nearly every event above |
 | **Reviews / Trust** | reviews, trust scores | `review.created` | `booking.completed`, `user.verified`, `booking.disputed` |
 
-**Media** is a shared library, not a service. It issues presigned upload URLs to object storage and runs a BullMQ worker that resizes and strips EXIF data with `sharp`. Stripping EXIF matters because photo GPS data would leak home locations.
+**Media** is a shared library, not a service. It issues presigned upload URLs into a private uploads bucket, and runs a BullMQ worker (inside the owning service) that strips all metadata with `sharp` and writes resized versions to a separate public-read bucket. Only processed photos are served. Stripping EXIF matters because photo GPS data would leak home locations. See [ADR-0009](adr/0009-photo-pipeline.md).
 
 ### Gateway
 - REST under `/api`, calling services through typed clients (e.g. `IdentityClient`) over NestJS TCP ([ADR-0005](adr/0005-gateway-service-transport-tcp.md)). It forwards the caller's access token and an `X-Request-Id` correlation id with every call.
+- **Service clients** all extend one `ServiceClient` base:
+  - Each service's error codes map to HTTP statuses through a table typed against its contract, so an unmapped code is a compile error. A code that still slips through at runtime becomes `500 INTERNAL` and is logged.
+  - No answer (timeout or connection failure) becomes `503 SERVICE_UNAVAILABLE` with a generic message; the service's name only appears in logs.
+  - Calls wait `RPC_TIMEOUT_MS` (5 s) by default. Calls that are slow by nature get a longer timeout in code, which must exceed everything the service itself waits for (e.g. Google sign-in: 35 s, derived in `libs/contracts` from Identity's 10 s per Google request × up to three requests, plus a margin).
+  - No automatic retries: a command may already have run.
 - Phase 1 endpoints:
   - `POST /api/auth/register`, `/login`, `/refresh`, `/logout`
   - `GET /api/auth/google` and `/google/callback`
@@ -122,8 +127,13 @@ flowchart TB
   - Every other service anonymises or deletes its own data. Financial records are kept as long as the law requires.
 
 ### Catalog
-- `items.location geography(Point, 4326)` with a GiST index. Search uses `ST_DWithin(location, :point, :radius)` combined with a `tsvector` full-text index and category/price filters.
-- **Location privacy:** public responses return only `location_public`, the exact point snapped to a deterministic random offset of about 300 m that is computed once per item. The exact address is revealed only to a renter with a `PAID` booking. See [ADR-0004](adr/0004-location-fuzzing.md).
+- `items.location` (private) and `items.location_public` are `geography(Point, 4326)`. Search uses `ST_DWithin(location_public, :point, :radius)` with a GiST index, combined with a Greek + English `tsvector` full-text index and category/price filters.
+- **Location privacy** ([ADR-0004](adr/0004-location-fuzzing.md), [ADR-0007](adr/0007-location-privacy-search.md)):
+  - `location_public` is the exact point moved by one random offset (150–300 m, random direction), stored per item. A pin moved by less than 300 m keeps the same offset.
+  - Public responses and **all searches** use only `location_public`. The search radius is one of 1, 2, 5, 10, 25 or 50 km, and distances are shown as bands.
+  - The exact point is visible to its owner, and later to a renter with a `PAID` booking until it completes.
+- **Setting the location:** lenders drop a pin on the map or use their device location; no address is geocoded ([ADR-0008](adr/0008-maps-pin-drop.md)).
+- **Pricing:** a rate card per item: any of hourly, daily, weekly and monthly rates (each €0.10–€1,000), or free, plus a separate deposit. Bookings computes what a booking costs ([ADR-0010](adr/0010-flexible-pricing.md)).
 
 ### Bookings
 - Double-booking is prevented at the DB level:
@@ -235,7 +245,7 @@ See [ADR-0003](adr/0003-stripe-separate-charges-transfers.md).
 - **Dev:** `nx serve web` on port 4200 proxies `/api` to the gateway on 3000, so cookies stay same-origin, as they are behind Caddy in production.
 - **Fonts and icons:** system fonts, and no fonts or icon fonts from Google's CDN, which would share visitors' IPs with Google (a GDPR issue).
 - **Features:** `auth`, `explore` (map + list), `item-detail`, `listing-wizard`, `bookings` (renter/lender tabs), `handoff` (show/scan QR, condition photos), `chat`, `notifications`, `profile` (verification, Stripe onboarding, payouts), `admin` (disputes).
-- **Map:** MapLibre GL with clustered markers at fuzzed locations and radius search.
+- **Map:** MapLibre GL with MapTiler tiles, lazy-loaded. Fuzzed locations are clustered when zoomed out and drawn as circles when zoomed in, never as precise pins. Radius search, and pin-drop to set an item's location ([ADR-0008](adr/0008-maps-pin-drop.md)).
 - **PWA:** `@angular/pwa` service worker, installable, offline shell, Web Push (VAPID). iOS supports push only for installed PWAs (16.4+), so email is always the fallback.
 - **i18n:** Greek + English (Transloco), with EUR formatting and the `el-GR` locale.
 - **UI kit:** Angular Material ([ADR-0006](adr/0006-ui-kit-angular-material.md)).
@@ -270,9 +280,10 @@ libs/
   observability/       logger, OpenTelemetry bootstrap
   testing/             Testcontainers helpers, factories
 infra/
-  docker-compose.yml   postgres+postgis, rabbitmq, redis, seaweedfs (S3), mailpit
+  docker-compose.yml   postgres+postgis, rabbitmq, redis, seaweedfs (S3) + storage-init, mailpit
   docker-compose.observability.yml
   postgres/init/       schemas + roles per service
+  storage/             SeaweedFS identities, bucket/CORS/expiry setup (also for R2)
 docs/
   ARCHITECTURE.md
   adr/
@@ -289,3 +300,5 @@ Messaging and Reviews can start as modules inside Bookings and move into their o
 
 ### Side decisions (revisit once all phases are done)
 - **Rate-limiting algorithm.** The Redis store counts in a fixed window that starts at a client's first request, so a client can get about 2× the limit in a burst across a window boundary. The in-memory fallback is a sliding-window log, so it's slightly stricter. That's fine for brute-force protection today. Decide whether to switch Redis to a sliding window or a token bucket (a custom Lua script) for smoother limits.
+- **Retries and a circuit breaker for gateway → service calls (revisit in Phase 7).** Today a failed call is not retried. Options: retry read-only calls once on a connection error, and/or a circuit breaker that fails fast while a service is down. Commands must not be retried blindly (they may already have run).
+- **CDN caching of public photos (decide at deployment, Phase 7).** If a CDN caches the public photo bucket, a deleted photo stays reachable at its old URL until its cache entry expires, which delays GDPR erasure. Choose a short cache lifetime, or purge the CDN on delete. Photo keys are random and never reused, so caching can't show the wrong photo.

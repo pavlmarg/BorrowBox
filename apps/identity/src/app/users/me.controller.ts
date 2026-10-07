@@ -25,8 +25,9 @@ export class MeController {
   update(
     @CurrentUser() user: AuthUser,
     @Payload('data') dto: UpdateProfileDto,
+    @Payload('correlationId', CorrelationIdPipe) correlationId: string,
   ): Promise<UserProfile> {
-    return this.me.update(user, dto);
+    return this.me.update(user, dto, correlationId);
   }
 
   @MessagePattern(IdentityRpc.exportMe)

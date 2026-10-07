@@ -11,7 +11,7 @@ Launch market: **Greece / EU** (GDPR, PSD2/SCA and DAC7 are considered in the de
 **Frontend**
 *   **Framework:** Angular (Standalone Components, Signals, NgRx SignalStore)
 *   **Type:** Progressive Web App (PWA) for mobile camera/QR access
-*   **Maps:** MapLibre GL + OpenStreetMap tiles, Nominatim/Photon geocoding
+*   **Maps:** MapLibre GL + MapTiler tiles (OpenStreetMap data); item locations are set by dropping a pin, with no address geocoding
 *   **i18n:** Greek & English
 
 **Backend (Event-Driven Microservices)**
@@ -47,9 +47,9 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
 *   [x] **Phase 0 – Foundation:** Nx workspace, Docker Compose (Postgres/PostGIS, RabbitMQ, Redis, SeaweedFS, Mailpit), shared libs, CI
 *   [x] **Phase 1 – Identity & Gateway:** register / login / refresh, Google sign-in, profile, GDPR export & deletion, Angular auth screens
     *   Follow-ups:
-        *   Publish a `user.profile_updated` event for Notifications' read model (Phase 3).
+        *   ~~Publish a `user.profile_updated` event for Notifications' read model (Phase 3).~~ Done in Phase 2 (Catalog needs lender names).
         *   Change / set password in the profile (also for Google-only accounts that want email + password sign-in), confirmed by an email link (Phase 3, needs Notifications).
-        *   Email verification and password reset (Phase 3, needs Notifications). Unverified accounts can sign in and browse, but listing, booking and messaging require a verified email.
+        *   Email verification and password reset (Phase 3, needs Notifications). Unverified accounts can sign in and browse, but listing, booking and messaging require a verified email. (Until verification exists, Phase 2 lets unverified accounts list items; Phase 3 enforces the rule.)
         *   Terms of Service / Privacy Policy pages, and recorded acceptance at sign-up — including the first Google sign-in that creates an account (GDPR).
         *   Upgrade to NestJS 12 once `@nx/nest` supports it.
 *   [ ] **Phase 2 – Catalog:** item CRUD, photo upload, geo search + map, fuzzed locations
@@ -79,10 +79,12 @@ npx nx affected -t lint test build
 | Postgres | `localhost:5432` (one role + schema per service, see `infra/postgres/init`) |
 | RabbitMQ | `localhost:5672`, management UI http://localhost:15672 |
 | Redis | `localhost:6379` |
-| S3 (SeaweedFS) | http://localhost:8333 |
+| S3 (SeaweedFS) | http://localhost:8333: private `borrowbox-uploads` and public-read `borrowbox-public` buckets, created by the one-shot `storage-init` container (see `infra/storage`) |
 | Mailpit | SMTP `localhost:1025`, UI http://localhost:8025 |
 
 Ports can be changed in `infra/.env` if they clash with something already running.
+
+> **Upgrading an existing `infra/.env`** (Phase 2): the single `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_BUCKET` were replaced by admin and catalog keys and two buckets. Copy the `S3_*` block from `infra/.env.example`, then run `docker compose -f infra/docker-compose.yml up -d --wait` again.
 
 ### Running the apps
 
