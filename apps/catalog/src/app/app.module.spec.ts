@@ -66,6 +66,7 @@ describe('Catalog AppModule (integration)', () => {
           'lenders',
           'migrations',
           'outbox',
+          'photo_file_deletions',
           'processed_events',
         ].map((table_name) => ({
           table_schema: 'catalog',
@@ -77,7 +78,7 @@ describe('Catalog AppModule (integration)', () => {
     }
     // Idempotent: nothing left to run.
     expect(await catalog.dataSource.showMigrations()).toBe(false);
-    expect(MIGRATIONS).toHaveLength(2);
+    expect(MIGRATIONS).toHaveLength(3);
   });
 
   it('publishes outbox events to RabbitMQ through the relay', async () => {

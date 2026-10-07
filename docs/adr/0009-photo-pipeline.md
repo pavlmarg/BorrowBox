@@ -1,6 +1,6 @@
 # ADR-0009: Photo uploads through presigned URLs and a processing worker
 
-**Status:** Accepted (amended in Phase 2, step 4: two buckets instead of public/private prefixes, scoped credentials, presigned-URL settings)
+**Status:** Accepted (amended in Phase 2, step 4: two buckets instead of public/private prefixes, scoped credentials, presigned-URL settings). The format limit is amended by [ADR-0013](0013-wider-photo-formats.md): JPEG, PNG, WebP, AVIF, GIF and TIFF, with the PWA converting photos to JPEG before upload.
 
 ## Context
 Items need photos (later, Bookings also needs condition photos). Photos from phones carry EXIF metadata, often including GPS coordinates, which would leak a lender's home location (ADR-0004). The gateway accepts at most 100 kB request bodies and should not stream large files. Object storage is SeaweedFS locally and Cloudflare R2 in production; R2 supports presigned `PUT` uploads but not presigned `POST` policies, so a presigned upload can't enforce a maximum size.
