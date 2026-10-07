@@ -60,7 +60,14 @@ describe('Catalog AppModule (integration)', () => {
           ORDER BY table_name`,
       );
       expect(rows).toEqual(
-        ['migrations', 'outbox', 'processed_events'].map((table_name) => ({
+        [
+          'item_photos',
+          'items',
+          'lenders',
+          'migrations',
+          'outbox',
+          'processed_events',
+        ].map((table_name) => ({
           table_schema: 'catalog',
           table_name,
         })),
@@ -70,7 +77,7 @@ describe('Catalog AppModule (integration)', () => {
     }
     // Idempotent: nothing left to run.
     expect(await catalog.dataSource.showMigrations()).toBe(false);
-    expect(MIGRATIONS).toHaveLength(1);
+    expect(MIGRATIONS).toHaveLength(2);
   });
 
   it('publishes outbox events to RabbitMQ through the relay', async () => {
