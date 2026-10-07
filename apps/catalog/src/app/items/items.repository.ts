@@ -329,7 +329,12 @@ export function photoUrls(baseUrl: string, publicKey: string): PhotoUrls {
   };
 }
 
-export function toPricing(row: ItemRow): ItemPricing {
+export function toPricing(
+  row: Pick<
+    ItemRow,
+    'free' | 'hourly_cents' | 'daily_cents' | 'weekly_cents' | 'monthly_cents'
+  >,
+): ItemPricing {
   const pricing: ItemPricing = { free: row.free };
   if (row.hourly_cents !== null) pricing.hourlyCents = row.hourly_cents;
   if (row.daily_cents !== null) pricing.dailyCents = row.daily_cents;

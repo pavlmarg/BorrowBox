@@ -115,8 +115,8 @@ describe('Catalog AppModule (integration)', () => {
   it('answers a pattern it has no handler for with an error', async () => {
     // Nest's TCP server replies at once with a plain string (not an
     // RpcErrorBody); the gateway logs it and answers 500 INTERNAL.
-    await expect(catalog.send(CatalogRpc.search, {})).rejects.toMatch(
-      /no matching message handler/i,
-    );
+    await expect(
+      catalog.send(CatalogRpc.createPhotoUpload, {}),
+    ).rejects.toMatch(/no matching message handler/i);
   });
 });

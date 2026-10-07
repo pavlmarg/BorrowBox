@@ -39,7 +39,11 @@ const trim = ({ value }: { value: unknown }) =>
  * Length in characters (code points), the way Postgres' `char_length`
  * counts, so an emoji can't pass here and then fail the database CHECK.
  */
-function CharLength(min: number, max: number, options?: ValidationOptions) {
+export function CharLength(
+  min: number,
+  max: number,
+  options?: ValidationOptions,
+) {
   return (target: object, propertyName: string) =>
     registerDecorator({
       name: 'charLength',
