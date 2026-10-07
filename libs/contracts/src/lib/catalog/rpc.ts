@@ -31,6 +31,8 @@ export type CatalogErrorCode =
   | 'NOT_PUBLISHABLE'
   /** The item already has the maximum number of photos. */
   | 'PHOTO_LIMIT_REACHED'
+  /** The lender already has `ITEM_FREE_LIMIT` items (drafts included). */
+  | 'ITEM_LIMIT_REACHED'
   /** The action doesn't fit the item's status, e.g. pausing a draft. */
   | 'INVALID_STATE'
   /** Unexpected failure; details are only in Catalog's logs. */
@@ -43,6 +45,12 @@ export interface ItemRef {
 }
 
 export interface CreateItemRequest {
+  /**
+   * A new random UUID chosen by the client (`crypto.randomUUID()`), once per
+   * item. Sending the same create again returns the existing item instead of
+   * making a second one, so retrying after a lost response is safe.
+   */
+  itemId: string;
   title: string;
   /** Defaults to an empty description. */
   description?: string;

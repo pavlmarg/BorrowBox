@@ -16,6 +16,12 @@ export const RATE_MAX_CENTS = 100_000;
 export const DEPOSIT_MIN_CENTS = 0;
 export const DEPOSIT_MAX_CENTS = 500_000;
 
+/**
+ * How many items a lender may have at once: drafts, active and paused ones
+ * (deleting one frees a slot). Paid extra slots may come after Phase 4.
+ */
+export const ITEM_FREE_LIMIT = 10;
+
 /** A published item needs at least one processed photo (ADR-0009). */
 export const ITEM_PHOTOS_MIN_TO_PUBLISH = 1;
 export const ITEM_PHOTOS_MAX = 10;

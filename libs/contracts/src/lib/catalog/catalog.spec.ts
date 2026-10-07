@@ -15,6 +15,7 @@ import { CatalogRpc, type CatalogRpcPattern } from './rpc';
 import {
   DEPOSIT_MAX_CENTS,
   DEPOSIT_MIN_CENTS,
+  ITEM_FREE_LIMIT,
   ITEM_PHOTOS_MAX,
   ITEM_PHOTOS_MIN_TO_PUBLISH,
   ITEM_TITLE_MAX_LENGTH,
@@ -59,6 +60,8 @@ describe('catalog limits', () => {
     expect(RATE_MIN_CENTS).toBeLessThanOrEqual(RATE_MAX_CENTS);
     expect(DEPOSIT_MIN_CENTS).toBeLessThanOrEqual(DEPOSIT_MAX_CENTS);
     expect(ITEM_PHOTOS_MIN_TO_PUBLISH).toBeLessThanOrEqual(ITEM_PHOTOS_MAX);
+    expect(Number.isInteger(ITEM_FREE_LIMIT)).toBe(true);
+    expect(ITEM_FREE_LIMIT).toBeGreaterThan(0);
     expect(SEARCH_PAGE_SIZE_DEFAULT).toBeLessThanOrEqual(SEARCH_PAGE_SIZE_MAX);
     expect([...SEARCH_RADIUS_KM]).toEqual(
       [...SEARCH_RADIUS_KM].sort((a, b) => a - b),
