@@ -13,7 +13,7 @@ export interface NavItem {
 /** The sidebar's main section. A later phase enables an item by adding its route. */
 export const MAIN_NAV: readonly NavItem[] = [
   { key: 'explore', icon: 'explore', route: '/explore' },
-  { key: 'myItems', icon: 'items' }, // Phase 2
+  { key: 'myItems', icon: 'items', route: '/my-items', requiresAuth: true },
   { key: 'rentals', icon: 'rentals' }, // Phase 3
   { key: 'messages', icon: 'messages' }, // Phase 6
   { key: 'profile', icon: 'profile', route: '/profile', requiresAuth: true },

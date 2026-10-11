@@ -50,6 +50,7 @@ describe('AppShell', () => {
     expect(texts).toContain('nav.login');
     expect(texts).toContain('nav.register');
     expect(texts).not.toContain('nav.profile');
+    expect(texts).not.toContain('nav.myItems');
     expect(texts).not.toContain('nav.settings');
     expect(texts).not.toContain('nav.logout');
     expect(links.find((l) => l.text === 'nav.login')?.href).toBe(
@@ -61,7 +62,12 @@ describe('AppShell', () => {
     const { links } = await render(true);
     const texts = links.map((l) => l.text);
     expect(texts).toEqual(
-      expect.arrayContaining(['nav.profile', 'nav.settings', 'nav.logout']),
+      expect.arrayContaining([
+        'nav.myItems',
+        'nav.profile',
+        'nav.settings',
+        'nav.logout',
+      ]),
     );
     expect(texts).not.toContain('nav.login');
   });
