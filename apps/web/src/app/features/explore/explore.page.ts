@@ -170,7 +170,6 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
           [zoom]="view().zoom"
           [points]="points()"
           [selectedId]="store.selectedId()"
-          [searchCircle]="searchCircle()"
           (cameraChange)="camera.set($event)"
           (pointSelected)="pick($event)"
         />
@@ -449,10 +448,6 @@ export class ExplorePage {
       .items()
       .map((i) => ({ id: i.id, location: i.approximateLocation })),
   );
-  protected readonly searchCircle = computed(() => ({
-    center: this.store.center(),
-    radiusM: this.radiusM(),
-  }));
   /** The map moved or zoomed away from the area last searched. */
   protected readonly areaMoved = computed(() => {
     const camera = this.camera();
