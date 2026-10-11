@@ -61,6 +61,7 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
         *   Suggestions check each typed word per item rather than through the full-text index. Fine for a neighbourhood's items; if it gets slow at scale, build one prefix `tsquery` and use the GIN index.
         *   "More from this lender" on item pages: Phase 6 (Trust), with reviews. Not a people search: names are never searchable.
         *   The production Docker image must use a base image `sharp` ships binaries for (e.g. Debian slim; Alpine needs the musl build) (Phase 7).
+        *   Production CSP for maps: `connect-src` and `img-src` must allow `https://api.maptiler.com`; MapLibre's worker is served from our own origin, so `worker-src 'self'` is enough. The deployment writes the PWA's `config.json` with the production MapTiler key, restricted to the production domain (Phase 7).
         *   Paid extra listing slots (e.g. packs of 5 or 10 beyond the free 10 items): after Phase 4 (Payments), and only after an ADR on pricing, one-off vs subscription, what happens to items over the limit when it ends, refunds and EU VAT.
 *   [ ] **Phase 3 – Bookings:** availability, request / accept / decline, state machine, email notifications
 *   [ ] **Phase 4 – Payments:** Stripe Connect onboarding, checkout, webhooks, transfers & refunds (test mode)
@@ -110,7 +111,11 @@ node tools/gen-jwt-keys.mjs
 # 3. Set COOKIE_SECRET in apps/gateway/.env (32+ random characters):
 node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 
-# 4. Start them (one terminal each)
+# 4. Maps (optional): copy the PWA's runtime config and put your MapTiler key in it.
+#    Without it, maps show "map unavailable" and everything else works.
+cp apps/web/public/config.example.json apps/web/public/config.json
+
+# 5. Start them (one terminal each)
 npx nx serve identity   # TCP :4001, runs DB migrations in dev
 npx nx serve catalog    # TCP :4002, runs DB migrations in dev; needs Redis + SeaweedFS (photo pipeline)
 npx nx serve gateway    # http://localhost:3000/api (Swagger UI at /api/docs)

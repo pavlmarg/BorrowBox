@@ -101,7 +101,9 @@
     "email": "Enter a valid email address",
     "password": "8–64 characters, with at least one letter and one digit",
     "passwordMismatch": "Passwords don’t match",
-    "displayName": "1–50 characters"
+    "displayName": "1–50 characters",
+    "euros": "Enter an amount, e.g. 5.50 (no thousands separators)",
+    "centsRange": "Between {{min}} and {{max}}"
   },
   "errors": {
     "VALIDATION_FAILED": "Please check the highlighted fields.",
@@ -117,6 +119,65 @@
     "RATE_LIMITED": "Too many attempts. Please wait a minute and try again.",
     "SERVICE_UNAVAILABLE": "BorrowBox is temporarily unavailable. Please try again shortly.",
     "INTERNAL": "Something went wrong on our side. Please try again.",
-    "NETWORK": "Can't reach BorrowBox. Check your connection."
+    "NETWORK": "Can't reach BorrowBox. Check your connection.",
+    "NOT_FOUND": "This item doesn’t exist or is no longer available.",
+    "INVALID_STATE": "That can’t be done right now. Please refresh the page and try again.",
+    "NOT_PUBLISHABLE": "To publish, an item needs a location and at least one photo.",
+    "ITEM_LIMIT_REACHED": "You’ve reached the item limit. Delete one to add another.",
+    "PHOTO_LIMIT_REACHED": "You’ve reached the photo limit for this item."
+  },
+  "catalog": {
+    "categories": {
+      "tools": "Tools",
+      "diy-ladders": "DIY & ladders",
+      "garden": "Garden",
+      "cleaning": "Cleaning",
+      "kitchen": "Kitchen",
+      "electronics": "Electronics",
+      "photo-video": "Photo & video",
+      "music": "Music",
+      "sports": "Sports",
+      "camping": "Camping",
+      "travel": "Travel",
+      "kids": "Kids",
+      "party": "Party & events",
+      "vehicles": "Vehicles",
+      "other": "Other"
+    },
+    "distance": {
+      "UNDER_1_KM": "Under 1 km",
+      "1_2_KM": "1–2 km",
+      "2_5_KM": "2–5 km",
+      "5_10_KM": "5–10 km",
+      "OVER_10_KM": "Over 10 km"
+    },
+    "units": {
+      "HOUR": "Hour",
+      "DAY": "Day",
+      "WEEK": "Week",
+      "MONTH": "Month"
+    },
+    "perUnit": {
+      "HOUR": "/hour",
+      "DAY": "/day",
+      "WEEK": "/week",
+      "MONTH": "/month"
+    },
+    "free": "Free",
+    "moreRates": "+{{count}} more"
+  },
+  "map": {
+    "loading": "Loading map…",
+    "unavailable": "The map isn’t available right now.",
+    "approximateArea": "Approximate area"
+  },
+  "geo": {
+    "useMyLocation": "My location",
+    "errors": {
+      "denied": "Location access was denied. You can allow it in your browser’s settings.",
+      "unavailable": "Your location couldn’t be found. Move the map instead.",
+      "timeout": "Finding your location took too long. Please try again.",
+      "unsupported": "Your browser doesn’t support location."
+    }
   }
 }
