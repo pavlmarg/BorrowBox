@@ -15,6 +15,10 @@ export const unsavedChangesGuard: CanDeactivateFn<HasUnsavedChanges> = (page) =>
 /** The lender's own items (signed in; the guard sits on the parent route). */
 export const myItemsRoutes: Routes = [
   {
+    path: '',
+    loadComponent: () => import('./my-items.page').then((m) => m.MyItemsPage),
+  },
+  {
     path: 'new',
     canDeactivate: [unsavedChangesGuard],
     loadComponent: () =>

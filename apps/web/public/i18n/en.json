@@ -287,5 +287,31 @@
     "done": "Done",
     "published": "Your item is published.",
     "leaveUnsaved": "You have unsaved changes. Leave this page?"
+  },
+  "myItems": {
+    "count": "{{count}} of {{max}} items",
+    "new": "New item",
+    "empty": "You haven't listed anything yet.",
+    "emptyHint": "Lend the things you rarely use to your neighbours.",
+    "first": "List your first item",
+    "status": {
+      "DRAFT": "Draft",
+      "ACTIVE": "Published",
+      "PAUSED": "Paused",
+      "DELETED": "Deleted"
+    },
+    "needs": "Needs:",
+    "missing": {
+      "location": "a location",
+      "photo": "a photo"
+    },
+    "view": "View",
+    "pause": "Pause",
+    "unpause": "Unpause",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "deleteTitle": "Delete this item?",
+    "deleteMessage": "“{{title}}” and its photos will be deleted for good.",
+    "deleted": "Item deleted."
   }
 }
