@@ -221,6 +221,12 @@ import { ProfileStore } from './profile.store';
     mat-card-actions {
       gap: 12px;
     }
+    /* The cards have no panel, so their content lines up with the title. */
+    mat-card-header,
+    mat-card-content,
+    mat-card-actions {
+      padding-inline: 0;
+    }
   `,
 })
 export class SettingsPage implements OnInit {

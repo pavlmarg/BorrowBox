@@ -247,7 +247,7 @@ const WIDE = '(min-width: 960px)';
     }
     .badge {
       background: var(--bb-sky-100);
-      border-radius: 999px;
+      border-radius: var(--bb-radius);
       color: var(--bb-sky-700);
       font: var(--mat-sys-label-small);
       margin-left: auto;
@@ -266,7 +266,7 @@ const WIDE = '(min-width: 960px)';
       align-items: center;
       background: none;
       border: 0;
-      border-radius: 50%;
+      border-radius: var(--bb-button-radius);
       color: var(--mat-sys-on-surface);
       cursor: pointer;
       display: inline-flex;

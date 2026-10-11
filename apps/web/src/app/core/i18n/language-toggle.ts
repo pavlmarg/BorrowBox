@@ -77,7 +77,7 @@ import { LanguageService } from './language';
       backdrop-filter: blur(8px);
       background: rgb(255 255 255 / 0.78);
       border: 1px solid rgb(16 58 99 / 0.1);
-      border-radius: 6px;
+      border-radius: var(--bb-control-radius, 6px);
       box-shadow: var(--bb-shadow-sm);
       cursor: pointer;
       display: inline-flex;
@@ -99,7 +99,7 @@ import { LanguageService } from './language';
     }
 
     .flag {
-      border-radius: 3px;
+      border-radius: var(--bb-flag-radius, 3px);
       display: block;
       height: 16px;
       overflow: hidden;

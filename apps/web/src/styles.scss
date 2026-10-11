@@ -70,6 +70,7 @@ html {
   --bb-sky-300: #9dd1ff;
   --bb-sky-500: #4aa8f0;
   --bb-sky-700: #1f6fb2;
+  --bb-page-bg: var(--bb-sky-50);
   --bb-card-bg: rgb(255 255 255 / 0.86);
   --bb-card-border: rgb(255 255 255 / 0.7);
   --bb-shadow-sm:
@@ -83,21 +84,129 @@ html {
   --bb-fade: 500ms;
 }
 
+// Signed-in pages (inside the app shell) and pop-ups (dialogs, menus,
+// autocomplete panels, snack bars render in the CDK overlay): square corners,
+// except buttons, which get 2 px. Login and register keep the softer shapes above. Round on
+// purpose and not changed here: map circles and cluster bubbles (an
+// approximate area, ADR-0007), and switches, radios and spinners.
+bb-app-shell,
+.cdk-overlay-container {
+  --bb-radius: 0;
+  --bb-button-radius: 2px;
+  // The language toggle (shared with login/register, where it stays rounded).
+  --bb-control-radius: var(--bb-button-radius);
+  --bb-flag-radius: 0;
+  // Material's shared corner scale, for components without their own token
+  // (select panels, date pickers, …). `corner-full` stays: switches use it.
+  --mat-sys-corner-extra-small: 0;
+  --mat-sys-corner-small: 0;
+  --mat-sys-corner-medium: 0;
+  --mat-sys-corner-large: 0;
+  --mat-sys-corner-extra-large: 0;
+
+  // MapLibre's zoom buttons and attribution.
+  .maplibregl-ctrl-group {
+    border-radius: var(--bb-button-radius);
+  }
+  .maplibregl-ctrl-attrib,
+  .maplibregl-ctrl-attrib-button {
+    border-radius: 0;
+  }
+  @include mat.button-overrides(
+    (
+      filled-container-shape: 2px,
+      outlined-container-shape: 2px,
+      protected-container-shape: 2px,
+      text-container-shape: 2px,
+      tonal-container-shape: 2px,
+    )
+  );
+  @include mat.icon-button-overrides(
+    (
+      container-shape: 2px,
+    )
+  );
+  @include mat.fab-overrides(
+    (
+      container-shape: 2px,
+      extended-container-shape: 2px,
+      small-container-shape: 2px,
+    )
+  );
+  @include mat.button-toggle-overrides(
+    (
+      shape: 2px,
+    )
+  );
+  @include mat.chips-overrides(
+    (
+      container-shape-radius: 0,
+    )
+  );
+  @include mat.form-field-overrides(
+    (
+      outlined-container-shape: 0,
+      filled-container-shape: 0,
+    )
+  );
+  @include mat.card-overrides(
+    (
+      elevated-container-shape: 0,
+      filled-container-shape: 0,
+      outlined-container-shape: 0,
+    )
+  );
+  @include mat.dialog-overrides(
+    (
+      container-shape: 0,
+    )
+  );
+  @include mat.menu-overrides(
+    (
+      container-shape: 0,
+    )
+  );
+  @include mat.autocomplete-overrides(
+    (
+      container-shape: 0,
+    )
+  );
+  @include mat.snack-bar-overrides(
+    (
+      container-shape: 0,
+    )
+  );
+  @include mat.tooltip-overrides(
+    (
+      container-shape: 0,
+    )
+  );
+  @include mat.expansion-overrides(
+    (
+      container-shape: 0,
+    )
+  );
+}
+
+// The main content sits straight on the page background: no white panels.
+// (Dialogs keep their surface; they're in the overlay, not the shell.)
+bb-app-shell {
+  @include mat.card-overrides(
+    (
+      elevated-container-color: transparent,
+      elevated-container-elevation: none,
+      filled-container-color: transparent,
+      filled-container-elevation: none,
+      outlined-container-color: transparent,
+      outlined-container-elevation: none,
+      outlined-outline-width: 0,
+    )
+  );
+}
+
 body {
-  // Soft light-blue wash behind every page.
-  background:
-    radial-gradient(
-      1200px 600px at 10% -10%,
-      var(--bb-sky-200) 0%,
-      transparent 60%
-    ),
-    radial-gradient(
-      900px 500px at 110% 10%,
-      var(--bb-sky-100) 0%,
-      transparent 55%
-    ),
-    linear-gradient(180deg, var(--bb-sky-50) 0%, #ffffff 100%);
-  background-attachment: fixed;
+  // One flat colour behind every page.
+  background: var(--bb-page-bg);
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-large);
   margin: 0;

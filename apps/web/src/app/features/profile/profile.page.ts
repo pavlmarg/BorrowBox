@@ -1,24 +1,11 @@
 import { DatePipe } from '@angular/common';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterLink } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
 import { AuthStore } from '../../core/auth/auth.store';
 import { LanguageService } from '../../core/i18n/language';
-
-/** Up to two letters for the avatar: first and last word of the name. */
-export function initials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return '?';
-  const first = [...words[0]][0];
-  const last = words.length > 1 ? [...words[words.length - 1]][0] : '';
-  return (first + last).toLocaleUpperCase();
-}
+import { Avatar } from '../../shared/avatar/avatar';
 
 /**
  * The user's profile at a glance. Editing lives in Settings; the photo,
@@ -26,14 +13,14 @@ export function initials(name: string): string {
  */
 @Component({
   selector: 'bb-profile-page',
-  imports: [DatePipe, RouterLink, TranslocoDirective, MatButtonModule],
+  imports: [DatePipe, RouterLink, TranslocoDirective, MatButtonModule, Avatar],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ng-container *transloco="let t">
       @if (auth.user(); as user) {
         <section class="hero">
           <div class="avatar-wrap">
-            <div class="avatar" aria-hidden="true">{{ avatar() }}</div>
+            <bb-avatar class="avatar" [size]="112" />
             <span class="photo-soon" [title]="t('profile.changePhoto')">
               {{ t('nav.soon') }}
             </span>
@@ -79,40 +66,21 @@ export function initials(name: string): string {
   styles: `
     .hero {
       align-items: center;
-      background: var(--bb-card-bg);
-      border: 1px solid var(--bb-card-border);
-      border-radius: var(--bb-radius);
-      box-shadow: var(--bb-shadow-sm);
       display: flex;
       gap: 32px;
-      padding: 32px;
+      padding: 8px 0;
     }
     .avatar-wrap {
       flex: none;
       position: relative;
     }
     .avatar {
-      align-items: center;
-      background: linear-gradient(
-        135deg,
-        var(--bb-sky-300) 0%,
-        var(--bb-sky-700) 100%
-      );
-      border-radius: 50%;
-      box-shadow: var(--bb-shadow-md);
-      color: #fff;
-      display: flex;
-      font-size: 40px;
-      font-weight: 700;
-      height: 112px;
-      justify-content: center;
-      letter-spacing: 1px;
-      width: 112px;
+      box-shadow: var(--bb-shadow-sm);
     }
     .photo-soon {
       background: var(--bb-sky-100);
       border: 2px solid #fff;
-      border-radius: 999px;
+      border-radius: var(--bb-radius);
       bottom: -4px;
       color: var(--bb-sky-700);
       font: var(--mat-sys-label-small);
@@ -146,7 +114,7 @@ export function initials(name: string): string {
     .chip {
       background: var(--bb-sky-50);
       border: 1px solid var(--bb-sky-200);
-      border-radius: 999px;
+      border-radius: var(--bb-radius);
       font: var(--mat-sys-label-medium);
       padding: 4px 10px;
     }
@@ -177,7 +145,4 @@ export function initials(name: string): string {
 export class ProfilePage {
   protected readonly auth = inject(AuthStore);
   protected readonly language = inject(LanguageService);
-  protected readonly avatar = computed(() =>
-    initials(this.auth.user()?.displayName ?? ''),
-  );
 }
