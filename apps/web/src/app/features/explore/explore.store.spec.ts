@@ -115,6 +115,19 @@ describe('ExploreStore', () => {
     expect(store.isEmpty()).toBe(true);
   });
 
+  it('searches a new area with its radius in one request', async () => {
+    const { store, http } = setup();
+    const done = store.searchArea({ lat: 38, lng: 23.8 }, 2);
+    const req = http.expectOne(SEARCH);
+    expect(req.request.body).toEqual(
+      expect.objectContaining({ near: { lat: 38, lng: 23.8 }, radiusKm: 2 }),
+    );
+    answer(req, [], null);
+    await done;
+    expect(store.filters().radiusKm).toBe(2);
+    http.verify();
+  });
+
   it('reports a failed search', async () => {
     const { store, http } = setup();
     const done = store.start(DEFAULT_FILTERS);

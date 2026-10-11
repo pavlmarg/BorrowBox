@@ -1,4 +1,8 @@
-import type { GeoPoint } from '@borrowbox/contracts';
+import {
+  SEARCH_RADIUS_KM,
+  type GeoPoint,
+  type SearchRadiusKm,
+} from '@borrowbox/contracts';
 
 /** Where maps start when nothing else is known (ADR-0008): central Athens. */
 export const DEFAULT_CENTER: GeoPoint = { lat: 37.9838, lng: 23.7275 };
@@ -75,4 +79,25 @@ export function zoomForRadius(
   const diameterAtZoom0 = 2 * pixelsAtZoom0(radiusM, lat);
   const zoom = Math.log2((sizePx * fill) / diameterAtZoom0);
   return Math.min(18, Math.max(0, zoom));
+}
+
+/**
+ * The smallest allowed search radius (ADR-0007's fixed steps) whose circle
+ * around the map's centre contains the whole visible map: half its
+ * diagonal, in metres at this zoom. Capped at the largest step.
+ */
+export function radiusCoveringView(
+  lat: number,
+  zoom: number,
+  widthPx: number,
+  heightPx: number,
+): SearchRadiusKm {
+  const metresPerPixel =
+    (EARTH_CIRCUMFERENCE_M * Math.cos(toRad(lat))) / (TILE_SIZE_PX * 2 ** zoom);
+  const halfDiagonalKm =
+    ((Math.hypot(widthPx, heightPx) / 2) * metresPerPixel) / 1000;
+  return (
+    SEARCH_RADIUS_KM.find((km) => km >= halfDiagonalKm) ??
+    SEARCH_RADIUS_KM[SEARCH_RADIUS_KM.length - 1]
+  );
 }

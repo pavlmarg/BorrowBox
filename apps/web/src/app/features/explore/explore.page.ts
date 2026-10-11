@@ -25,7 +25,11 @@ import {
   GeolocationError,
   GeolocationService,
 } from '../../shared/geo/geolocation';
-import { distanceM, zoomForRadius } from '../../shared/map/geo';
+import {
+  distanceM,
+  radiusCoveringView,
+  zoomForRadius,
+} from '../../shared/map/geo';
 import type { MapPoint } from '../../shared/map/map-layers';
 import { MapView, type MapCamera } from '../../shared/map/map-view';
 import { filtersFromQuery, filtersToQuery } from './explore-query';
@@ -38,6 +42,8 @@ import { SearchBar } from './search-bar';
 const WIDE = '(min-width: 960px)';
 /** "Search this area" appears once the map moved this share of the radius. */
 const AREA_MOVE_SHARE = 0.2;
+/** …or once it zoomed in or out by this much. */
+const AREA_ZOOM_CHANGE = 0.5;
 const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
 
 /**
@@ -172,7 +178,7 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
           <button
             mat-flat-button
             type="button"
-            class="search-area"
+            class="floating search-area"
             (click)="searchThisArea()"
           >
             {{ t('explore.searchArea') }}
@@ -193,7 +199,7 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
       <button
         mat-flat-button
         type="button"
-        class="view-toggle"
+        class="floating view-toggle"
         [attr.aria-pressed]="mapOpen()"
         (click)="mapOpen.set(!mapOpen())"
       >
@@ -343,41 +349,56 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
       inset: 0;
       position: absolute;
     }
-    .search-area {
-      left: 50%;
+    /* The two floating buttons: round on purpose, centred without a
+       transform (so the lift on hover can't shift them sideways); they
+       rise a little and fade their colour on hover. */
+    .floating {
+      --mat-button-filled-container-shape: 999px;
+      --mat-button-filled-hover-state-layer-opacity: 0;
+      --mat-button-filled-focus-state-layer-opacity: 0;
+      --mat-button-filled-pressed-state-layer-opacity: 0;
+      box-shadow: var(--bb-shadow-md);
+      left: 0;
+      margin: 0 auto;
       position: absolute;
+      right: 0;
+      transition:
+        background-color 400ms var(--bb-ease),
+        transform var(--bb-medium) var(--bb-ease),
+        box-shadow var(--bb-medium) var(--bb-ease);
+      width: fit-content;
+      z-index: 3;
+    }
+    .explore .floating:not([disabled]):hover {
+      box-shadow:
+        0 8px 18px rgb(16 58 99 / 0.18),
+        0 16px 36px rgb(16 58 99 / 0.1);
+      transform: translateY(-2px);
+    }
+    .explore .floating:not([disabled]):active {
+      transform: translateY(0);
+    }
+    .view-toggle {
+      bottom: 24px;
+      padding: 0 22px;
+    }
+    .explore .view-toggle:not([disabled]):hover {
+      background-color: color-mix(in srgb, var(--mat-sys-primary) 78%, black);
+    }
+    .search-area {
+      --mat-button-filled-container-color: #fff;
+      --mat-button-filled-label-text-color: var(--bb-sky-700);
+      padding: 0 30px;
       top: 16px;
-      transform: translateX(-50%);
+    }
+    .explore .search-area:not([disabled]):hover {
+      background-color: var(--bb-sky-50);
     }
     .locate {
       background: var(--mat-sys-surface);
       left: 16px;
       position: absolute;
       top: 16px;
-    }
-    /* Centred without a transform, so nothing can shift it; round on
-       purpose (a floating switch), and it only changes colour on hover. */
-    .view-toggle {
-      --mat-button-filled-container-shape: 999px;
-      --mat-button-filled-hover-state-layer-opacity: 0;
-      --mat-button-filled-focus-state-layer-opacity: 0;
-      --mat-button-filled-pressed-state-layer-opacity: 0;
-      bottom: 24px;
-      box-shadow: var(--bb-shadow-md);
-      left: 0;
-      margin: 0 auto;
-      padding: 0 22px;
-      position: absolute;
-      right: 0;
-      transition: background-color 400ms var(--bb-ease);
-      width: fit-content;
-      z-index: 3;
-    }
-    .explore .view-toggle:not([disabled]):hover,
-    .explore .view-toggle:not([disabled]):active {
-      background-color: color-mix(in srgb, var(--mat-sys-primary) 78%, black);
-      box-shadow: var(--bb-shadow-md);
-      transform: none;
     }
     .visually-hidden {
       clip: rect(0 0 0 0);
@@ -415,6 +436,8 @@ export class ExplorePage {
 
   /** Where the map should look; set on purpose, not by the user's panning. */
   protected readonly view = signal(this.viewFor(this.store.center()));
+  /** Set by "Search this area": its radius change mustn't re-zoom the map. */
+  private keepView = false;
   /** Where the map actually is, after the user's panning. */
   protected readonly camera = signal<MapCamera | null>(null);
 
@@ -430,12 +453,14 @@ export class ExplorePage {
     center: this.store.center(),
     radiusM: this.radiusM(),
   }));
+  /** The map moved or zoomed away from the area last searched. */
   protected readonly areaMoved = computed(() => {
     const camera = this.camera();
+    if (camera === null) return false;
     return (
-      camera !== null &&
       distanceM(camera.center, this.store.center()) >
-        this.radiusM() * AREA_MOVE_SHARE
+        this.radiusM() * AREA_MOVE_SHARE ||
+      Math.abs(camera.zoom - this.view().zoom) > AREA_ZOOM_CHANGE
     );
   });
 
@@ -457,11 +482,17 @@ export class ExplorePage {
     });
 
     // A new radius: zoom so its circle fits.
+    // Reads the radius through a computed, so other filter changes (or the
+    // same radius again) don't re-zoom the map.
     effect(() => {
-      const radiusKm = this.store.filters().radiusKm;
-      untracked(() =>
-        this.view.set(this.viewFor(this.store.center(), radiusKm)),
-      );
+      const radiusKm = this.radiusM() / 1000;
+      untracked(() => {
+        if (this.keepView) {
+          this.keepView = false;
+          return;
+        }
+        this.view.set(this.viewFor(this.store.center(), radiusKm));
+      });
     });
 
     // A new search starts at the top of the list.
@@ -497,11 +528,24 @@ export class ExplorePage {
     );
   }
 
+  /**
+   * Searches everything on screen: from the map's centre with the smallest
+   * allowed radius (ADR-0007's fixed steps) that contains the whole view.
+   * The map stays where the user put it.
+   */
   protected searchThisArea(): void {
     const camera = this.camera();
-    if (!camera) return;
+    const pane = this.mapPane()?.nativeElement;
+    if (!camera || !pane) return;
+    const radiusKm = radiusCoveringView(
+      camera.center.lat,
+      camera.zoom,
+      pane.clientWidth,
+      pane.clientHeight,
+    );
+    if (radiusKm !== this.store.filters().radiusKm) this.keepView = true;
     this.view.set({ center: camera.center, zoom: camera.zoom });
-    void this.store.setArea(camera.center);
+    void this.store.searchArea(camera.center, radiusKm);
   }
 
   protected async useMyLocation(): Promise<void> {

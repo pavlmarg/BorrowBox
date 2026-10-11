@@ -7,7 +7,7 @@ import {
   withProps,
   withState,
 } from '@ngrx/signals';
-import type { GeoPoint } from '@borrowbox/contracts';
+import type { GeoPoint, SearchRadiusKm } from '@borrowbox/contracts';
 import { Api } from '../../api/api';
 import { publicItemsControllerSearch } from '../../api/functions';
 import type { PublicItemSummaryResponse } from '../../api/models';
@@ -121,6 +121,15 @@ export const ExploreStore = signalStore(
 
       setArea(center: GeoPoint): Promise<void> {
         patchState(store, { center });
+        return search();
+      },
+
+      /** "Search this area": a new centre and the radius covering the view, one search. */
+      searchArea(center: GeoPoint, radiusKm: SearchRadiusKm): Promise<void> {
+        patchState(store, {
+          center,
+          filters: { ...store.filters(), radiusKm },
+        });
         return search();
       },
 

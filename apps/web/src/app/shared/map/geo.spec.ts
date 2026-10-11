@@ -3,6 +3,7 @@ import {
   DEFAULT_CENTER,
   distanceM,
   pixelsAtZoom0,
+  radiusCoveringView,
   zoomForRadius,
 } from './geo';
 
@@ -59,5 +60,22 @@ describe('zoomForRadius', () => {
   it('stays within the map’s zoom range', () => {
     expect(zoomForRadius(1, DEFAULT_CENTER.lat, 2000)).toBe(18);
     expect(zoomForRadius(50_000_000, DEFAULT_CENTER.lat, 10)).toBe(0);
+  });
+});
+
+describe('radiusCoveringView', () => {
+  it('covers the whole visible map with the smallest allowed step', () => {
+    // Zoom 13 in Athens: about 7.5 m per pixel (512 px tiles), so a
+    // 1000×600 map's half diagonal is about 4.4 km: 5 km covers it.
+    expect(radiusCoveringView(DEFAULT_CENTER.lat, 13, 1000, 600)).toBe(5);
+  });
+
+  it('takes a smaller step when zoomed in', () => {
+    // Zoom 15: about 1.1 km, so 2 km.
+    expect(radiusCoveringView(DEFAULT_CENTER.lat, 15, 1000, 600)).toBe(2);
+  });
+
+  it('stops at the largest step', () => {
+    expect(radiusCoveringView(DEFAULT_CENTER.lat, 3, 1000, 600)).toBe(50);
   });
 });
