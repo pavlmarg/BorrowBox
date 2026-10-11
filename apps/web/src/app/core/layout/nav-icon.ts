@@ -8,7 +8,14 @@ export type NavIconName =
   | 'profile'
   | 'settings'
   | 'logout'
+  | 'login'
+  | 'register'
   | 'menu'
+  | 'search'
+  | 'filter'
+  | 'map'
+  | 'list'
+  | 'location'
   | 'close';
 
 /** Outline icons as inline SVG: no icon font, nothing loaded from a CDN. */
@@ -51,6 +58,37 @@ export type NavIconName =
             d="M9.5 20.5H5a1.5 1.5 0 0 1-1.5-1.5V5A1.5 1.5 0 0 1 5 3.5h4.5"
           />
           <path d="m15.5 16.5 4.5-4.5-4.5-4.5M20 12H9.5" />
+        }
+        @case ('login') {
+          <path
+            d="M14.5 3.5H19a1.5 1.5 0 0 1 1.5 1.5v14a1.5 1.5 0 0 1-1.5 1.5h-4.5"
+          />
+          <path d="m9.5 16.5 4.5-4.5-4.5-4.5M14 12H3.5" />
+        }
+        @case ('register') {
+          <circle cx="10" cy="8.5" r="4" />
+          <path d="M2.5 20.5c1.1-3.4 4-5.5 7.5-5.5 1.6 0 3 .4 4.2 1.1" />
+          <path d="M18.5 14v6M15.5 17h6" />
+        }
+        @case ('search') {
+          <circle cx="10.5" cy="10.5" r="6.5" />
+          <path d="m15.5 15.5 5 5" />
+        }
+        @case ('filter') {
+          <path d="M4 6.5h16M7 12h10M10 17.5h4" />
+        }
+        @case ('map') {
+          <path d="M9 4.5 3.5 6.5v13l5.5-2 6 2 5.5-2v-13l-5.5 2-6-2Z" />
+          <path d="M9 4.5v13M15 6.5v13" />
+        }
+        @case ('list') {
+          <path d="M9 6.5h11M9 12h11M9 17.5h11" />
+          <path d="M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" />
+        }
+        @case ('location') {
+          <circle cx="12" cy="12" r="3.5" />
+          <circle cx="12" cy="12" r="7.5" />
+          <path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22" />
         }
         @case ('menu') {
           <path d="M4 6.5h16M4 12h16M4 17.5h16" />

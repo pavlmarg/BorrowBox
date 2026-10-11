@@ -2,6 +2,7 @@ import { BreakpointObserver } from '@angular/cdk/layout';
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   signal,
 } from '@angular/core';
@@ -55,7 +56,7 @@ const WIDE = '(min-width: 960px)';
       >
         <nav class="nav" [attr.aria-label]="t('nav.menu')">
           <div class="nav-head">
-            <a class="brand" routerLink="/profile">{{ t('app.name') }}</a>
+            <a class="brand" routerLink="/">{{ t('app.name') }}</a>
             @if (!wide()) {
               <button
                 type="button"
@@ -69,7 +70,7 @@ const WIDE = '(min-width: 960px)';
           </div>
 
           <ul class="links">
-            @for (item of mainNav; track item.key) {
+            @for (item of mainNav(); track item.key) {
               <li>
                 @if (item.route) {
                   <a
@@ -93,25 +94,44 @@ const WIDE = '(min-width: 960px)';
           </ul>
 
           <ul class="links footer">
-            @for (item of footerNav; track item.key) {
+            @if (signedIn()) {
+              @for (item of footerNav; track item.key) {
+                <li>
+                  <a
+                    class="link"
+                    [routerLink]="item.route"
+                    routerLinkActive="active"
+                    ariaCurrentWhenActive="page"
+                  >
+                    <bb-nav-icon [name]="item.icon" />
+                    <span>{{ t('nav.' + item.key) }}</span>
+                  </a>
+                </li>
+              }
+              <li>
+                <button type="button" class="link" (click)="logout()">
+                  <bb-nav-icon name="logout" />
+                  <span>{{ t('nav.logout') }}</span>
+                </button>
+              </li>
+            } @else {
               <li>
                 <a
                   class="link"
-                  [routerLink]="item.route"
-                  routerLinkActive="active"
-                  ariaCurrentWhenActive="page"
+                  routerLink="/auth/login"
+                  [queryParams]="{ returnUrl: currentUrl() }"
                 >
-                  <bb-nav-icon [name]="item.icon" />
-                  <span>{{ t('nav.' + item.key) }}</span>
+                  <bb-nav-icon name="login" />
+                  <span>{{ t('nav.login') }}</span>
+                </a>
+              </li>
+              <li>
+                <a class="link" routerLink="/auth/register">
+                  <bb-nav-icon name="register" />
+                  <span>{{ t('nav.register') }}</span>
                 </a>
               </li>
             }
-            <li>
-              <button type="button" class="link" (click)="logout()">
-                <bb-nav-icon name="logout" />
-                <span>{{ t('nav.logout') }}</span>
-              </button>
-            </li>
             <li class="language">
               <bb-language-toggle (changed)="accountLanguage.set($event)" />
               <span>{{ t('languages.' + language()) }}</span>
@@ -133,11 +153,11 @@ const WIDE = '(min-width: 960px)';
             >
               <bb-nav-icon name="menu" />
             </button>
-            <a class="brand" routerLink="/profile">{{ t('app.name') }}</a>
+            <a class="brand" routerLink="/">{{ t('app.name') }}</a>
             <bb-language-toggle (changed)="accountLanguage.set($event)" />
           </header>
         }
-        <main class="main">
+        <main class="main" [class.full-bleed]="fullBleed()">
           <router-outlet />
         </main>
       </mat-sidenav-content>
@@ -310,6 +330,11 @@ const WIDE = '(min-width: 960px)';
         padding: 20px 16px 40px;
       }
     }
+    /* Pages like Explore use the whole area (route data fullBleed). */
+    .main.full-bleed {
+      max-width: none;
+      padding: 0;
+    }
   `,
 })
 export class AppShell {
@@ -319,8 +344,28 @@ export class AppShell {
   protected readonly accountLanguage = inject(AccountLanguage);
   protected readonly language = inject(LanguageService).current;
 
-  protected readonly mainNav = MAIN_NAV;
+  protected readonly signedIn = this.auth.isAuthenticated;
+  /** Signed-out visitors don't see pages they can't open (E3). */
+  protected readonly mainNav = computed(() =>
+    MAIN_NAV.filter((item) => this.signedIn() || !item.requiresAuth),
+  );
   protected readonly footerNav = FOOTER_NAV;
+
+  private readonly navigationEnd = toSignal(
+    this.router.events.pipe(filter((e) => e instanceof NavigationEnd)),
+  );
+  /** Where "Sign in" brings the visitor back to. */
+  protected readonly currentUrl = computed(() => {
+    this.navigationEnd();
+    return this.router.url;
+  });
+  /** The page asked for the whole area (route data `fullBleed`). */
+  protected readonly fullBleed = computed(() => {
+    this.navigationEnd();
+    let route = this.router.routerState.snapshot.root;
+    while (route.firstChild) route = route.firstChild;
+    return route.data['fullBleed'] === true;
+  });
 
   protected readonly wide = toSignal(
     this.breakpoints.observe(WIDE).pipe(map((state) => state.matches)),

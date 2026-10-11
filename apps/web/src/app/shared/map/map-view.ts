@@ -114,7 +114,7 @@ type MapState = 'loading' | 'ready' | 'unavailable';
 })
 export class MapView {
   readonly mode = input.required<MapMode>();
-  /** Where the map looks; changing it moves the map. */
+  /** Where the map looks; changing it (or `zoom`) moves the map. */
   readonly center = input<GeoPoint>(DEFAULT_CENTER);
   readonly zoom = input(13);
   /** `browse`: items at their public points. */
@@ -181,11 +181,17 @@ export class MapView {
     });
     effect(() => {
       const center = this.center();
+      const zoom = this.zoom();
       const map = this.map;
       if (!this.drawn() || !map) return;
       const { lat, lng } = map.getCenter();
-      if (distanceM(center, { lat, lng }) > 1) {
-        map.jumpTo({ center: [center.lng, center.lat] });
+      if (
+        distanceM(center, { lat, lng }) > 1 ||
+        Math.abs(map.getZoom() - zoom) > 0.01
+      ) {
+        // Not marked essential, so MapLibre skips the animation for people
+        // who prefer reduced motion.
+        map.easeTo({ center: [center.lng, center.lat], zoom, duration: 400 });
       }
     });
     effect(() => {

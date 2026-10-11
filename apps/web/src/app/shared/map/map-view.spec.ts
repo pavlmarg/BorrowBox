@@ -25,7 +25,7 @@ class FakeMap {
   readonly layers: Array<{ id: string; type: string }> = [];
   readonly handlers: Array<{ event: string; layer?: string; fn: Handler }> = [];
   readonly remove = jest.fn();
-  readonly jumpTo = jest.fn();
+  readonly easeTo = jest.fn();
   readonly setLayoutProperty = jest.fn();
   readonly setPaintProperty = jest.fn();
   readonly touchZoomRotate = { disableRotation: jest.fn() };
@@ -114,6 +114,7 @@ const fakeMapLibre = {
     <bb-map
       [mode]="mode"
       [points]="points()"
+      [zoom]="zoom()"
       [(pin)]="pin"
       (pointSelected)="selected = $event"
     />
@@ -122,6 +123,7 @@ const fakeMapLibre = {
 class Host {
   mode: MapMode = 'browse';
   readonly points = signal<MapPoint[]>([]);
+  readonly zoom = signal(13);
   readonly pin = signal<GeoPoint | null>(null);
   selected: string | null = null;
 }
@@ -245,6 +247,17 @@ describe('MapView', () => {
 
     expect(host.pin()).toEqual({ lat: 38.01, lng: 23.8 });
     expect(FakeMarker.last.lngLat).toEqual([23.8, 38.01]);
+  });
+
+  it('moves when its zoom changes', async () => {
+    const { fixture, host } = await setup({});
+    FakeMap.last.fire('load');
+    host.zoom.set(15);
+    fixture.detectChanges();
+    await settle();
+    expect(FakeMap.last.easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({ zoom: 15 }),
+    );
   });
 
   it('removes the map when destroyed', async () => {

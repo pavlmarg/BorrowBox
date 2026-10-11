@@ -61,3 +61,18 @@ export function distanceM(a: GeoPoint, b: GeoPoint): number {
     Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
   return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(h));
 }
+
+/**
+ * The zoom at which a circle of `radiusM` fills about `fill` of a map whose
+ * shorter side is `sizePx` (e.g. to fit the search radius).
+ */
+export function zoomForRadius(
+  radiusM: number,
+  lat: number,
+  sizePx: number,
+  fill = 0.85,
+): number {
+  const diameterAtZoom0 = 2 * pixelsAtZoom0(radiusM, lat);
+  const zoom = Math.log2((sizePx * fill) / diameterAtZoom0);
+  return Math.min(18, Math.max(0, zoom));
+}

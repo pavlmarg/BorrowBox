@@ -188,6 +188,11 @@ bb-app-shell,
   );
 }
 
+// Explore's price filter holds a form: wider than Material's 280 px menus.
+.mat-mdc-menu-panel.bb-price-menu {
+  max-width: none;
+}
+
 // The main content sits straight on the page background: no white panels.
 // (Dialogs keep their surface; they're in the overlay, not the shell.)
 bb-app-shell {

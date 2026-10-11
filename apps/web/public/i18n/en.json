@@ -179,5 +179,33 @@
       "timeout": "Finding your location took too long. Please try again.",
       "unsupported": "Your browser doesn’t support location."
     }
+  },
+  "explore": {
+    "results": "Results",
+    "map": "Results map",
+    "searchPlaceholder": "What are you looking for?",
+    "clear": "Clear search",
+    "filters": "Filters",
+    "category": "Category",
+    "allCategories": "All categories",
+    "radius": "Distance",
+    "radiusKm": "{{km}} km",
+    "maxPrice": "Max price",
+    "maxPriceHint": "Free items are shown too",
+    "priceUnit": "Per",
+    "freeOnly": "Free only",
+    "searchArea": "Search this area",
+    "showMap": "Map",
+    "showList": "List",
+    "loadMore": "Show more",
+    "loading": "Loading results",
+    "empty": "No items here yet.",
+    "emptyHint": "Try a larger distance or fewer filters.",
+    "retry": "Try again",
+    "price": "Price",
+    "priceUpTo": "Up to {{price}}",
+    "apply": "Apply",
+    "clearPrice": "Clear",
+    "clearAll": "Clear filters"
   }
 }

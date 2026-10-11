@@ -1,0 +1,356 @@
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
+import { TranslocoDirective } from '@jsverse/transloco';
+import {
+  ITEM_CATEGORIES,
+  PRICE_UNITS,
+  RATE_MAX_CENTS,
+  RATE_MIN_CENTS,
+  SEARCH_RADIUS_KM,
+  type ItemCategory,
+  type PriceUnit,
+  type SearchRadiusKm,
+} from '@borrowbox/contracts';
+import { NavIcon } from '../../core/layout/nav-icon';
+import { CentsInput, centsRange } from '../../shared/format/cents-input';
+import { EurPipe } from '../../shared/format/eur.pipe';
+import { DEFAULT_FILTERS } from './explore-query';
+import { ExploreStore } from './explore.store';
+
+/**
+ * The filters as one line of dropdown buttons, like a fashion shop's
+ * (category, distance, price, free only). A button whose filter is set is
+ * highlighted; on narrow screens the line scrolls sideways. Reads and
+ * writes the ExploreStore directly.
+ */
+@Component({
+  selector: 'bb-explore-filters',
+  imports: [
+    ReactiveFormsModule,
+    TranslocoDirective,
+    MatButtonModule,
+    MatButtonToggleModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatMenuModule,
+    NavIcon,
+    CentsInput,
+    EurPipe,
+  ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <div
+      class="line"
+      role="group"
+      *transloco="let t"
+      [attr.aria-label]="t('explore.filters')"
+    >
+      <button
+        type="button"
+        class="filter"
+        [class.active]="f().category !== null"
+        [matMenuTriggerFor]="categoryMenu"
+      >
+        {{
+          f().category
+            ? t('catalog.categories.' + f().category)
+            : t('explore.category')
+        }}
+        <span class="chevron" aria-hidden="true"></span>
+      </button>
+      <mat-menu #categoryMenu="matMenu">
+        <button mat-menu-item type="button" (click)="setCategory(null)">
+          <span class="option" [class.chosen]="f().category === null">{{
+            t('explore.allCategories')
+          }}</span>
+        </button>
+        @for (c of categories; track c) {
+          <button mat-menu-item type="button" (click)="setCategory(c)">
+            <span class="option" [class.chosen]="f().category === c">{{
+              t('catalog.categories.' + c)
+            }}</span>
+          </button>
+        }
+      </mat-menu>
+
+      <button
+        type="button"
+        class="filter"
+        [class.active]="f().radiusKm !== defaultRadius"
+        [matMenuTriggerFor]="radiusMenu"
+        [attr.aria-label]="
+          t('explore.radius') +
+          ': ' +
+          t('explore.radiusKm', { km: f().radiusKm })
+        "
+      >
+        {{ t('explore.radiusKm', { km: f().radiusKm }) }}
+        <span class="chevron" aria-hidden="true"></span>
+      </button>
+      <mat-menu #radiusMenu="matMenu">
+        @for (km of radii; track km) {
+          <button mat-menu-item type="button" (click)="setRadius(km)">
+            <span class="option" [class.chosen]="f().radiusKm === km">{{
+              t('explore.radiusKm', { km })
+            }}</span>
+          </button>
+        }
+      </mat-menu>
+
+      <button
+        type="button"
+        class="filter"
+        [class.active]="priceActive()"
+        [disabled]="f().freeOnly"
+        [matMenuTriggerFor]="priceMenu"
+        #priceTrigger="matMenuTrigger"
+        (menuOpened)="openPrice()"
+      >
+        @if (priceActive()) {
+          {{ t('explore.priceUpTo', { price: (f().maxPriceCents | eur) })
+          }}{{ t('catalog.perUnit.' + f().priceUnit) }}
+        } @else {
+          {{ t('explore.price') }}
+        }
+        <span class="chevron" aria-hidden="true"></span>
+      </button>
+      <mat-menu #priceMenu="matMenu" class="bb-price-menu">
+        <!-- Clicks and keys inside must not close the menu. -->
+        <form
+          class="price-panel"
+          (click)="$event.stopPropagation()"
+          (keydown)="$event.stopPropagation()"
+          (submit)="applyPrice($event)"
+        >
+          <mat-form-field subscriptSizing="dynamic">
+            <mat-label>{{ t('explore.maxPrice') }}</mat-label>
+            <span matTextPrefix>€&nbsp;</span>
+            <input matInput bbCentsInput [formControl]="price" />
+            @if (price.hasError('euros')) {
+              <mat-error>{{ t('validation.euros') }}</mat-error>
+            } @else if (price.hasError('centsRange')) {
+              <mat-error>{{
+                t('validation.centsRange', {
+                  min: (rateMin | eur),
+                  max: (rateMax | eur),
+                })
+              }}</mat-error>
+            } @else {
+              <mat-hint>{{ t('explore.maxPriceHint') }}</mat-hint>
+            }
+          </mat-form-field>
+          <mat-button-toggle-group
+            class="units"
+            hideSingleSelectionIndicator
+            [value]="unit()"
+            [attr.aria-label]="t('explore.priceUnit')"
+            (change)="unit.set($event.value)"
+          >
+            @for (u of units; track u) {
+              <mat-button-toggle [value]="u">{{
+                t('catalog.units.' + u)
+              }}</mat-button-toggle>
+            }
+          </mat-button-toggle-group>
+          <div class="actions">
+            <button mat-button type="button" (click)="clearPrice()">
+              {{ t('explore.clearPrice') }}
+            </button>
+            <button mat-flat-button type="submit" [disabled]="price.invalid">
+              {{ t('explore.apply') }}
+            </button>
+          </div>
+        </form>
+      </mat-menu>
+
+      <button
+        type="button"
+        class="filter"
+        [class.active]="f().freeOnly"
+        [attr.aria-pressed]="f().freeOnly"
+        (click)="toggleFree()"
+      >
+        {{ t('explore.freeOnly') }}
+      </button>
+
+      @if (activeCount() > 0) {
+        <button type="button" class="clear-all" (click)="clearAll()">
+          <bb-nav-icon name="close" class="clear-icon" />
+          {{ t('explore.clearAll') }}
+        </button>
+      }
+    </div>
+  `,
+  styles: `
+    .line {
+      display: flex;
+      gap: 8px;
+      margin: 0 -16px;
+      overflow-x: auto;
+      padding: 2px 16px;
+      scrollbar-width: none;
+    }
+    .filter,
+    .clear-all {
+      align-items: center;
+      border-radius: var(--bb-button-radius);
+      cursor: pointer;
+      display: inline-flex;
+      flex: none;
+      font: var(--mat-sys-label-large);
+      gap: 8px;
+      height: 36px;
+      padding: 0 12px;
+      white-space: nowrap;
+    }
+    .filter {
+      background: var(--mat-sys-surface);
+      border: 1px solid rgb(16 58 99 / 0.22);
+      color: var(--mat-sys-on-surface);
+      transition:
+        background-color var(--bb-fast) var(--bb-ease),
+        border-color var(--bb-fast) var(--bb-ease);
+    }
+    .filter:hover {
+      border-color: var(--bb-sky-700);
+    }
+    .filter.active {
+      background: var(--bb-sky-100);
+      border-color: var(--bb-sky-700);
+      color: var(--bb-sky-700);
+    }
+    .filter:disabled {
+      cursor: default;
+      opacity: 0.45;
+    }
+    .filter:focus-visible,
+    .clear-all:focus-visible {
+      outline: 3px solid var(--bb-sky-300);
+      outline-offset: 1px;
+    }
+    .chevron {
+      border-bottom: 1.5px solid currentColor;
+      border-right: 1.5px solid currentColor;
+      height: 6px;
+      margin-top: -3px;
+      transform: rotate(45deg);
+      width: 6px;
+    }
+    .clear-all {
+      background: none;
+      border: 0;
+      color: var(--bb-sky-700);
+    }
+    .clear-icon {
+      display: inline-flex;
+      height: 16px;
+      width: 16px;
+    }
+    .option.chosen {
+      color: var(--bb-sky-700);
+      font-weight: 700;
+    }
+    .price-panel {
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 12px 16px 8px;
+      width: 320px;
+    }
+    .units mat-button-toggle {
+      flex: 1;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+  `,
+})
+export class ExploreFilters {
+  private readonly store = inject(ExploreStore);
+  protected readonly f = this.store.filters;
+  private readonly priceTrigger = viewChild<MatMenuTrigger>('priceTrigger');
+
+  protected readonly categories = ITEM_CATEGORIES;
+  protected readonly radii = SEARCH_RADIUS_KM;
+  protected readonly units = PRICE_UNITS;
+  protected readonly rateMin = RATE_MIN_CENTS;
+  protected readonly rateMax = RATE_MAX_CENTS;
+  protected readonly defaultRadius = DEFAULT_FILTERS.radiusKm;
+
+  /** The price menu's draft, applied with "Apply". */
+  protected readonly price = new FormControl<number | null>(null, [
+    centsRange(RATE_MIN_CENTS, RATE_MAX_CENTS),
+  ]);
+  protected readonly unit = signal<PriceUnit>(DEFAULT_FILTERS.priceUnit);
+
+  protected readonly priceActive = computed(
+    () => this.f().maxPriceCents !== null && !this.f().freeOnly,
+  );
+  protected readonly activeCount = computed(() => {
+    const f = this.f();
+    return [
+      f.category !== null,
+      f.radiusKm !== DEFAULT_FILTERS.radiusKm,
+      f.freeOnly,
+      f.maxPriceCents !== null,
+    ].filter(Boolean).length;
+  });
+
+  protected setCategory(category: ItemCategory | null): void {
+    void this.store.setFilters({ category });
+  }
+
+  protected setRadius(radiusKm: SearchRadiusKm): void {
+    void this.store.setFilters({ radiusKm });
+  }
+
+  protected toggleFree(): void {
+    void this.store.setFilters({ freeOnly: !this.f().freeOnly });
+  }
+
+  /** The menu starts from what's applied. */
+  protected openPrice(): void {
+    this.price.reset(this.f().maxPriceCents);
+    this.unit.set(this.f().priceUnit);
+  }
+
+  protected applyPrice(event: Event): void {
+    event.preventDefault();
+    if (this.price.invalid) return;
+    void this.store.setFilters({
+      maxPriceCents: this.price.value,
+      priceUnit: this.unit(),
+    });
+    this.priceTrigger()?.closeMenu();
+  }
+
+  protected clearPrice(): void {
+    this.price.reset(null);
+    void this.store.setFilters({ maxPriceCents: null });
+    this.priceTrigger()?.closeMenu();
+  }
+
+  protected clearAll(): void {
+    void this.store.setFilters({
+      category: null,
+      radiusKm: DEFAULT_FILTERS.radiusKm,
+      freeOnly: false,
+      maxPriceCents: null,
+    });
+  }
+}
