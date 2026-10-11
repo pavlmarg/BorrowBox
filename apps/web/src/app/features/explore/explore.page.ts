@@ -441,9 +441,9 @@ export class ExplorePage {
   /** Where the map actually is, after the user's panning. */
   protected readonly camera = signal<MapCamera | null>(null);
 
-  private readonly radiusM = computed(
-    () => this.store.filters().radiusKm * 1000,
-  );
+  /** The radius alone: unchanged by other filters (a computed compares values). */
+  private readonly radiusKm = computed(() => this.store.filters().radiusKm);
+  private readonly radiusM = computed(() => this.radiusKm() * 1000);
   protected readonly points = computed<MapPoint[]>(() =>
     this.store
       .items()
@@ -485,7 +485,7 @@ export class ExplorePage {
     // Reads the radius through a computed, so other filter changes (or the
     // same radius again) don't re-zoom the map.
     effect(() => {
-      const radiusKm = this.radiusM() / 1000;
+      const radiusKm = this.radiusKm();
       untracked(() => {
         if (this.keepView) {
           this.keepView = false;
