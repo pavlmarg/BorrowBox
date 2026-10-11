@@ -8,8 +8,8 @@ import {
 import { RouterLink } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
 import type { PublicItemSummaryResponse } from '../../api/models';
-import { EurPipe } from '../../shared/format/eur.pipe';
-import { cardRate } from '../../shared/format/pricing';
+import { EurPipe } from '../format/eur.pipe';
+import { cardRate } from '../format/pricing';
 
 /**
  * One search result (E7, E12): photo on the left; title, one rate and the

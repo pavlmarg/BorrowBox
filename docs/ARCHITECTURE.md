@@ -255,6 +255,7 @@ See [ADR-0003](adr/0003-stripe-separate-charges-transfers.md).
 - **Layout:** the app's pages share a lazy-loaded app shell: a sidebar with the app's navigation on desktop, a ☰ drawer on phones. Features plug into its menu (`core/layout/nav-items.ts`); ones from later phases show as "Soon" until built.
   - Explore (`/explore`) is public and the start page, signed in or not. Signed-out visitors see "Sign in" / "Create account" instead of the account pages, and come back to where they were after signing in.
 - **Explore:** a list of results or, switched with a floating button, a map of them. Filters (category, distance, price, free only) sit in one line of dropdown buttons above the list. The filters go into the URL so a search can be shared; the searcher's point stays in memory only. Results, area and scroll position survive a visit to an item page.
+- **Item page** (`/items/:id`, public): photos, rates, deposit, the lender's name, the approximate area on a map and similar items nearby. The borrow button stays disabled until Phase 3; the owner sees a link to edit.
 - **Session handling:**
   - The access token lives in memory only (`AuthStore`), never in web storage. The refresh token is the httpOnly cookie, so page loads restore the session with `POST /api/auth/refresh`.
   - Refresh is single-flight: one per tab, serialised across tabs with a Web Lock, with tabs sharing sign-ins and sign-outs over `BroadcastChannel`. Refresh tokens are single-use, so two tabs refreshing at once would otherwise look like reuse.

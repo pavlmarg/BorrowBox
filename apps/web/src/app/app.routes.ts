@@ -27,6 +27,11 @@ export const appRoutes: Route[] = [
           import('./features/explore/explore.page').then((m) => m.ExplorePage),
       },
       {
+        path: 'items/:id',
+        loadComponent: () =>
+          import('./features/item/item.page').then((m) => m.ItemPage),
+      },
+      {
         path: 'profile',
         canMatch: [authGuard],
         loadChildren: () =>

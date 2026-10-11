@@ -31,7 +31,7 @@ import { MapView, type MapCamera } from '../../shared/map/map-view';
 import { filtersFromQuery, filtersToQuery } from './explore-query';
 import { ExploreFilters } from './explore-filters';
 import { ExploreStore } from './explore.store';
-import { ResultRow } from './result-row';
+import { ResultRow } from '../../shared/catalog/result-row';
 import { SearchBar } from './search-bar';
 
 /** Same breakpoint as the app shell's sidebar. */

@@ -207,5 +207,26 @@
     "apply": "Apply",
     "clearPrice": "Clear",
     "clearAll": "Clear filters"
+  },
+  "item": {
+    "back": "Back",
+    "loading": "Loading item",
+    "notFound": "Not found",
+    "backToExplore": "Back to Explore",
+    "yours": "This is your item.",
+    "edit": "Edit",
+    "about": "About this item",
+    "areaHint": "The exact spot is shared only once a booking is paid.",
+    "deposit": "Deposit",
+    "noDeposit": "No deposit",
+    "depositHint": "Charged with the rent and refunded when the item comes back.",
+    "requestToBorrow": "Request to borrow",
+    "requestsSoon": "Borrowing requests open soon.",
+    "lentBy": "Lent by",
+    "listedOn": "Listed {{date}}",
+    "similar": "Similar nearby",
+    "previousPhoto": "Previous photo",
+    "nextPhoto": "Next photo",
+    "photoCount": "{{n}} / {{total}}"
   }
 }
