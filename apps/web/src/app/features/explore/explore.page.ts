@@ -355,13 +355,29 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
       position: absolute;
       top: 16px;
     }
+    /* Centred without a transform, so nothing can shift it; round on
+       purpose (a floating switch), and it only changes colour on hover. */
     .view-toggle {
+      --mat-button-filled-container-shape: 999px;
+      --mat-button-filled-hover-state-layer-opacity: 0;
+      --mat-button-filled-focus-state-layer-opacity: 0;
+      --mat-button-filled-pressed-state-layer-opacity: 0;
       bottom: 24px;
       box-shadow: var(--bb-shadow-md);
-      left: 50%;
+      left: 0;
+      margin: 0 auto;
+      padding: 0 22px;
       position: absolute;
-      transform: translateX(-50%);
+      right: 0;
+      transition: background-color 400ms var(--bb-ease);
+      width: fit-content;
       z-index: 3;
+    }
+    .explore .view-toggle:not([disabled]):hover,
+    .explore .view-toggle:not([disabled]):active {
+      background-color: color-mix(in srgb, var(--mat-sys-primary) 78%, black);
+      box-shadow: var(--bb-shadow-md);
+      transform: none;
     }
     .visually-hidden {
       clip: rect(0 0 0 0);
