@@ -45,6 +45,13 @@ export const PHOTO_MIN_WIDTH_PX = 320;
 /** The PWA re-encodes photos to JPEG at most this long on their longer side. */
 export const PHOTO_CLIENT_MAX_EDGE_PX = 2048;
 
+/**
+ * The largest distance between an item's exact point and its public point
+ * (ADR-0007). Maps draw a circle of this radius around the public point, so
+ * the exact point is always inside it.
+ */
+export const LOCATION_OFFSET_MAX_M = 300;
+
 export const SEARCH_QUERY_MAX_LENGTH = 100;
 export const SEARCH_PAGE_SIZE_DEFAULT = 20;
 export const SEARCH_PAGE_SIZE_MAX = 50;

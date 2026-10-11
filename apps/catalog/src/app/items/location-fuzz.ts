@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { LOCATION_OFFSET_MAX_M } from '@borrowbox/contracts';
 
 /**
  * Location privacy (ADR-0007). The public point is the exact pin moved by a
@@ -7,7 +8,8 @@ import { randomBytes } from 'node:crypto';
  * module only decides which offset to use.
  */
 export const OFFSET_MIN_M = 150;
-export const OFFSET_MAX_M = 300;
+/** Shared with the PWA, which draws circles of this radius. */
+export const OFFSET_MAX_M = LOCATION_OFFSET_MAX_M;
 /** A pin moved less than this keeps its offset; further away is a new place. */
 export const NEW_PLACE_MIN_MOVE_M = 300;
 
