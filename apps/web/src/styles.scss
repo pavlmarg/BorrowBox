@@ -104,6 +104,11 @@ bb-app-shell,
   --mat-sys-corner-large: 0;
   --mat-sys-corner-extra-large: 0;
 
+  // The stepper's step numbers (Material draws them as circles).
+  .mat-step-icon {
+    border-radius: 0;
+  }
+
   // MapLibre's zoom buttons and attribution.
   .maplibregl-ctrl-group {
     border-radius: var(--bb-button-radius);

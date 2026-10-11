@@ -16,6 +16,7 @@ export type NavIconName =
   | 'map'
   | 'list'
   | 'location'
+  | 'check'
   | 'close';
 
 /** Outline icons as inline SVG: no icon font, nothing loaded from a CDN. */
@@ -89,6 +90,9 @@ export type NavIconName =
           <circle cx="12" cy="12" r="3.5" />
           <circle cx="12" cy="12" r="7.5" />
           <path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22" />
+        }
+        @case ('check') {
+          <path d="m4.5 12.5 5 5 10-11" />
         }
         @case ('menu') {
           <path d="M4 6.5h16M4 12h16M4 17.5h16" />
