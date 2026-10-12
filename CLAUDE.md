@@ -21,7 +21,7 @@ ADRs — read the relevant one before touching that area:
 
 ## Current phase
 
-**Phase 2 – Catalog** (update this line as phases complete; see roadmap in `README.md`). Phase 1 follow-ups are listed there.
+**Phase 3 – Bookings** (update this line as phases complete; see roadmap in `README.md`). Phase 1 and 2 follow-ups are listed there.
 
 - Only build what the current phase needs. If a task seems to require a later-phase feature, stop and ask.
 - Messaging and Reviews start as modules inside `apps/bookings` until their event contracts settle.
