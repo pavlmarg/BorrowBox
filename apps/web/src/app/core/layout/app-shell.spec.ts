@@ -75,13 +75,10 @@ describe('AppShell', () => {
     const { links } = await render(true);
     const texts = links.map((l) => l.text);
     expect(texts).toEqual(
-      expect.arrayContaining([
-        'nav.myItems',
-        'nav.profile',
-        'nav.settings',
-        'nav.logout',
-      ]),
+      expect.arrayContaining(['nav.myItems', 'nav.settings', 'nav.logout']),
     );
+    // Profile is the avatar in the phone bar, not a drawer entry.
+    expect(texts).not.toContain('nav.profile');
     expect(texts).not.toContain('nav.login');
   });
 

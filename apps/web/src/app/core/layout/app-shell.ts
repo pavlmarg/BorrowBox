@@ -74,7 +74,7 @@ const WIDE = '(min-width: 960px)';
           </div>
 
           <ul class="links">
-            @for (item of mainNav(); track item.key) {
+            @for (item of barNav(); track item.key) {
               <li>
                 @if (item.route) {
                   <a
@@ -537,7 +537,10 @@ export class AppShell {
     MAIN_NAV.filter((item) => this.signedIn() || !item.requiresAuth),
   );
   protected readonly footerNav = FOOTER_NAV;
-  /** Desktop: the bar's links; the account pages go in the avatar's menu. */
+  /**
+   * The bar's links (desktop) and the drawer's (phones). Profile is left
+   * out: it's under the avatar, in the menu or as the phone bar's link.
+   */
   protected readonly barNav = computed(() =>
     this.mainNav().filter((item) => !item.accountMenu),
   );
