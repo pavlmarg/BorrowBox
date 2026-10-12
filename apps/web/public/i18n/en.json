@@ -17,7 +17,8 @@
     "logout": "Sign out",
     "switchTo": "Switch to {{language}}",
     "login": "Sign in",
-    "register": "Create account"
+    "register": "Create account",
+    "account": "Account"
   },
   "languages": {
     "el": "Ελληνικά",

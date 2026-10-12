@@ -214,11 +214,9 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
   `,
   styles: `
     .explore {
+      /* Below the app's top bar. */
       height: calc(100dvh - 56px);
       position: relative;
-    }
-    .explore.wide {
-      height: 100dvh;
     }
 
     /* The list: the whole area, its content in a centred column. */
@@ -586,8 +584,6 @@ export class ExplorePage {
     const win = this.document.defaultView;
     const width = win?.innerWidth ?? 1024;
     const height = win?.innerHeight ?? 768;
-    return this.wide()
-      ? Math.min(width - 280, height)
-      : Math.min(width, height - 56);
+    return Math.min(width, height - 56);
   }
 }

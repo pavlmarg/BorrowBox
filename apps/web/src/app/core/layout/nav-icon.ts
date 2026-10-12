@@ -20,6 +20,7 @@ export type NavIconName =
   | 'close'
   | 'chevron-left'
   | 'chevron-right'
+  | 'chevron-down'
   | 'pause'
   | 'play';
 
@@ -109,6 +110,9 @@ export type NavIconName =
         }
         @case ('chevron-right') {
           <path d="m9.5 6 6 6-6 6" />
+        }
+        @case ('chevron-down') {
+          <path d="m6 9.5 6 6 6-6" />
         }
         @case ('pause') {
           <path d="M9 6v12M15 6v12" />

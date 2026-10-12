@@ -7,6 +7,8 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { MatButtonModule } from '@angular/material/button';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import {
   NavigationEnd,
@@ -21,15 +23,17 @@ import { AuthStore } from '../auth/auth.store';
 import { AccountLanguage } from '../i18n/account-language';
 import { LanguageService } from '../i18n/language';
 import { LanguageToggle } from '../i18n/language-toggle';
+import { Avatar } from '../../shared/avatar/avatar';
 import { NavIcon } from './nav-icon';
 import { FOOTER_NAV, MAIN_NAV } from './nav-items';
 
-/** At this width and up the sidebar stays open beside the page. */
+/** At this width and up the navigation sits in the top bar. */
 const WIDE = '(min-width: 960px)';
 
 /**
- * Layout for every signed-in page: a sidebar with the app's navigation on
- * desktop, and on phones a top bar whose ☰ button opens it as a drawer.
+ * Layout for the app's pages: a top bar over the full width. On desktop it
+ * holds the navigation, with the account pages in a menu under the avatar;
+ * on phones its ☰ button opens the navigation as a drawer.
  */
 @Component({
   selector: 'bb-app-shell',
@@ -39,8 +43,11 @@ const WIDE = '(min-width: 960px)';
     RouterLinkActive,
     TranslocoDirective,
     MatSidenavModule,
+    MatMenuModule,
+    MatButtonModule,
     LanguageToggle,
     NavIcon,
+    Avatar,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -48,25 +55,22 @@ const WIDE = '(min-width: 960px)';
       <mat-sidenav
         id="bb-nav"
         class="sidebar"
-        [mode]="wide() ? 'side' : 'over'"
-        [opened]="wide() || menuOpen()"
-        [disableClose]="wide()"
-        [fixedInViewport]="!wide()"
+        mode="over"
+        [opened]="!wide() && menuOpen()"
+        [fixedInViewport]="true"
         (openedChange)="menuOpen.set($event)"
       >
         <nav class="nav" [attr.aria-label]="t('nav.menu')">
           <div class="nav-head">
             <a class="brand" routerLink="/">{{ t('app.name') }}</a>
-            @if (!wide()) {
-              <button
-                type="button"
-                class="icon-button"
-                [attr.aria-label]="t('nav.close')"
-                (click)="menuOpen.set(false)"
-              >
-                <bb-nav-icon name="close" />
-              </button>
-            }
+            <button
+              type="button"
+              class="icon-button"
+              [attr.aria-label]="t('nav.close')"
+              (click)="menuOpen.set(false)"
+            >
+              <bb-nav-icon name="close" />
+            </button>
           </div>
 
           <ul class="links">
@@ -141,8 +145,8 @@ const WIDE = '(min-width: 960px)';
       </mat-sidenav>
 
       <mat-sidenav-content class="page">
-        @if (!wide()) {
-          <header class="topbar">
+        <header class="topbar" [class.wide]="wide()">
+          @if (!wide()) {
             <button
               type="button"
               class="icon-button"
@@ -153,10 +157,82 @@ const WIDE = '(min-width: 960px)';
             >
               <bb-nav-icon name="menu" />
             </button>
-            <a class="brand" routerLink="/">{{ t('app.name') }}</a>
-            <bb-language-toggle (changed)="accountLanguage.set($event)" />
-          </header>
-        }
+          }
+          <a class="brand" routerLink="/">{{ t('app.name') }}</a>
+          @if (wide()) {
+            <nav class="bar-nav" [attr.aria-label]="t('nav.menu')">
+              <ul class="bar-links">
+                @for (item of barNav(); track item.key) {
+                  <li>
+                    @if (item.route) {
+                      <a
+                        class="bar-link"
+                        [routerLink]="item.route"
+                        routerLinkActive="active"
+                        ariaCurrentWhenActive="page"
+                      >
+                        <bb-nav-icon [name]="item.icon" />
+                        <span>{{ t('nav.' + item.key) }}</span>
+                      </a>
+                    } @else {
+                      <span class="bar-link soon" aria-disabled="true">
+                        <bb-nav-icon [name]="item.icon" />
+                        <span>{{ t('nav.' + item.key) }}</span>
+                        <span class="badge">{{ t('nav.soon') }}</span>
+                      </span>
+                    }
+                  </li>
+                }
+              </ul>
+            </nav>
+          }
+          <span class="spacer"></span>
+          <bb-language-toggle (changed)="accountLanguage.set($event)" />
+          @if (wide()) {
+            @if (signedIn()) {
+              <button
+                type="button"
+                class="account"
+                [matMenuTriggerFor]="accountMenu"
+                [attr.aria-label]="t('nav.account')"
+              >
+                <bb-avatar [size]="32" />
+                <bb-nav-icon name="chevron-down" class="caret" />
+              </button>
+              <mat-menu #accountMenu="matMenu" xPosition="before">
+                @for (item of accountNav; track item.key) {
+                  <a
+                    mat-menu-item
+                    [routerLink]="item.route"
+                    routerLinkActive="active"
+                    ariaCurrentWhenActive="page"
+                  >
+                    <bb-nav-icon [name]="item.icon" class="menu-icon" />
+                    <span>{{ t('nav.' + item.key) }}</span>
+                  </a>
+                }
+                <button mat-menu-item type="button" (click)="logout()">
+                  <bb-nav-icon name="logout" class="menu-icon" />
+                  <span>{{ t('nav.logout') }}</span>
+                </button>
+              </mat-menu>
+            } @else {
+              <a
+                mat-button
+                class="bar-button"
+                routerLink="/auth/login"
+                [queryParams]="{ returnUrl: currentUrl() }"
+                >{{ t('nav.login') }}</a
+              >
+              <a
+                mat-flat-button
+                class="bar-button"
+                routerLink="/auth/register"
+                >{{ t('nav.register') }}</a
+              >
+            }
+          }
+        </header>
         <main class="main" [class.full-bleed]="fullBleed()">
           <router-outlet />
         </main>
@@ -174,7 +250,7 @@ const WIDE = '(min-width: 960px)';
       --mat-sidenav-container-width: 280px;
       --mat-sidenav-content-background-color: transparent;
       background: transparent;
-      /* Screen height: the page scrolls inside, the sidebar stays put. */
+      /* Screen height: the page scrolls inside, under the sticky top bar. */
       height: 100dvh;
     }
     .sidebar {
@@ -307,6 +383,8 @@ const WIDE = '(min-width: 960px)';
       backdrop-filter: blur(12px);
       background: rgb(255 255 255 / 0.8);
       border-bottom: 1px solid rgb(16 58 99 / 0.08);
+      /* 56 px with its border, as Explore's height assumes. */
+      box-sizing: border-box;
       display: flex;
       gap: 8px;
       height: 56px;
@@ -315,8 +393,103 @@ const WIDE = '(min-width: 960px)';
       top: 0;
       z-index: 2;
     }
+    .topbar.wide {
+      gap: 4px;
+      padding: 0 24px;
+    }
     .topbar .brand {
+      margin-right: 20px;
+    }
+    .topbar:not(.wide) .brand {
       flex: 1;
+    }
+    .spacer {
+      flex: 1;
+    }
+    .bar-nav {
+      align-self: stretch;
+    }
+    .bar-links {
+      display: flex;
+      gap: 4px;
+      height: 100%;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .bar-links li {
+      display: flex;
+    }
+    /* Tab-like links: the active page is underlined at the bar's bottom. */
+    .bar-link {
+      align-items: center;
+      border-bottom: 2px solid transparent;
+      box-sizing: border-box;
+      color: var(--mat-sys-on-surface);
+      display: flex;
+      font: var(--mat-sys-body-large);
+      font-size: 15px;
+      gap: 8px;
+      padding: 0 12px;
+      text-decoration: none;
+      transition:
+        background-color var(--bb-fast) var(--bb-ease),
+        border-color var(--bb-fast) var(--bb-ease),
+        color var(--bb-fast) var(--bb-ease);
+      white-space: nowrap;
+    }
+    .bar-link bb-nav-icon {
+      height: 20px;
+      width: 20px;
+    }
+    a.bar-link:hover {
+      background: var(--bb-sky-50);
+      color: var(--bb-sky-700);
+    }
+    .bar-link:focus-visible {
+      outline: 3px solid var(--bb-sky-300);
+      outline-offset: -3px;
+    }
+    .bar-link.active {
+      border-bottom-color: var(--bb-sky-700);
+      color: var(--bb-sky-700);
+      font-weight: 600;
+    }
+    .bar-link .badge {
+      margin-left: 2px;
+    }
+    .account {
+      align-items: center;
+      background: none;
+      border: 0;
+      border-radius: var(--bb-button-radius);
+      cursor: pointer;
+      display: inline-flex;
+      gap: 2px;
+      margin-left: 8px;
+      padding: 4px;
+      transition: background-color var(--bb-fast) var(--bb-ease);
+    }
+    .account:hover {
+      background: var(--bb-sky-100);
+    }
+    .account:focus-visible {
+      outline: 3px solid var(--bb-sky-300);
+    }
+    .caret {
+      color: var(--mat-sys-on-surface-variant);
+      height: 18px;
+      width: 18px;
+    }
+    .menu-icon {
+      display: inline-flex;
+      height: 20px;
+      margin-right: 12px;
+      vertical-align: -5px;
+      width: 20px;
+    }
+    .bar-button {
+      margin-left: 8px;
     }
 
     .main {
@@ -350,6 +523,14 @@ export class AppShell {
     MAIN_NAV.filter((item) => this.signedIn() || !item.requiresAuth),
   );
   protected readonly footerNav = FOOTER_NAV;
+  /** Desktop: the bar's links; the account pages go in the avatar's menu. */
+  protected readonly barNav = computed(() =>
+    this.mainNav().filter((item) => !item.accountMenu),
+  );
+  protected readonly accountNav = [
+    ...MAIN_NAV.filter((item) => item.accountMenu),
+    ...FOOTER_NAV,
+  ];
 
   private readonly navigationEnd = toSignal(
     this.router.events.pipe(filter((e) => e instanceof NavigationEnd)),

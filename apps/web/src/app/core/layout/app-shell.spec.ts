@@ -1,18 +1,31 @@
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { provideTransloco } from '@jsverse/transloco';
+import { of } from 'rxjs';
 import { AuthStore } from '../auth/auth.store';
 import { AppShell } from './app-shell';
 
 @Component({ template: '' })
 class Blank {}
 
-async function render(signedIn: boolean, url = '/explore?q=drill') {
+async function render(
+  signedIn: boolean,
+  url = '/explore?q=drill',
+  wide = false,
+) {
   TestBed.configureTestingModule({
     providers: [
+      {
+        provide: BreakpointObserver,
+        useValue: {
+          observe: () => of({ matches: wide, breakpoints: {} }),
+          isMatched: () => wide,
+        },
+      },
       provideHttpClient(),
       provideHttpClientTesting(),
       provideRouter([
@@ -40,7 +53,7 @@ async function render(signedIn: boolean, url = '/explore?q=drill') {
     text: a.textContent?.trim() ?? '',
     href: a.getAttribute('href'),
   }));
-  return { el, links };
+  return { el, links, fixture };
 }
 
 describe('AppShell', () => {
@@ -80,5 +93,43 @@ describe('AppShell', () => {
     expect(narrow.el.querySelector('main')?.classList).not.toContain(
       'full-bleed',
     );
+  });
+
+  describe('on desktop', () => {
+    it('puts the navigation in the top bar and the account pages under the avatar', async () => {
+      const { el, fixture } = await render(true, '/explore', true);
+      const bar = el.querySelector('header.topbar') as HTMLElement;
+      const barTexts = [...bar.querySelectorAll('.bar-link')].map((a) =>
+        a.textContent?.replace(/\s+/g, ' ').trim(),
+      );
+      expect(barTexts).toEqual([
+        'nav.explore',
+        'nav.myItems',
+        'nav.rentalsnav.soon',
+        'nav.messagesnav.soon',
+      ]);
+      expect(bar.querySelector('a.bar-link.active')?.textContent).toContain(
+        'nav.explore',
+      );
+
+      (bar.querySelector('button.account') as HTMLButtonElement).click();
+      await fixture.whenStable();
+      const menu = [
+        ...document.querySelectorAll('.mat-mdc-menu-panel [mat-menu-item]'),
+      ].map((i) => i.textContent?.trim());
+      expect(menu).toEqual(['nav.profile', 'nav.settings', 'nav.logout']);
+    });
+
+    it('offers sign-in and sign-up in the bar to visitors', async () => {
+      const { el } = await render(false, '/explore?q=drill', true);
+      const bar = el.querySelector('header.topbar') as HTMLElement;
+      expect(bar.querySelector('button.account')).toBeNull();
+      const login = bar.querySelector('a[href^="/auth/login"]');
+      expect(login?.getAttribute('href')).toBe(
+        '/auth/login?returnUrl=%2Fexplore%3Fq%3Ddrill',
+      );
+      expect(bar.querySelector('a[href="/auth/register"]')).not.toBeNull();
+      expect(bar.textContent).not.toContain('nav.myItems');
+    });
   });
 });
