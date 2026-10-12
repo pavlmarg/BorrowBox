@@ -78,9 +78,11 @@ import { ListingStore } from './listing.store';
           <p class="drop-text">
             {{ t(dragOver() ? 'listing.dropRelease' : 'listing.dropPhotos') }}
           </p>
+          <p class="drop-or">{{ t('listing.dropOr') }}</p>
           <button
             mat-stroked-button
             type="button"
+            class="choose"
             [disabled]="store.photoSlotsLeft() <= 0"
             (click)="gallery.click()"
           >
@@ -267,7 +269,17 @@ import { ListingStore } from './listing.store';
     .drop-text {
       color: var(--mat-sys-on-surface-variant);
       font: var(--mat-sys-body-large);
+      margin: 0;
+    }
+    .drop-or {
+      color: var(--mat-sys-on-surface-variant);
+      font: var(--mat-sys-body-small);
       margin: 0 0 4px;
+      text-transform: lowercase;
+    }
+    /* A lighter hover shadow than other outlined buttons get. */
+    .drop .choose:not([disabled]):hover {
+      box-shadow: var(--bb-shadow-sm);
     }
     .grid {
       display: grid;
