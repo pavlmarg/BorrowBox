@@ -144,6 +144,31 @@ export async function suggestItems(
 }
 
 /**
+ * Featured items on Explore: for now the most recently published visible
+ * items within `radiusM` of `near` (Phase 3 ranks by bookings instead).
+ * `distance_m` is measured from `near`.
+ */
+export async function featuredItems(
+  tx: EntityManager,
+  near: GeoPoint,
+  radiusM: number,
+  limit: number,
+): Promise<PublicItemRow[]> {
+  return tx.query(
+    'SELECT ' +
+      PUBLIC_COLUMNS +
+      ', ST_Distance(i.location_public, p.pt) AS distance_m' +
+      VISIBLE +
+      ' CROSS JOIN (SELECT ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography AS pt) p' +
+      ` WHERE i.status = 'ACTIVE'
+          AND ST_DWithin(i.location_public, p.pt, $3::float8)
+        ORDER BY i.published_at DESC, i.id
+        LIMIT $4::int`,
+    [near.lng, near.lat, radiusM, limit],
+  );
+}
+
+/**
  * Other lenders' visible items like `itemId` (S1–S4): same category, public
  * point within `radiusM` of its public point, most shared title words first
  * (titles are the search vector's weight-A words), then nearest, then id.

@@ -55,6 +55,7 @@ import {
   type SearchItemsRequest,
   type SearchRadiusKm,
   type SuggestItemsRequest,
+  type FeaturedItemsRequest,
 } from '@borrowbox/contracts';
 
 // HTTP DTOs for Catalog: validated here, validated again by Catalog (never
@@ -337,6 +338,21 @@ export class SearchItemsBody implements SearchItemsRequest {
   limit?: number;
 }
 
+export class FeaturedItemsBody implements FeaturedItemsRequest {
+  @ApiProperty({
+    type: GeoPointBody,
+    description: 'Used for this request only; never stored or logged.',
+  })
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => GeoPointBody)
+  near!: GeoPointBody;
+
+  @ApiProperty({ enum: SEARCH_RADIUS_KM, enumName: 'SearchRadiusKm' })
+  @IsIn(SEARCH_RADIUS_KM)
+  radiusKm!: SearchRadiusKm;
+}
+
 export class SuggestItemsBody implements SuggestItemsRequest {
   @ApiProperty({
     type: GeoPointBody,
@@ -501,6 +517,14 @@ export class SimilarItemsResponse {
   @ApiProperty({
     type: [PublicItemSummaryResponse],
     description: 'distanceBand is measured from the item',
+  })
+  items!: PublicItemSummaryResponse[];
+}
+
+export class FeaturedItemsResponse {
+  @ApiProperty({
+    type: [PublicItemSummaryResponse],
+    description: 'Up to 10; newest first for now',
   })
   items!: PublicItemSummaryResponse[];
 }

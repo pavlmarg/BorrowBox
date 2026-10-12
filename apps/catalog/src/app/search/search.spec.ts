@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import {
   CatalogRpc,
+  FEATURED_ITEMS_MAX,
   type GeoPoint,
   type ItemCategory,
   type ItemStatus,
   type PublicItemSummary,
   type RpcErrorBody,
   type SearchItemsRequest,
+  type SearchRadiusKm,
 } from '@borrowbox/contracts';
 import {
   startPostgres,
@@ -100,6 +102,8 @@ describe('Search and public item pages (integration)', () => {
     hourly?: number | null;
     daily?: number | null;
     readyPhotos?: number;
+    /** Defaults to 2026-10-01 10:00 UTC; drafts never have one. */
+    publishedAt?: Date;
   }
 
   async function seed(s: Seed): Promise<string> {
@@ -137,7 +141,9 @@ describe('Search and public item pages (integration)', () => {
         exact.lat,
         s.publicAt.lng,
         s.publicAt.lat,
-        status === 'DRAFT' ? null : new Date('2026-10-01T10:00:00Z'),
+        status === 'DRAFT'
+          ? null
+          : (s.publishedAt ?? new Date('2026-10-01T10:00:00Z')),
         deleted ? new Date() : null,
         deleted,
       ],
@@ -684,6 +690,98 @@ describe('Search and public item pages (integration)', () => {
         (await failure(catalog.send(CatalogRpc.similar, { itemId: 'nope' })))
           .code,
       ).toBe('VALIDATION_FAILED');
+    });
+  });
+
+  describe('featured', () => {
+    async function featured(
+      near: GeoPoint,
+      radiusKm: SearchRadiusKm = 5,
+    ): Promise<PublicItemSummary[]> {
+      const response = await catalog.send(CatalogRpc.featured, {
+        near,
+        radiusKm,
+      });
+      responses.push(response);
+      return response.items;
+    }
+
+    const day = (d: number) => new Date(Date.UTC(2026, 9, d, 10));
+
+    it('lists visible items within the radius, newest first', async () => {
+      const centre = newArea();
+      const [a, b] = [await lender('A'), await lender('B')];
+      const at = (m: number) => pointFrom(centre, m, 60);
+      const older = await seed({
+        lenderId: a,
+        publicAt: await at(300),
+        publishedAt: day(2),
+      });
+      const newest = await seed({
+        lenderId: b,
+        publicAt: await at(4_000),
+        publishedAt: day(9),
+      });
+      const middle = await seed({
+        lenderId: a,
+        publicAt: await at(1_500),
+        publishedAt: day(5),
+        title: 'Camping tent',
+        category: 'camping',
+      });
+      // Left out: outside the radius, not active, a deleted lender.
+      await seed({
+        lenderId: a,
+        publicAt: await at(6_000),
+        publishedAt: day(10),
+      });
+      await seed({
+        lenderId: a,
+        publicAt: await at(100),
+        status: 'PAUSED',
+        publishedAt: day(10),
+      });
+      await seed({
+        lenderId: await lender('Gone', true),
+        publicAt: await at(100),
+        publishedAt: day(10),
+      });
+
+      const items = await featured(centre);
+      expect(ids(items)).toEqual([newest, middle, older]);
+      expect(items.map((i) => i.distanceBand)).toEqual([
+        '2_5_KM',
+        '1_2_KM',
+        'UNDER_1_KM',
+      ]);
+      expect(ids(await featured(centre, 1))).toEqual([older]);
+    });
+
+    it('returns at most 10, and an empty list where there is nothing', async () => {
+      const centre = newArea();
+      expect(await featured(centre)).toEqual([]);
+
+      const owner = await lender();
+      for (let i = 0; i < 12; i++) {
+        await seed({
+          lenderId: owner,
+          publicAt: await pointFrom(centre, 100 + i * 50, 0),
+          publishedAt: day(i + 1),
+        });
+      }
+      const items = await featured(centre);
+      expect(items).toHaveLength(FEATURED_ITEMS_MAX);
+    });
+
+    it('rejects a radius that is not an allowed step', async () => {
+      const error = await failure(
+        catalog.send(CatalogRpc.featured, {
+          near: newArea(),
+          radiusKm: 3 as SearchRadiusKm,
+        }),
+      );
+      expect(error.code).toBe('VALIDATION_FAILED');
+      expect(error.message).not.toMatch(/\d+\.\d+/);
     });
   });
 

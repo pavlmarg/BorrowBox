@@ -1468,6 +1468,49 @@
         ]
       }
     },
+    "/api/items/featured": {
+      "post": {
+        "description": "For now the newest active items within the radius, whatever the search filters. The point is used for this request only.",
+        "operationId": "PublicItemsController_featured",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeaturedItemsBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeaturedItemsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Up to 10 featured items near a point",
+        "tags": [
+          "items"
+        ]
+      }
+    },
     "/api/items/{itemId}": {
       "get": {
         "operationId": "PublicItemsController_get",
@@ -2646,6 +2689,45 @@
         },
         "required": [
           "suggestions"
+        ]
+      },
+      "FeaturedItemsBody": {
+        "type": "object",
+        "properties": {
+          "near": {
+            "description": "Used for this request only; never stored or logged.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GeoPointBody"
+              }
+            ]
+          },
+          "radiusKm": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SearchRadiusKm"
+              }
+            ]
+          }
+        },
+        "required": [
+          "near",
+          "radiusKm"
+        ]
+      },
+      "FeaturedItemsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "description": "Up to 10; newest first for now",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicItemSummaryResponse"
+            }
+          }
+        },
+        "required": [
+          "items"
         ]
       },
       "PublicPhotoResponse": {

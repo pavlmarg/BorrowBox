@@ -20,6 +20,8 @@ import { CatalogClient } from '../catalog/catalog.client';
 import { SuggestRateLimit } from '../http/rate-limits';
 import { CorrelationId } from '../http/request-context';
 import {
+  FeaturedItemsBody,
+  FeaturedItemsResponse,
   PublicItemDetailResponse,
   SearchItemsBody,
   SearchItemsResponse,
@@ -76,6 +78,21 @@ export class PublicItemsController {
     @CorrelationId() correlationId: string,
   ): Promise<SuggestItemsResponse> {
     return this.catalog.call(CatalogRpc.suggest, body, { correlationId });
+  }
+
+  @Post('featured')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Up to 10 featured items near a point',
+    description:
+      'For now the newest active items within the radius, whatever the search filters. The point is used for this request only.',
+  })
+  @ApiOkResponse({ type: FeaturedItemsResponse })
+  featured(
+    @Body() body: FeaturedItemsBody,
+    @CorrelationId() correlationId: string,
+  ): Promise<FeaturedItemsResponse> {
+    return this.catalog.call(CatalogRpc.featured, body, { correlationId });
   }
 
   @Get(':itemId')

@@ -8,6 +8,8 @@
  */
 import type { ItemCategory } from './categories';
 import type {
+  FeaturedItemsRequest,
+  FeaturedItemsResponse,
   GeoPoint,
   ItemPricing,
   OwnItem,
@@ -120,6 +122,7 @@ export const CatalogRpc = {
   suggest: 'catalog.items.suggest',
   getPublic: 'catalog.items.public.get',
   similar: 'catalog.items.similar',
+  featured: 'catalog.items.featured',
   // The caller's own items.
   create: 'catalog.items.create',
   update: 'catalog.items.update',
@@ -151,6 +154,10 @@ export interface CatalogRpcContract {
   };
   [CatalogRpc.getPublic]: { request: ItemRef; response: PublicItemDetail };
   [CatalogRpc.similar]: { request: ItemRef; response: SimilarItemsResponse };
+  [CatalogRpc.featured]: {
+    request: FeaturedItemsRequest;
+    response: FeaturedItemsResponse;
+  };
   [CatalogRpc.create]: { request: CreateItemRequest; response: OwnItem };
   [CatalogRpc.update]: { request: UpdateItemRequest; response: OwnItem };
   [CatalogRpc.setLocation]: {

@@ -21,6 +21,7 @@ import {
   SEARCH_QUERY_MAX_LENGTH,
   SEARCH_RADIUS_KM,
   SUGGEST_MIN_LENGTH,
+  type FeaturedItemsRequest,
   type ItemCategory,
   type PriceUnit,
   type SearchItemsRequest,
@@ -101,4 +102,15 @@ export class SuggestItemsDto implements SuggestItemsRequest {
   @IsString()
   @CharLength(SUGGEST_MIN_LENGTH, SEARCH_QUERY_MAX_LENGTH)
   q!: string;
+}
+
+export class FeaturedItemsDto implements FeaturedItemsRequest {
+  /** Used for this query only: never stored, logged or echoed in errors. */
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => GeoPointDto)
+  near!: GeoPointDto;
+
+  @IsIn(SEARCH_RADIUS_KM)
+  radiusKm!: SearchRadiusKm;
 }

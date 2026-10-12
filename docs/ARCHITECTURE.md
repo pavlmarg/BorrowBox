@@ -94,7 +94,7 @@ flowchart TB
   - `GET` / `PATCH` / `DELETE /api/me`, `GET /api/me/export`
   - `GET /api/health`
 - Phase 2 endpoints (Catalog):
-  - Public, no sign-in: `POST /api/items/search` and `/suggest` (the searcher's point travels in the body, so it never lands in URLs, access logs or browser history), `GET /api/items/:id` and `/:id/similar`.
+  - Public, no sign-in: `POST /api/items/search`, `/suggest` and `/featured` (the searcher's point travels in the body, so it never lands in URLs, access logs or browser history), `GET /api/items/:id` and `/:id/similar`.
   - The signed-in lender's own items under `/api/me/items`: list, create, get, `PATCH`, `DELETE`, `PUT /:id/location`, `POST /:id/publish` / `pause` / `unpause`, and photos (`POST /:id/photos` for an upload URL, `POST …/photos/:photoId/confirm`, `DELETE …/photos/:photoId`, `PUT /:id/photos/order`).
   - Catalog's state and limit refusals (`INVALID_STATE`, `NOT_PUBLISHABLE`, `ITEM_LIMIT_REACHED`, `PHOTO_LIMIT_REACHED`) are `409`; the PWA tells them apart by `code`.
   - `GET /api/me/export` has one section per service (`identity`, `catalog`). If any service doesn't answer, the whole export fails with `503` rather than returning partial data.
@@ -138,6 +138,7 @@ flowchart TB
 - `items.location` (private) and `items.location_public` are `geography(Point, 4326)`. Search uses `ST_DWithin(location_public, :point, :radius)` with a GiST index, combined with a Greek + English `tsvector` full-text index and category/price filters.
 - **Search** is public (no sign-in needed) and shows only `ACTIVE` items of known, non-deleted lenders. Results are nearest first by the public point, paged with an opaque cursor (the last item's distance and id). A maximum-price filter also matches free items ([ADR-0012](adr/0012-free-items-match-price-limits.md)). The searcher's point and text are never stored or logged.
 - **Search as you type:** the 5 nearest visible items whose words all start with (or share a Greek/English stem with) what has been typed, from 2 characters.
+- **Featured items** on Explore: up to 10 visible items within the searcher's radius, whatever the other filters. Until Bookings exists (Phase 3) they are the most recently published; then they become the most often booked, which needs Catalog to count bookings per item from booking events.
 - **Similar items** on an item's page: up to 8 other lenders' items in the same category within 10 km of the item's public point, most shared title words first, then nearest. People are never searchable by name.
 - **Location privacy** ([ADR-0004](adr/0004-location-fuzzing.md), [ADR-0007](adr/0007-location-privacy-search.md)):
   - `location_public` is the exact point moved by one random offset (150–300 m, random direction), stored per item. A pin moved by less than 300 m keeps the same offset.

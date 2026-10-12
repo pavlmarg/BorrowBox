@@ -31,6 +31,7 @@ import {
   SEARCH_PAGE_SIZE_MAX,
   SEARCH_QUERY_MAX_LENGTH,
   SIMILAR_ITEMS_MAX,
+  FEATURED_ITEMS_MAX,
   SIMILAR_ITEMS_RADIUS_KM,
   SUGGEST_LIMIT,
   SUGGEST_MIN_LENGTH,
@@ -82,6 +83,7 @@ describe('catalog limits', () => {
     expect(SUGGEST_MIN_LENGTH).toBeLessThanOrEqual(SEARCH_QUERY_MAX_LENGTH);
     expect(SUGGEST_LIMIT).toBeGreaterThan(0);
     expect(SIMILAR_ITEMS_MAX).toBeGreaterThan(0);
+    expect(FEATURED_ITEMS_MAX).toBeGreaterThan(0);
     expect(SEARCH_RADIUS_KM).toContain(SIMILAR_ITEMS_RADIUS_KM);
     expect([...SEARCH_RADIUS_KM]).toEqual(
       [...SEARCH_RADIUS_KM].sort((a, b) => a - b),
@@ -170,6 +172,6 @@ describe('CatalogRpc patterns', () => {
   it('each have a contract entry', () => {
     // Compile-time check: every pattern is a key of CatalogRpcContract.
     const typed: CatalogRpcPattern[] = patterns;
-    expect(typed).toHaveLength(18);
+    expect(typed).toHaveLength(19);
   });
 });

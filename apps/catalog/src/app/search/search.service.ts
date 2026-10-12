@@ -2,10 +2,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { DataSource } from 'typeorm';
 import {
+  FEATURED_ITEMS_MAX,
   SEARCH_PAGE_SIZE_DEFAULT,
   SIMILAR_ITEMS_MAX,
   SIMILAR_ITEMS_RADIUS_KM,
   SUGGEST_LIMIT,
+  type FeaturedItemsResponse,
   type PublicItemDetail,
   type PublicItemSummary,
   type SearchItemsResponse,
@@ -18,8 +20,13 @@ import { photoUrls, toPricing } from '../items/items.repository';
 import { CatalogError } from '../rpc/rpc-errors';
 import { decodeCursor, distanceBand, encodeCursor } from './search-paging';
 import { typedWords } from './typed-words';
-import type { SearchItemsDto, SuggestItemsDto } from './search.dto';
+import type {
+  FeaturedItemsDto,
+  SearchItemsDto,
+  SuggestItemsDto,
+} from './search.dto';
 import {
+  featuredItems,
   findPublicItem,
   listPublicPhotos,
   searchItems,
@@ -140,7 +147,18 @@ export class SearchService {
     return { items: rows.map((row) => this.toSummary(row)) };
   }
 
-  /** A search result card; also used by similar items. */
+  /** Featured items on Explore: newest first for now, whatever the filters. */
+  async featured(dto: FeaturedItemsDto): Promise<FeaturedItemsResponse> {
+    const rows = await featuredItems(
+      this.dataSource.manager,
+      dto.near,
+      dto.radiusKm * 1000,
+      FEATURED_ITEMS_MAX,
+    );
+    return { items: rows.map((row) => this.toSummary(row)) };
+  }
+
+  /** A search result card; also used by similar and featured items. */
   toSummary(row: PublicItemRow): PublicItemSummary {
     return {
       id: row.id,

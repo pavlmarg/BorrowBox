@@ -206,3 +206,20 @@ export interface SuggestItemsResponse {
 export interface SimilarItemsResponse {
   items: PublicItemSummary[];
 }
+
+// --- Featured items -----------------------------------------------------------------
+
+/** A strip of items to discover near the searcher, whatever the filters. */
+export interface FeaturedItemsRequest {
+  /** The searcher's chosen point; used for this query only, never stored or logged. */
+  near: GeoPoint;
+  radiusKm: SearchRadiusKm;
+}
+
+/**
+ * At most `FEATURED_ITEMS_MAX`. For now the most recently published items
+ * within the radius; Phase 3 ranks them by bookings instead.
+ */
+export interface FeaturedItemsResponse {
+  items: PublicItemSummary[];
+}

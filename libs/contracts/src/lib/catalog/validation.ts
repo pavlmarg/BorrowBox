@@ -64,6 +64,9 @@ export const SUGGEST_LIMIT = 5;
 export const SIMILAR_ITEMS_MAX = 8;
 export const SIMILAR_ITEMS_RADIUS_KM = 10;
 
+/** Featured items on Explore: at most this many. */
+export const FEATURED_ITEMS_MAX = 10;
+
 /**
  * Text length in characters (Unicode code points), the way Catalog's
  * database counts (`char_length`). Use it for every title/description/search

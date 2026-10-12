@@ -49,6 +49,8 @@ export type { PublicItemsControllerSearch$Params as PublicItemsControllerSearch$
 export { publicItemsControllerSearch as publicItemsControllerSearch } from './fn/items/public-items-controller-search';
 export type { PublicItemsControllerSuggest$Params as PublicItemsControllerSuggest$Params } from './fn/items/public-items-controller-suggest';
 export { publicItemsControllerSuggest as publicItemsControllerSuggest } from './fn/items/public-items-controller-suggest';
+export type { PublicItemsControllerFeatured$Params as PublicItemsControllerFeatured$Params } from './fn/items/public-items-controller-featured';
+export { publicItemsControllerFeatured as publicItemsControllerFeatured } from './fn/items/public-items-controller-featured';
 export type { PublicItemsControllerGet$Params as PublicItemsControllerGet$Params } from './fn/items/public-items-controller-get';
 export { publicItemsControllerGet as publicItemsControllerGet } from './fn/items/public-items-controller-get';
 export type { PublicItemsControllerSimilar$Params as PublicItemsControllerSimilar$Params } from './fn/items/public-items-controller-similar';
