@@ -18,6 +18,6 @@ A circle is centred on the public point, so the circle and a marker at its centr
 - Nearby items stay distinct and countable at street level, the price is readable at a glance, and the hover card points at one clear target.
 - No new data is exposed: the tag marks the centre the circle already had.
 - Tags are HTML markers, not map layers (the map style isn't guaranteed to supply fonts for text): MapView adds one per item that isn't in a cluster bubble, after every move.
-- A lender's items at one place share one public point ([ADR-0011](0011-one-offset-per-place.md)), so their tags stack once zoomed in past clustering. Acceptable for now; clustering up to a higher zoom is the obvious fix if it bothers people.
+- A lender's items at one place share one public point ([ADR-0011](0011-one-offset-per-place.md)), so their tags would stack. Bubbles therefore last up to zoom 17, which is also as far as Explore's map zooms in: items that never separate stay one numbered bubble, and clicking it shows their cards instead of zooming.
 - Touch screens have no hover, so phones see the area circle only for an item highlighted from the list, and always on the item page.
 - A marker looks more precise than a circle at a glance. The area on hover, the item page's circle and the distance bands ("1–2 km") keep reminding people it's approximate; revisit if users mistake tags for addresses.

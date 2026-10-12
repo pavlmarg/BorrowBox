@@ -15,7 +15,12 @@ class FakeMap {
   static last: FakeMap;
   readonly sources = new Map<
     string,
-    { options: unknown; setData: jest.Mock }
+    {
+      options: unknown;
+      setData: jest.Mock;
+      getClusterExpansionZoom: () => Promise<number>;
+      getClusterLeaves: () => Promise<Array<Record<string, unknown>>>;
+    }
   >();
   readonly layers: Array<{ id: string; type: string }> = [];
   readonly handlers: Array<{ event: string; layer?: string; fn: Handler }> = [];
@@ -48,8 +53,16 @@ class FakeMap {
       if (h.event === event && h.layer === layer) h.fn(payload);
     }
   }
+  /** The zoom a clicked bubble separates at, and its items. */
+  expansionZoom = 15;
+  leaves: Array<Record<string, unknown>> = [];
   addSource(id: string, options: unknown) {
-    this.sources.set(id, { options, setData: jest.fn() });
+    this.sources.set(id, {
+      options,
+      setData: jest.fn(),
+      getClusterExpansionZoom: () => Promise.resolve(this.expansionZoom),
+      getClusterLeaves: () => Promise.resolve(this.leaves),
+    });
   }
   getSource(id: string) {
     return this.sources.get(id);
@@ -123,9 +136,13 @@ const fakeMapLibre = {
       [mode]="mode"
       [points]="points()"
       [zoom]="zoom()"
+      [hoverCard]="card"
       [(pin)]="pin"
       (pointSelected)="selected = $event"
     />
+    <ng-template #card let-id
+      ><span class="card">{{ id }}</span></ng-template
+    >
   `,
 })
 class Host {
@@ -248,6 +265,57 @@ describe('MapView', () => {
     FakeMap.last.unclustered = [];
     FakeMap.last.fire('moveend');
     expect(marker.lngLat).toBeNull();
+  });
+
+  it('zooms into a bubble whose items separate further in', async () => {
+    await setup({});
+    FakeMap.last.fire('load');
+    FakeMap.last.expansionZoom = 15;
+    FakeMap.last.fire(
+      'click',
+      {
+        features: [
+          {
+            properties: { cluster_id: 1 },
+            geometry: { type: 'Point', coordinates: [23.7, 38] },
+          },
+        ],
+        lngLat: { lng: 23.7, lat: 38 },
+      },
+      CLUSTERS_LAYER,
+    );
+    await settle();
+    expect(FakeMap.last.easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({ zoom: 15 }),
+    );
+  });
+
+  it('opens a bubble that never separates as its items’ cards', async () => {
+    const { fixture } = await setup({});
+    FakeMap.last.fire('load');
+    FakeMap.last.expansionZoom = 18;
+    FakeMap.last.leaves = [
+      { properties: { id: 'a' } },
+      { properties: { id: 'b' } },
+    ];
+    FakeMap.last.fire(
+      'click',
+      {
+        features: [
+          {
+            properties: { cluster_id: 1 },
+            geometry: { type: 'Point', coordinates: [23.7, 38] },
+          },
+        ],
+        lngLat: { lng: 23.7, lat: 38 },
+      },
+      CLUSTERS_LAYER,
+    );
+    await settle();
+    fixture.detectChanges();
+    expect(FakeMap.last.easeTo).not.toHaveBeenCalled();
+    const cards = fixture.nativeElement.querySelectorAll('.hover-card .card');
+    expect([...cards].map((c: Element) => c.textContent)).toEqual(['a', 'b']);
   });
 
   it('has clickable clusters', async () => {

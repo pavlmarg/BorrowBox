@@ -36,8 +36,14 @@ export interface MapPoint {
   label?: string;
 }
 
-/** Clusters dissolve into single items above this zoom. */
-export const CLUSTER_MAX_ZOOM = 13;
+/**
+ * Clusters dissolve into single items above this zoom, which is also as far
+ * as Explore's map zooms in: items in one place (ADR-0011) stay one bubble,
+ * opened as a list of their cards rather than as stacked tags.
+ */
+export const CLUSTER_MAX_ZOOM = 17;
+/** At most this many cards in an opened bubble. */
+export const CLUSTER_CARDS_MAX = 6;
 
 /**
  * Each item as a point, carrying how big its circle is at zoom 0 so the

@@ -29,6 +29,7 @@ import { DEFAULT_CENTER, distanceM } from './geo';
 import { labelUpdates } from './map-labels';
 import {
   AREA_SOURCE,
+  CLUSTER_CARDS_MAX,
   CLUSTER_MAX_ZOOM,
   CLUSTERS_LAYER,
   ITEM_AREA_LAYER,
@@ -68,9 +69,13 @@ export interface SearchCircle {
 
 type MapState = 'loading' | 'ready' | 'unavailable';
 
-/** The item under the pointer and where its card points to, in map pixels. */
+/**
+ * The cards showing and where they point to, in map pixels: one item's
+ * under the pointer (`id`), or an opened bubble's items (`id` null).
+ */
 interface Hovered {
-  id: string;
+  id: string | null;
+  ids: string[];
   x: number;
   y: number;
   /** Below the tag: too close to the top for the card above it. */
@@ -79,6 +84,8 @@ interface Hovered {
 
 /** Room the card needs above the tag; with less, it goes below. */
 const CARD_ROOM_PX = 150;
+/** A bubble's largest radius: an opened bubble's cards sit above it. */
+const BUBBLE_RADIUS_PX = 26;
 /** A price tag's height, its pointer included: the card sits above it. */
 const TAG_HEIGHT_PX = 34;
 
@@ -114,9 +121,13 @@ const CARD_CLOSE_MS = 200;
           (mouseenter)="keepCard()"
           (mouseleave)="closeCardSoon()"
         >
-          <ng-container
-            *ngTemplateOutlet="card; context: { $implicit: h.id }"
-          />
+          <div class="cards">
+            @for (id of h.ids; track id) {
+              <ng-container
+                *ngTemplateOutlet="card; context: { $implicit: id }"
+              />
+            }
+          </div>
         </div>
       }
     }
@@ -152,6 +163,11 @@ const CARD_CLOSE_MS = 200;
     .hover-card.below {
       padding: 10px 0 0;
       transform: translate(-50%, 0);
+    }
+    .cards {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
     @keyframes bb-card-in {
       from {
@@ -298,6 +314,8 @@ export class MapView {
         style: mapStyleUrl,
         center: [center.lng, center.lat],
         zoom: this.zoom(),
+        // Explore: no further than the clusters go (see CLUSTER_MAX_ZOOM).
+        ...(this.mode() === 'browse' ? { maxZoom: CLUSTER_MAX_ZOOM } : {}),
         attributionControl: { compact: true },
         // A flat, north-up map: nothing to gain from rotating it.
         dragRotate: false,
@@ -465,6 +483,7 @@ export class MapView {
     const below = point.y - TAG_HEIGHT_PX < CARD_ROOM_PX;
     this.hovered.set({
       id,
+      ids: [id],
       x: point.x,
       y: below ? point.y + 4 : point.y - TAG_HEIGHT_PX,
       below,
@@ -480,13 +499,41 @@ export class MapView {
     this.closeTimer = setTimeout(() => this.hovered.set(null), CARD_CLOSE_MS);
   }
 
+  /**
+   * A bubble: zooms in to where its items separate, or, if they never do
+   * here (one place, or the map's closest zoom), shows their cards.
+   */
   private async zoomInto(event: MapLayerMouseEvent): Promise<void> {
     const feature = event.features?.[0];
     const clusterId = feature?.properties?.['cluster_id'];
     const source = this.source(ITEMS_SOURCE);
-    if (!source || typeof clusterId !== 'number' || !this.map) return;
+    const map = this.map;
+    if (!source || typeof clusterId !== 'number' || !map) return;
     const zoom = await source.getClusterExpansionZoom(clusterId);
-    this.map.easeTo({ center: event.lngLat, zoom });
+    if (zoom <= CLUSTER_MAX_ZOOM) {
+      map.easeTo({ center: event.lngLat, zoom });
+      return;
+    }
+    const leaves = await source.getClusterLeaves(
+      clusterId,
+      CLUSTER_CARDS_MAX,
+      0,
+    );
+    const ids = leaves
+      .map((leaf) => leaf.properties?.['id'])
+      .filter((id): id is string => typeof id === 'string');
+    if (ids.length === 0 || feature?.geometry.type !== 'Point') return;
+    const [lng, lat] = feature.geometry.coordinates;
+    const point = map.project([lng, lat]);
+    const below = point.y - BUBBLE_RADIUS_PX < CARD_ROOM_PX;
+    this.keepCard();
+    this.hovered.set({
+      id: null,
+      ids,
+      x: point.x,
+      y: below ? point.y + BUBBLE_RADIUS_PX : point.y - BUBBLE_RADIUS_PX,
+      below,
+    });
   }
 
   private placeMarker(pin: GeoPoint | null): void {
