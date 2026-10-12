@@ -44,9 +44,11 @@ import { ItemStore } from './item.store';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page" *transloco="let t">
-      <button type="button" class="back" (click)="back()">
+      <button type="button" class="back bb-text-action-host" (click)="back()">
         <span class="chevron" aria-hidden="true"></span>
-        <span class="bb-text-action">{{ t('item.back') }}</span>
+        <span class="bb-text-action bb-text-action-rtl">{{
+          t('item.back')
+        }}</span>
       </button>
 
       @switch (store.status()) {
@@ -79,7 +81,7 @@ import { ItemStore } from './item.store';
               <p class="owner-note">
                 {{ t('item.yours') }}
                 <a
-                  class="bb-text-action"
+                  class="bb-text-action bb-text-action-rtl"
                   [routerLink]="['/my-items', item.id, 'edit']"
                   >{{ t('item.edit') }}</a
                 >

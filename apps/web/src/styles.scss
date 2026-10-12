@@ -294,7 +294,8 @@ bb-app-shell,
 // Text actions (My items' Edit / View / Pause, the item page's Back and
 // Edit): only the words. On hover they thicken (a text shadow, so the width
 // doesn't jump) and an underline draws from left to right. Put the class on
-// the words; a hovered parent counts too (e.g. a chevron + label button).
+// the words. Only a parent marked .bb-text-action-host (e.g. a chevron +
+// label button) triggers it too, so a row of actions never lights up at once.
 .bb-text-action {
   background: linear-gradient(currentColor, currentColor) 0 100% / 0 2px
     no-repeat;
@@ -306,12 +307,16 @@ bb-app-shell,
 }
 .bb-text-action:not([disabled]):hover,
 .bb-text-action:focus-visible,
-:not([disabled]):hover > .bb-text-action,
-:focus-visible > .bb-text-action {
+.bb-text-action-host:not([disabled]):hover .bb-text-action,
+.bb-text-action-host:focus-visible .bb-text-action {
   background-size: 100% 2px;
   text-shadow:
     0 0 0.6px currentColor,
     0 0 0.6px currentColor;
+}
+// The same, drawn from right to left (the item page's Back and Edit).
+.bb-text-action.bb-text-action-rtl {
+  background-position: 100% 100%;
 }
 
 // The full-screen photo viewer (features/item/photo-viewer).
@@ -444,7 +449,8 @@ body {
 }
 
 // Plain links follow the brand colour and underline smoothly on hover.
-a:not(.mat-mdc-button-base) {
+// Text actions draw their own underline (.bb-text-action).
+a:not(.mat-mdc-button-base):not(.bb-text-action) {
   color: var(--bb-sky-700);
   text-decoration: underline;
   text-decoration-color: transparent;
