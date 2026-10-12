@@ -177,6 +177,6 @@ describe('CatalogRpc patterns', () => {
   it('each have a contract entry', () => {
     // Compile-time check: every pattern is a key of CatalogRpcContract.
     const typed: CatalogRpcPattern[] = patterns;
-    expect(typed).toHaveLength(19);
+    expect(typed).toHaveLength(20);
   });
 });

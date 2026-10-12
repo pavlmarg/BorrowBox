@@ -693,6 +693,57 @@ describe('Search and public item pages (integration)', () => {
     });
   });
 
+  describe('category counts', () => {
+    it('counts what each category would find, with the other filters', async () => {
+      const centre = newArea();
+      const owner = await lender();
+      const at = (m: number) => pointFrom(centre, m, 200);
+      await seed({ lenderId: owner, publicAt: await at(100), title: 'Drill' });
+      await seed({ lenderId: owner, publicAt: await at(200), title: 'Saw' });
+      await seed({
+        lenderId: owner,
+        publicAt: await at(300),
+        title: 'Tent',
+        category: 'camping',
+        free: true,
+      });
+      // Left out: too far, not visible.
+      await seed({ lenderId: owner, publicAt: await at(6_000) });
+      await seed({ lenderId: owner, publicAt: await at(50), status: 'PAUSED' });
+
+      const counts = async (extra: object = {}) => {
+        const response = await catalog.send(CatalogRpc.categoryCounts, {
+          near: centre,
+          radiusKm: 5,
+          ...extra,
+        });
+        responses.push(response);
+        return response.counts;
+      };
+      expect(await counts()).toEqual([
+        { category: 'tools', count: 2 },
+        { category: 'camping', count: 1 },
+      ]);
+      expect(await counts({ freeOnly: true })).toEqual([
+        { category: 'camping', count: 1 },
+      ]);
+      // The same as a search in that category finds.
+      const tools = await search({ near: centre, category: 'tools' });
+      expect(tools.items).toHaveLength(2);
+      expect(
+        (
+          await failure(
+            catalog.send(CatalogRpc.categoryCounts, {
+              near: centre,
+              radiusKm: 5,
+              category: 'tools',
+            } as never),
+          )
+        ).code,
+      ).toBe('VALIDATION_FAILED');
+    });
+  });
+
   describe('featured', () => {
     async function featured(
       near: GeoPoint,

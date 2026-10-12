@@ -2,6 +2,7 @@ import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import {
   CatalogRpc,
+  type CategoryCountsResponse,
   type FeaturedItemsResponse,
   type PublicItemDetail,
   type SearchItemsResponse,
@@ -10,6 +11,7 @@ import {
 } from '@borrowbox/contracts';
 import { ItemRefDto } from '../items/items.dto';
 import {
+  CategoryCountsDto,
   FeaturedItemsDto,
   SearchItemsDto,
   SuggestItemsDto,
@@ -41,6 +43,13 @@ export class SearchController {
   @MessagePattern(CatalogRpc.similar)
   similar(@Payload('data') dto: ItemRefDto): Promise<SimilarItemsResponse> {
     return this.search.similar(dto.itemId);
+  }
+
+  @MessagePattern(CatalogRpc.categoryCounts)
+  categoryCounts(
+    @Payload('data') dto: CategoryCountsDto,
+  ): Promise<CategoryCountsResponse> {
+    return this.search.categoryCounts(dto);
   }
 
   @MessagePattern(CatalogRpc.featured)

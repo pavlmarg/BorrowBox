@@ -212,6 +212,27 @@ export interface SimilarItemsResponse {
   items: PublicItemSummary[];
 }
 
+// --- Category counts ---------------------------------------------------------------
+
+/**
+ * How many results each category would give: the search's area and filters,
+ * apart from the category itself.
+ */
+export type CategoryCountsRequest = Omit<
+  SearchItemsRequest,
+  'category' | 'cursor' | 'limit'
+>;
+
+export interface CategoryCount {
+  category: ItemCategory;
+  count: number;
+}
+
+/** Only categories with at least one result. */
+export interface CategoryCountsResponse {
+  counts: CategoryCount[];
+}
+
 // --- Featured items -----------------------------------------------------------------
 
 /** A strip of items to discover near the searcher, whatever the filters. */

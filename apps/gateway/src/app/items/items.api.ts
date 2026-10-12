@@ -56,6 +56,7 @@ import {
   type SearchRadiusKm,
   type SuggestItemsRequest,
   type FeaturedItemsRequest,
+  type CategoryCountsRequest,
 } from '@borrowbox/contracts';
 
 // HTTP DTOs for Catalog: validated here, validated again by Catalog (never
@@ -338,6 +339,56 @@ export class SearchItemsBody implements SearchItemsRequest {
   limit?: number;
 }
 
+export class CategoryCountsBody implements CategoryCountsRequest {
+  @ApiProperty({
+    type: GeoPointBody,
+    description: 'Used for this search only; never stored or logged.',
+  })
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => GeoPointBody)
+  near!: GeoPointBody;
+
+  @ApiProperty({ enum: SEARCH_RADIUS_KM, enumName: 'SearchRadiusKm' })
+  @IsIn(SEARCH_RADIUS_KM)
+  radiusKm!: SearchRadiusKm;
+
+  @ApiPropertyOptional({ maxLength: SEARCH_QUERY_MAX_LENGTH })
+  @IsOptional()
+  @trim()
+  @IsString()
+  @CharLength(0, SEARCH_QUERY_MAX_LENGTH)
+  q?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  freeOnly?: boolean;
+
+  @ApiPropertyOptional({
+    minimum: RATE_MIN_CENTS,
+    maximum: RATE_MAX_CENTS,
+    description:
+      'With priceUnit: items offering that unit at or below this rate, and free items (ADR-0012)',
+  })
+  @ValidateIf(
+    (o: CategoryCountsBody) =>
+      o.maxPriceCents !== undefined || o.priceUnit !== undefined,
+  )
+  @IsInt()
+  @Min(RATE_MIN_CENTS)
+  @Max(RATE_MAX_CENTS)
+  maxPriceCents?: number;
+
+  @ApiPropertyOptional({ enum: PRICE_UNITS, enumName: 'PriceUnit' })
+  @ValidateIf(
+    (o: CategoryCountsBody) =>
+      o.maxPriceCents !== undefined || o.priceUnit !== undefined,
+  )
+  @IsIn(PRICE_UNITS)
+  priceUnit?: PriceUnit;
+}
+
 export class FeaturedItemsBody implements FeaturedItemsRequest {
   @ApiProperty({
     type: GeoPointBody,
@@ -524,6 +575,20 @@ export class SimilarItemsResponse {
     description: 'distanceBand is measured from the item',
   })
   items!: PublicItemSummaryResponse[];
+}
+
+export class CategoryCountResponse {
+  @ApiProperty({ enum: ITEM_CATEGORIES, enumName: 'ItemCategory' })
+  category!: ItemCategory;
+  @ApiProperty() count!: number;
+}
+
+export class CategoryCountsResponse {
+  @ApiProperty({
+    type: [CategoryCountResponse],
+    description: 'Categories with at least one result, biggest first',
+  })
+  counts!: CategoryCountResponse[];
 }
 
 export class FeaturedItemsResponse {

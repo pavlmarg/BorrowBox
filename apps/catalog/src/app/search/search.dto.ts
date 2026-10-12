@@ -21,6 +21,7 @@ import {
   SEARCH_QUERY_MAX_LENGTH,
   SEARCH_RADIUS_KM,
   SUGGEST_MIN_LENGTH,
+  type CategoryCountsRequest,
   type FeaturedItemsRequest,
   type ItemCategory,
   type PriceUnit,
@@ -113,4 +114,43 @@ export class FeaturedItemsDto implements FeaturedItemsRequest {
 
   @IsIn(SEARCH_RADIUS_KM)
   radiusKm!: SearchRadiusKm;
+}
+
+export class CategoryCountsDto implements CategoryCountsRequest {
+  /** Used for this query only: never stored, logged or echoed in errors. */
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => GeoPointDto)
+  near!: GeoPointDto;
+
+  @IsIn(SEARCH_RADIUS_KM)
+  radiusKm!: SearchRadiusKm;
+
+  /** Blank counts as no text. */
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @CharLength(0, SEARCH_QUERY_MAX_LENGTH)
+  q?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  freeOnly?: boolean;
+
+  /** Comes with `priceUnit`, and the other way round. */
+  @ValidateIf(
+    (o: CategoryCountsDto) =>
+      o.maxPriceCents !== undefined || o.priceUnit !== undefined,
+  )
+  @IsInt()
+  @Min(RATE_MIN_CENTS)
+  @Max(RATE_MAX_CENTS)
+  maxPriceCents?: number;
+
+  @ValidateIf(
+    (o: CategoryCountsDto) =>
+      o.maxPriceCents !== undefined || o.priceUnit !== undefined,
+  )
+  @IsIn(PRICE_UNITS)
+  priceUnit?: PriceUnit;
 }

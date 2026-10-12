@@ -4,6 +4,9 @@
 export type { ApiErrorResponse } from './models/api-error-response';
 export type { AuthResponse } from './models/auth-response';
 export type { CatalogDataExportResponse } from './models/catalog-data-export-response';
+export type { CategoryCountResponse } from './models/category-count-response';
+export type { CategoryCountsBody } from './models/category-counts-body';
+export type { CategoryCountsResponse } from './models/category-counts-response';
 export type { CreateItemBody } from './models/create-item-body';
 export type { CreatePhotoUploadBody } from './models/create-photo-upload-body';
 export type { DataExportResponse } from './models/data-export-response';

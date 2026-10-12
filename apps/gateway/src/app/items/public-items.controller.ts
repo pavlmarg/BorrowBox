@@ -20,6 +20,8 @@ import { CatalogClient } from '../catalog/catalog.client';
 import { SuggestRateLimit } from '../http/rate-limits';
 import { CorrelationId } from '../http/request-context';
 import {
+  CategoryCountsBody,
+  CategoryCountsResponse,
   FeaturedItemsBody,
   FeaturedItemsResponse,
   PublicItemDetailResponse,
@@ -78,6 +80,23 @@ export class PublicItemsController {
     @CorrelationId() correlationId: string,
   ): Promise<SuggestItemsResponse> {
     return this.catalog.call(CatalogRpc.suggest, body, { correlationId });
+  }
+
+  @Post('category-counts')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'How many results each category would give',
+    description:
+      'The search filters apart from the category. The point is used for this request only.',
+  })
+  @ApiOkResponse({ type: CategoryCountsResponse })
+  categoryCounts(
+    @Body() body: CategoryCountsBody,
+    @CorrelationId() correlationId: string,
+  ): Promise<CategoryCountsResponse> {
+    return this.catalog.call(CatalogRpc.categoryCounts, body, {
+      correlationId,
+    });
   }
 
   @Post('featured')

@@ -10,6 +10,9 @@ export { Api } from './api';
 export type { ApiErrorResponse } from './models/api-error-response';
 export type { AuthResponse } from './models/auth-response';
 export type { CatalogDataExportResponse } from './models/catalog-data-export-response';
+export type { CategoryCountResponse } from './models/category-count-response';
+export type { CategoryCountsBody } from './models/category-counts-body';
+export type { CategoryCountsResponse } from './models/category-counts-response';
 export type { CreateItemBody } from './models/create-item-body';
 export type { CreatePhotoUploadBody } from './models/create-photo-upload-body';
 export type { DataExportResponse } from './models/data-export-response';
@@ -104,6 +107,8 @@ export type { PublicItemsControllerSearch$Params as PublicItemsControllerSearch$
 export { publicItemsControllerSearch as publicItemsControllerSearch } from './fn/items/public-items-controller-search';
 export type { PublicItemsControllerSuggest$Params as PublicItemsControllerSuggest$Params } from './fn/items/public-items-controller-suggest';
 export { publicItemsControllerSuggest as publicItemsControllerSuggest } from './fn/items/public-items-controller-suggest';
+export type { PublicItemsControllerCategoryCounts$Params as PublicItemsControllerCategoryCounts$Params } from './fn/items/public-items-controller-category-counts';
+export { publicItemsControllerCategoryCounts as publicItemsControllerCategoryCounts } from './fn/items/public-items-controller-category-counts';
 export type { PublicItemsControllerFeatured$Params as PublicItemsControllerFeatured$Params } from './fn/items/public-items-controller-featured';
 export { publicItemsControllerFeatured as publicItemsControllerFeatured } from './fn/items/public-items-controller-featured';
 export type { PublicItemsControllerGet$Params as PublicItemsControllerGet$Params } from './fn/items/public-items-controller-get';

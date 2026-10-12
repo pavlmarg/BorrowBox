@@ -1468,6 +1468,49 @@
         ]
       }
     },
+    "/api/items/category-counts": {
+      "post": {
+        "description": "The search filters apart from the category. The point is used for this request only.",
+        "operationId": "PublicItemsController_categoryCounts",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryCountsBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryCountsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "How many results each category would give",
+        "tags": [
+          "items"
+        ]
+      }
+    },
     "/api/items/featured": {
       "post": {
         "description": "For now the newest active items within the radius, whatever the search filters. The point is used for this request only.",
@@ -2694,6 +2737,84 @@
         },
         "required": [
           "suggestions"
+        ]
+      },
+      "CategoryCountsBody": {
+        "type": "object",
+        "properties": {
+          "near": {
+            "description": "Used for this search only; never stored or logged.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GeoPointBody"
+              }
+            ]
+          },
+          "radiusKm": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SearchRadiusKm"
+              }
+            ]
+          },
+          "q": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "freeOnly": {
+            "type": "boolean"
+          },
+          "maxPriceCents": {
+            "type": "number",
+            "minimum": 10,
+            "maximum": 100000,
+            "description": "With priceUnit: items offering that unit at or below this rate, and free items (ADR-0012)"
+          },
+          "priceUnit": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriceUnit"
+              }
+            ]
+          }
+        },
+        "required": [
+          "near",
+          "radiusKm"
+        ]
+      },
+      "CategoryCountResponse": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ItemCategory"
+              }
+            ]
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "category",
+          "count"
+        ]
+      },
+      "CategoryCountsResponse": {
+        "type": "object",
+        "properties": {
+          "counts": {
+            "description": "Categories with at least one result, biggest first",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryCountResponse"
+            }
+          }
+        },
+        "required": [
+          "counts"
         ]
       },
       "FeaturedItemsBody": {
