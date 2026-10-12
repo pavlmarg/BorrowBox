@@ -6,6 +6,7 @@ import {
   input,
   viewChild,
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
 
 export type AuthVideo = 'register' | 'login';
@@ -31,7 +32,7 @@ function prefersReducedMotion(): boolean {
  */
 @Component({
   selector: 'bb-auth-scene',
-  imports: [TranslocoDirective],
+  imports: [TranslocoDirective, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div
@@ -65,7 +66,9 @@ function prefersReducedMotion(): boolean {
       <div class="panel">
         <div class="panel-inner" *transloco="let t">
           <header class="brand">
-            <p class="name">{{ t('app.name') }}</p>
+            <p class="name">
+              <a routerLink="/explore">{{ t('app.name') }}</a>
+            </p>
             <p class="tagline">{{ t('app.tagline') }}</p>
           </header>
           <ng-content />
@@ -171,6 +174,19 @@ function prefersReducedMotion(): boolean {
     }
     .tone-login .name {
       color: #137a74;
+    }
+    /* The name is the way back to Explore. */
+    .name a {
+      color: inherit;
+      text-decoration: none;
+      transition: opacity var(--bb-medium) var(--bb-ease);
+    }
+    .name a:hover {
+      opacity: 0.75;
+    }
+    .name a:focus-visible {
+      outline: 3px solid var(--bb-sky-300);
+      outline-offset: 2px;
     }
     .tagline {
       color: var(--mat-sys-on-surface-variant);

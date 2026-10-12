@@ -116,6 +116,11 @@ export type DistanceBand = (typeof DISTANCE_BANDS)[number];
 export interface PublicItemSummary {
   id: string;
   title: string;
+  /**
+   * The description's start: at most `DESCRIPTION_EXCERPT_MAX_LENGTH`
+   * characters, cut at a word and ending in "…" when shortened.
+   */
+  descriptionExcerpt: string;
   category: ItemCategory;
   pricing: ItemPricing;
   depositCents: number;
@@ -204,5 +209,43 @@ export interface SuggestItemsResponse {
  * `SIMILAR_ITEMS_MAX`; each `distanceBand` is measured from this item.
  */
 export interface SimilarItemsResponse {
+  items: PublicItemSummary[];
+}
+
+// --- Category counts ---------------------------------------------------------------
+
+/**
+ * How many results each category would give: the search's area and filters,
+ * apart from the category itself.
+ */
+export type CategoryCountsRequest = Omit<
+  SearchItemsRequest,
+  'category' | 'cursor' | 'limit'
+>;
+
+export interface CategoryCount {
+  category: ItemCategory;
+  count: number;
+}
+
+/** Only categories with at least one result. */
+export interface CategoryCountsResponse {
+  counts: CategoryCount[];
+}
+
+// --- Featured items -----------------------------------------------------------------
+
+/** A strip of items to discover near the searcher, whatever the filters. */
+export interface FeaturedItemsRequest {
+  /** The searcher's chosen point; used for this query only, never stored or logged. */
+  near: GeoPoint;
+  radiusKm: SearchRadiusKm;
+}
+
+/**
+ * At most `FEATURED_ITEMS_MAX`. For now the most recently published items
+ * within the radius; Phase 3 ranks them by bookings instead.
+ */
+export interface FeaturedItemsResponse {
   items: PublicItemSummary[];
 }

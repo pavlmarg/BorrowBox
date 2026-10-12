@@ -24,11 +24,12 @@ describe('start page', () => {
   }
 
   it.each([
-    ['/', false, '/auth/register'],
-    ['/unknown/page', false, '/auth/register'],
+    ['/', false, '/explore'],
+    ['/unknown/page', false, '/explore'],
     ['/auth', false, '/auth/register'],
-    ['/', true, '/profile'],
-    ['/unknown/page', true, '/profile'],
+    ['/', true, '/explore'],
+    ['/unknown/page', true, '/explore'],
+    ['/explore', false, '/explore'],
     ['/settings', true, '/settings'],
     ['/settings', false, '/auth/login?returnUrl=%2Fsettings'],
   ])('%s (signed in: %s) lands on %s', async (url, signedIn, expected) => {

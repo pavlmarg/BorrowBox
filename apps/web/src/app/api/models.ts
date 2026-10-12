@@ -4,6 +4,9 @@
 export type { ApiErrorResponse } from './models/api-error-response';
 export type { AuthResponse } from './models/auth-response';
 export type { CatalogDataExportResponse } from './models/catalog-data-export-response';
+export type { CategoryCountResponse } from './models/category-count-response';
+export type { CategoryCountsBody } from './models/category-counts-body';
+export type { CategoryCountsResponse } from './models/category-counts-response';
 export type { CreateItemBody } from './models/create-item-body';
 export type { CreatePhotoUploadBody } from './models/create-photo-upload-body';
 export type { DataExportResponse } from './models/data-export-response';
@@ -12,6 +15,8 @@ export type { DistanceBand } from './models/distance-band';
 export type { ExportedOAuthIdentity } from './models/exported-o-auth-identity';
 export type { ExportedSession } from './models/exported-session';
 export type { ExportedUser } from './models/exported-user';
+export type { FeaturedItemsBody } from './models/featured-items-body';
+export type { FeaturedItemsResponse } from './models/featured-items-response';
 export type { GeoPointBody } from './models/geo-point-body';
 export type { GeoPointResponse } from './models/geo-point-response';
 export type { HealthResponse } from './models/health-response';

@@ -8,8 +8,24 @@ export type NavIconName =
   | 'profile'
   | 'settings'
   | 'logout'
+  | 'login'
+  | 'register'
   | 'menu'
-  | 'close';
+  | 'search'
+  | 'filter'
+  | 'map'
+  | 'list'
+  | 'location'
+  | 'check'
+  | 'close'
+  | 'chevron-left'
+  | 'chevron-right'
+  | 'chevron-down'
+  | 'trash'
+  | 'camera'
+  | 'upload'
+  | 'pause'
+  | 'play';
 
 /** Outline icons as inline SVG: no icon font, nothing loaded from a CDN. */
 @Component({
@@ -52,11 +68,82 @@ export type NavIconName =
           />
           <path d="m15.5 16.5 4.5-4.5-4.5-4.5M20 12H9.5" />
         }
+        @case ('login') {
+          <path
+            d="M14.5 3.5H19a1.5 1.5 0 0 1 1.5 1.5v14a1.5 1.5 0 0 1-1.5 1.5h-4.5"
+          />
+          <path d="m9.5 16.5 4.5-4.5-4.5-4.5M14 12H3.5" />
+        }
+        @case ('register') {
+          <circle cx="10" cy="8.5" r="4" />
+          <path d="M2.5 20.5c1.1-3.4 4-5.5 7.5-5.5 1.6 0 3 .4 4.2 1.1" />
+          <path d="M18.5 14v6M15.5 17h6" />
+        }
+        @case ('search') {
+          <circle cx="10.5" cy="10.5" r="6.5" />
+          <path d="m15.5 15.5 5 5" />
+        }
+        @case ('filter') {
+          <path d="M4 6.5h16M7 12h10M10 17.5h4" />
+        }
+        @case ('map') {
+          <path d="M9 4.5 3.5 6.5v13l5.5-2 6 2 5.5-2v-13l-5.5 2-6-2Z" />
+          <path d="M9 4.5v13M15 6.5v13" />
+        }
+        @case ('list') {
+          <path d="M9 6.5h11M9 12h11M9 17.5h11" />
+          <path d="M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" />
+        }
+        @case ('location') {
+          <circle cx="12" cy="12" r="3.5" />
+          <circle cx="12" cy="12" r="7.5" />
+          <path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22" />
+        }
+        @case ('check') {
+          <path d="m4.5 12.5 5 5 10-11" />
+        }
         @case ('menu') {
           <path d="M4 6.5h16M4 12h16M4 17.5h16" />
         }
         @case ('close') {
           <path d="m6 6 12 12M18 6 6 18" />
+        }
+        @case ('chevron-left') {
+          <path d="m14.5 6-6 6 6 6" />
+        }
+        @case ('chevron-right') {
+          <path d="m9.5 6 6 6-6 6" />
+        }
+        @case ('camera') {
+          <path
+            d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.2l1.5-2.2h5.6L16.3 7h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5v-9Z"
+          />
+          <circle cx="12" cy="12.8" r="3.4" />
+        }
+        @case ('upload') {
+          <path d="M12 15.5V4.5M7.5 9 12 4.5 16.5 9" />
+          <path
+            d="M4.5 15v3a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-3"
+          />
+        }
+        @case ('trash') {
+          <!-- The body, then the lid a little above it. -->
+          <path d="M10 11.5v5.5M14 11.5v5.5" />
+          <path
+            d="M6 8.5l1 11a1.5 1.5 0 0 0 1.5 1.5h7a1.5 1.5 0 0 0 1.5-1.5l1-11Z"
+          />
+          <g class="lid">
+            <path d="M4.5 6h15M9 6V3.5h6V6" />
+          </g>
+        }
+        @case ('chevron-down') {
+          <path d="m6 9.5 6 6 6-6" />
+        }
+        @case ('pause') {
+          <path d="M9 6v12M15 6v12" />
+        }
+        @case ('play') {
+          <path d="M8 5.5v13l10-6.5-10-6.5Z" />
         }
       }
     </svg>
@@ -71,11 +158,29 @@ export type NavIconName =
     svg {
       fill: none;
       height: 100%;
+      /* Moving parts (the bin's lid) may leave the 24 × 24 box. */
+      overflow: visible;
       stroke: currentColor;
       stroke-linecap: round;
       stroke-linejoin: round;
-      stroke-width: 1.7;
+      /* A parent may draw an icon bolder, e.g. on hover. */
+      stroke-width: var(--bb-icon-stroke, 1.7);
+      transition: stroke-width 300ms var(--bb-ease);
       width: 100%;
+    }
+    /* The bin's lid opens 30° on its right-hand hinge while a parent marked
+       bb-lid-trigger is pointed at or focused. */
+    .lid {
+      transform-box: view-box;
+      transform-origin: 19.5px 6px;
+      /* Closing: a soft settle. */
+      transition: transform 260ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    :host-context(.bb-lid-trigger:not([disabled]):hover) .lid,
+    :host-context(.bb-lid-trigger:focus-visible) .lid {
+      transform: rotate(30deg);
+      /* Opening: a little spring past 30° and back. */
+      transition: transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
     }
   `,
 })

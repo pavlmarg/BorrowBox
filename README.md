@@ -52,16 +52,22 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
         *   Email verification and password reset (Phase 3, needs Notifications). Unverified accounts can sign in and browse, but listing, booking and messaging require a verified email. (Until verification exists, Phase 2 lets unverified accounts list items; Phase 3 enforces the rule.)
         *   Terms of Service / Privacy Policy pages, and recorded acceptance at sign-up — including the first Google sign-in that creates an account (GDPR).
         *   Upgrade to NestJS 12 once `@nx/nest` supports it.
-*   [ ] **Phase 2 – Catalog:** item CRUD, photo upload, geo search + map, fuzzed locations
+*   [x] **Phase 2 – Catalog:** item CRUD, photo upload, geo search + map, fuzzed locations, and the PWA's Explore, item page, listing wizard and My items
     *   Follow-ups:
         *   Identity and Catalog share copied service boilerplate (config, database, events, RPC errors, test harness). Move it into a shared lib when Bookings, the third service, arrives (Phase 3).
         *   A managed Postgres in production needs `CREATE EXTENSION postgis` run by an admin; locally the PostGIS image does it (Phase 7).
-        *   Search as you type sends a request per pause in typing: give `catalog.items.suggest`'s gateway endpoint its own, higher rate limit (step 11).
+        *   ~~Search as you type sends a request per pause in typing: give `catalog.items.suggest`'s gateway endpoint its own, higher rate limit (step 11).~~ Done in step 11 (300 per minute).
         *   Greek word forms: Postgres' Greek stemmer gives some forms of a word different stems (e.g. "μπαταρίας" vs "μπαταρία"), so typing one full form can miss the other. Partial words match both. Revisit if users notice (e.g. a Greek dictionary or `pg_trgm`).
         *   Suggestions check each typed word per item rather than through the full-text index. Fine for a neighbourhood's items; if it gets slow at scale, build one prefix `tsquery` and use the GIN index.
         *   "More from this lender" on item pages: Phase 6 (Trust), with reviews. Not a people search: names are never searchable.
         *   The production Docker image must use a base image `sharp` ships binaries for (e.g. Debian slim; Alpine needs the musl build) (Phase 7).
+        *   Production CSP for maps: `connect-src` and `img-src` must allow `https://api.maptiler.com`; MapLibre's worker is served from our own origin, so `worker-src 'self'` is enough. The deployment writes the PWA's `config.json` with the production MapTiler key, restricted to the production domain (Phase 7).
         *   Paid extra listing slots (e.g. packs of 5 or 10 beyond the free 10 items): after Phase 4 (Payments), and only after an ADR on pricing, one-off vs subscription, what happens to items over the limit when it ends, refunds and EU VAT.
+        *   Explore's featured carousel shows the newest items nearby for now; rank it by bookings once they exist, from Catalog counting `booking.completed` per item (Phase 3).
+        *   Profile photos: "Change photo" is a placeholder and avatars are a silhouette. Uploading one reuses the photo pipeline (ADR-0009) and must be covered by export and deletion (GDPR).
+        *   Item titles and descriptions are searched in the language they were written in. If cross-language search matters, first add a hint in the listing wizard ("add the English name too"); machine translation would mean a new data processor (GDPR) and an ADR.
+        *   Price tags on Explore's map (ADR-0014): revisit if users take them for exact addresses.
+        *   CI speed-up: cache `.nx/cache` and pre-pull the Testcontainers images in GitHub Actions.
 *   [ ] **Phase 3 – Bookings:** availability, request / accept / decline, state machine, email notifications
 *   [ ] **Phase 4 – Payments:** Stripe Connect onboarding, checkout, webhooks, transfers & refunds (test mode)
 *   [ ] **Phase 5 – Handoff:** QR pickup/return protocol, condition photos, claim window
@@ -110,7 +116,11 @@ node tools/gen-jwt-keys.mjs
 # 3. Set COOKIE_SECRET in apps/gateway/.env (32+ random characters):
 node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 
-# 4. Start them (one terminal each)
+# 4. Maps (optional): copy the PWA's runtime config and put your MapTiler key in it.
+#    Without it, maps show "map unavailable" and everything else works.
+cp apps/web/public/config.example.json apps/web/public/config.json
+
+# 5. Start them (one terminal each)
 npx nx serve identity   # TCP :4001, runs DB migrations in dev
 npx nx serve catalog    # TCP :4002, runs DB migrations in dev; needs Redis + SeaweedFS (photo pipeline)
 npx nx serve gateway    # http://localhost:3000/api (Swagger UI at /api/docs)

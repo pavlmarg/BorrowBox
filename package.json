@@ -106,6 +106,7 @@
     "helmet": "^8.3.0",
     "ioredis": "^5.11.1",
     "jose": "^6.2.12",
+    "maplibre-gl": "~6.13.0",
     "openid-client": "^6.8.8",
     "pg": "^8.23.0",
     "reflect-metadata": "^0.2.2",

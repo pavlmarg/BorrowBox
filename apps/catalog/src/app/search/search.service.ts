@@ -2,10 +2,14 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { DataSource } from 'typeorm';
 import {
+  DESCRIPTION_EXCERPT_MAX_LENGTH,
+  FEATURED_ITEMS_MAX,
   SEARCH_PAGE_SIZE_DEFAULT,
   SIMILAR_ITEMS_MAX,
   SIMILAR_ITEMS_RADIUS_KM,
   SUGGEST_LIMIT,
+  type CategoryCountsResponse,
+  type FeaturedItemsResponse,
   type PublicItemDetail,
   type PublicItemSummary,
   type SearchItemsResponse,
@@ -17,9 +21,17 @@ import { DATA_SOURCE } from '../database/database.module';
 import { photoUrls, toPricing } from '../items/items.repository';
 import { CatalogError } from '../rpc/rpc-errors';
 import { decodeCursor, distanceBand, encodeCursor } from './search-paging';
+import { excerpt } from './excerpt';
 import { typedWords } from './typed-words';
-import type { SearchItemsDto, SuggestItemsDto } from './search.dto';
+import type {
+  CategoryCountsDto,
+  FeaturedItemsDto,
+  SearchItemsDto,
+  SuggestItemsDto,
+} from './search.dto';
 import {
+  countByCategory,
+  featuredItems,
   findPublicItem,
   listPublicPhotos,
   searchItems,
@@ -140,11 +152,45 @@ export class SearchService {
     return { items: rows.map((row) => this.toSummary(row)) };
   }
 
-  /** A search result card; also used by similar items. */
+  /** How many results each category would give, biggest first. */
+  async categoryCounts(
+    dto: CategoryCountsDto,
+  ): Promise<CategoryCountsResponse> {
+    const counts = await countByCategory(this.dataSource.manager, {
+      near: dto.near,
+      radiusM: dto.radiusKm * 1000,
+      text: dto.q ? dto.q : null,
+      freeOnly: dto.freeOnly ?? false,
+      maxPriceCents: dto.maxPriceCents ?? null,
+      priceUnit: dto.priceUnit ?? null,
+    });
+    return {
+      counts: counts.sort(
+        (a, b) => b.count - a.count || a.category.localeCompare(b.category),
+      ),
+    };
+  }
+
+  /** Featured items on Explore: newest first for now, whatever the filters. */
+  async featured(dto: FeaturedItemsDto): Promise<FeaturedItemsResponse> {
+    const rows = await featuredItems(
+      this.dataSource.manager,
+      dto.near,
+      dto.radiusKm * 1000,
+      FEATURED_ITEMS_MAX,
+    );
+    return { items: rows.map((row) => this.toSummary(row)) };
+  }
+
+  /** A search result card; also used by similar and featured items. */
   toSummary(row: PublicItemRow): PublicItemSummary {
     return {
       id: row.id,
       title: row.title,
+      descriptionExcerpt: excerpt(
+        row.description,
+        DESCRIPTION_EXCERPT_MAX_LENGTH,
+      ),
       category: row.category,
       pricing: toPricing(row),
       depositCents: row.deposit_cents,

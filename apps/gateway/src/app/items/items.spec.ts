@@ -115,6 +115,48 @@ describe('Catalog routes (integration)', () => {
       expect(catalog.callsTo(CatalogRpc.suggest)).toHaveLength(1);
     });
 
+    it('counts results per category, refusing a category in the body', async () => {
+      const counts = [{ category: 'tools', count: 3 }];
+      catalog.on(CatalogRpc.categoryCounts, () => ({ counts }));
+      const body = { near: NEAR, radiusKm: 5, q: 'drill', freeOnly: true };
+      await gw
+        .http()
+        .post('/api/items/category-counts')
+        .send(body)
+        .expect(200, { counts });
+      expect(
+        catalog.callsTo(CatalogRpc.categoryCounts)[0].message.data,
+      ).toEqual(body);
+
+      await gw
+        .http()
+        .post('/api/items/category-counts')
+        .send({ ...body, category: 'tools' })
+        .expect(400);
+      expect(catalog.callsTo(CatalogRpc.categoryCounts)).toHaveLength(1);
+    });
+
+    it('lists featured items with the point in the body, without any token', async () => {
+      catalog.on(CatalogRpc.featured, () => ({ items: [] }));
+      const body = { near: NEAR, radiusKm: 10 };
+      await gw
+        .http()
+        .post('/api/items/featured')
+        .send(body)
+        .expect(200, { items: [] });
+      const [call] = catalog.callsTo(CatalogRpc.featured);
+      expect(call.message.data).toEqual(body);
+      expect(call.message.accessToken).toBeUndefined();
+
+      const res = await gw
+        .http()
+        .post('/api/items/featured')
+        .send({ near: NEAR, radiusKm: 3 })
+        .expect(400);
+      expect(JSON.stringify(res.body)).not.toMatch(/37\.98|23\.72/);
+      expect(catalog.callsTo(CatalogRpc.featured)).toHaveLength(1);
+    });
+
     it('allows 300 suggestions a minute per IP, more than the default 120', async () => {
       catalog.on(CatalogRpc.suggest, () => ({ suggestions: [] }));
       const send = () =>

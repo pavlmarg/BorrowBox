@@ -48,3 +48,6 @@ Thumbs.db
 .claude/settings.local.json
 
 .angular
+
+# PWA runtime config (map key); copy apps/web/public/config.example.json
+apps/web/public/config.json

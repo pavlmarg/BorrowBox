@@ -19,7 +19,7 @@ ADR-0004 stores a private exact point (`location`) and a public fuzzed point (`l
 - **Unchanged from ADR-0004:**
   - the exact point stays private (only the owner sees it)
   - it is revealed only to a renter with a `PAID` booking, until the booking completes (Phase 3+)
-  - the UI shows a circle, not a pin
+  - the UI shows a circle, not a pin *(Explore's map: amended by [ADR-0014](0014-price-tags-on-explore-map.md))*
   - every photo is stripped of EXIF/GPS data
 
 ## Consequences

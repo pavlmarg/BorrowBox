@@ -52,6 +52,11 @@ describe('LoginPage', () => {
   const submit = (el: HTMLElement) =>
     find<HTMLButtonElement>(el, 'button[type=submit]').click();
 
+  it('takes the BorrowBox name back to Explore', async () => {
+    const { el } = await render();
+    expect(el.querySelector('.name a')?.getAttribute('href')).toBe('/explore');
+  });
+
   it('shows translated validation errors and sends nothing when invalid', async () => {
     const { fixture, el, http } = await render();
     submit(el);

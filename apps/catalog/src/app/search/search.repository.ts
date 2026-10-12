@@ -65,6 +65,40 @@ const VISIBLE =
   ' FROM items i' +
   ' JOIN lenders l ON l.user_id = i.lender_id AND l.deleted_at IS NULL';
 
+/**
+ * The search's filters on $1–$8: point (lng, lat), radius, text, category,
+ * free only, maximum price and its unit. Shared by the search and the
+ * category counts, so the counts always match what a search finds.
+ */
+const SEARCH_MATCH =
+  ' CROSS JOIN (SELECT ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography AS pt) p' +
+  ` WHERE i.status = 'ACTIVE'
+      AND ST_DWithin(i.location_public, p.pt, $3::float8)
+      AND ($4::text IS NULL
+           OR i.search_vector @@ (websearch_to_tsquery('greek', $4::text)
+                               || websearch_to_tsquery('english', $4::text)))
+      AND ($5::text IS NULL OR i.category = $5::text)
+      AND (NOT $6::boolean OR i.free)
+      AND ($7::int IS NULL OR i.free OR
+           CASE $8::text WHEN 'HOUR' THEN i.hourly_cents
+                         WHEN 'DAY' THEN i.daily_cents
+                         WHEN 'WEEK' THEN i.weekly_cents
+                         WHEN 'MONTH' THEN i.monthly_cents
+           END <= $7::int)`;
+
+function matchParams(f: Omit<SearchFilters, 'after' | 'limit'>): unknown[] {
+  return [
+    f.near.lng,
+    f.near.lat,
+    f.radiusM,
+    f.text,
+    f.category,
+    f.freeOnly,
+    f.maxPriceCents,
+    f.priceUnit,
+  ];
+}
+
 /** Nearest first, then id; `limit` rows after the cursor. */
 export async function searchItems(
   tx: EntityManager,
@@ -75,39 +109,34 @@ export async function searchItems(
       PUBLIC_COLUMNS +
       ', ST_Distance(i.location_public, p.pt) AS distance_m' +
       VISIBLE +
-      ' CROSS JOIN (SELECT ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography AS pt) p' +
-      ` WHERE i.status = 'ACTIVE'
-          AND ST_DWithin(i.location_public, p.pt, $3::float8)
-          AND ($4::text IS NULL
-               OR i.search_vector @@ (websearch_to_tsquery('greek', $4::text)
-                                   || websearch_to_tsquery('english', $4::text)))
-          AND ($5::text IS NULL OR i.category = $5::text)
-          AND (NOT $6::boolean OR i.free)
-          AND ($7::int IS NULL OR i.free OR
-               CASE $8::text WHEN 'HOUR' THEN i.hourly_cents
-                             WHEN 'DAY' THEN i.daily_cents
-                             WHEN 'WEEK' THEN i.weekly_cents
-                             WHEN 'MONTH' THEN i.monthly_cents
-               END <= $7::int)
-          AND ($9::float8 IS NULL
+      SEARCH_MATCH +
+      ` AND ($9::float8 IS NULL
                OR ST_Distance(i.location_public, p.pt) > $9::float8
                OR (ST_Distance(i.location_public, p.pt) = $9::float8 AND i.id > $10::uuid))
         ORDER BY distance_m, i.id
         LIMIT $11::int`,
     [
-      f.near.lng,
-      f.near.lat,
-      f.radiusM,
-      f.text,
-      f.category,
-      f.freeOnly,
-      f.maxPriceCents,
-      f.priceUnit,
+      ...matchParams(f),
       f.after?.distanceM ?? null,
       f.after?.itemId ?? null,
       f.limit,
     ],
   );
+}
+
+/** Results per category for the search's filters, without its category. */
+export async function countByCategory(
+  tx: EntityManager,
+  f: Omit<SearchFilters, 'category' | 'after' | 'limit'>,
+): Promise<Array<{ category: ItemCategory; count: number }>> {
+  const rows: Array<{ category: ItemCategory; count: string }> = await tx.query(
+    'SELECT i.category, count(*) AS count' +
+      VISIBLE +
+      SEARCH_MATCH +
+      ' GROUP BY i.category',
+    matchParams({ ...f, category: null }),
+  );
+  return rows.map((r) => ({ category: r.category, count: Number(r.count) }));
 }
 
 /**
@@ -140,6 +169,31 @@ export async function suggestItems(
         ORDER BY distance_m, i.id
         LIMIT $5::int`,
     [near.lng, near.lat, radiusM, words, limit],
+  );
+}
+
+/**
+ * Featured items on Explore: for now the most recently published visible
+ * items within `radiusM` of `near` (Phase 3 ranks by bookings instead).
+ * `distance_m` is measured from `near`.
+ */
+export async function featuredItems(
+  tx: EntityManager,
+  near: GeoPoint,
+  radiusM: number,
+  limit: number,
+): Promise<PublicItemRow[]> {
+  return tx.query(
+    'SELECT ' +
+      PUBLIC_COLUMNS +
+      ', ST_Distance(i.location_public, p.pt) AS distance_m' +
+      VISIBLE +
+      ' CROSS JOIN (SELECT ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography AS pt) p' +
+      ` WHERE i.status = 'ACTIVE'
+          AND ST_DWithin(i.location_public, p.pt, $3::float8)
+        ORDER BY i.published_at DESC, i.id
+        LIMIT $4::int`,
+    [near.lng, near.lat, radiusM, limit],
   );
 }
 

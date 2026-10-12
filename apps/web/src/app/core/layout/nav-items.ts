@@ -6,18 +6,28 @@ export interface NavItem {
   readonly icon: NavIconName;
   /** Absent: the feature arrives in a later phase and shows as "Soon". */
   readonly route?: string;
+  /** Hidden from signed-out visitors (E3). */
+  readonly requiresAuth?: boolean;
+  /** Reached through the avatar, not listed in the bar or drawer. */
+  readonly accountMenu?: boolean;
 }
 
-/** The sidebar's main section. A later phase enables an item by adding its route. */
+/** The main navigation (drawer and top bar). A later phase enables an item by adding its route. */
 export const MAIN_NAV: readonly NavItem[] = [
-  { key: 'explore', icon: 'explore' }, // Phase 2
-  { key: 'myItems', icon: 'items' }, // Phase 2
+  { key: 'explore', icon: 'explore', route: '/explore' },
+  { key: 'myItems', icon: 'items', route: '/my-items', requiresAuth: true },
   { key: 'rentals', icon: 'rentals' }, // Phase 3
   { key: 'messages', icon: 'messages' }, // Phase 6
-  { key: 'profile', icon: 'profile', route: '/profile' },
+  {
+    key: 'profile',
+    icon: 'profile',
+    route: '/profile',
+    requiresAuth: true,
+    accountMenu: true,
+  },
 ];
 
-/** Pinned to the bottom of the sidebar. */
+/** Pinned to the bottom of the drawer (phones); on desktop, from the profile. */
 export const FOOTER_NAV: readonly NavItem[] = [
-  { key: 'settings', icon: 'settings', route: '/settings' },
+  { key: 'settings', icon: 'settings', route: '/settings', requiresAuth: true },
 ];

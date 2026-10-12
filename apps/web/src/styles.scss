@@ -70,6 +70,8 @@ html {
   --bb-sky-300: #9dd1ff;
   --bb-sky-500: #4aa8f0;
   --bb-sky-700: #1f6fb2;
+  // Almost white, with only a faint cool tint (was the pale sky-50).
+  --bb-page-bg: #fafbfc;
   --bb-card-bg: rgb(255 255 255 / 0.86);
   --bb-card-border: rgb(255 255 255 / 0.7);
   --bb-shadow-sm:
@@ -83,21 +85,339 @@ html {
   --bb-fade: 500ms;
 }
 
+// Signed-in pages (inside the app shell) and pop-ups (dialogs, menus,
+// autocomplete panels, snack bars render in the CDK overlay): square corners,
+// except buttons, which get 2 px. Login and register keep the softer shapes above. Round on
+// purpose and not changed here: map circles and cluster bubbles (an
+// approximate area, ADR-0007), and switches, radios and spinners.
+bb-app-shell,
+.cdk-overlay-container {
+  --bb-radius: 0;
+  --bb-button-radius: 2px;
+  // The language toggle (shared with login/register, where it stays rounded).
+  --bb-control-radius: var(--bb-button-radius);
+  --bb-flag-radius: 0;
+  // Material's shared corner scale, for components without their own token
+  // (select panels, date pickers, …). `corner-full` stays: switches use it.
+  --mat-sys-corner-extra-small: 0;
+  --mat-sys-corner-small: 0;
+  --mat-sys-corner-medium: 0;
+  --mat-sys-corner-large: 0;
+  --mat-sys-corner-extra-large: 0;
+
+  // MapLibre's zoom buttons and attribution.
+  .maplibregl-ctrl-group {
+    border-radius: var(--bb-button-radius);
+  }
+  .maplibregl-ctrl-attrib,
+  .maplibregl-ctrl-attrib-button {
+    border-radius: 0;
+  }
+  @include mat.button-overrides(
+    (
+      filled-container-shape: 2px,
+      outlined-container-shape: 2px,
+      protected-container-shape: 2px,
+      text-container-shape: 2px,
+      tonal-container-shape: 2px,
+    )
+  );
+  @include mat.icon-button-overrides(
+    (
+      container-shape: 2px,
+    )
+  );
+  @include mat.fab-overrides(
+    (
+      container-shape: 2px,
+      extended-container-shape: 2px,
+      small-container-shape: 2px,
+    )
+  );
+  @include mat.button-toggle-overrides(
+    (
+      shape: 2px,
+    )
+  );
+  @include mat.chips-overrides(
+    (
+      container-shape-radius: 0,
+    )
+  );
+  @include mat.form-field-overrides(
+    (
+      outlined-container-shape: 0,
+      filled-container-shape: 0,
+    )
+  );
+  @include mat.card-overrides(
+    (
+      elevated-container-shape: 0,
+      filled-container-shape: 0,
+      outlined-container-shape: 0,
+    )
+  );
+  @include mat.dialog-overrides(
+    (
+      container-shape: 0,
+    )
+  );
+  @include mat.menu-overrides(
+    (
+      container-shape: 0,
+    )
+  );
+  @include mat.autocomplete-overrides(
+    (
+      container-shape: 0,
+    )
+  );
+  @include mat.snack-bar-overrides(
+    (
+      container-shape: 0,
+    )
+  );
+  @include mat.tooltip-overrides(
+    (
+      container-shape: 0,
+    )
+  );
+  @include mat.expansion-overrides(
+    (
+      container-shape: 0,
+    )
+  );
+}
+
+// Price tags on Explore's map (ADR-0014): a blue label whose pointer marks
+// the item's public point; orange while highlighted. HTML markers live
+// outside any component, so they're styled here.
+.bb-price-tag {
+  --tag: var(--bb-sky-700);
+  background: var(--tag);
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgb(16 58 99 / 0.3);
+  color: #fff;
+  cursor: pointer;
+  font: 700 13px/1 var(--mat-sys-body-medium-font, system-ui);
+  margin-bottom: 6px;
+  padding: 7px 10px;
+  position: relative;
+  transition:
+    background-color var(--bb-medium) var(--bb-ease),
+    transform var(--bb-medium) var(--bb-ease);
+  white-space: nowrap;
+
+  // The pointer, at the item's spot.
+  &::after {
+    border: 6px solid transparent;
+    border-top-color: var(--tag);
+    content: '';
+    left: 50%;
+    margin-left: -6px;
+    position: absolute;
+    top: 100%;
+    transition: border-color var(--bb-medium) var(--bb-ease);
+  }
+
+  &.highlight {
+    --tag: #ea580c;
+    transform: scale(1.08);
+    z-index: 2;
+  }
+}
+
+// The listing wizard's steps: round numbers, no hover or focus background.
+// Done steps are solid blue, the current one white with a blue ring, the
+// rest grey; done and current labels are bold.
+.bb-steps {
+  --mat-stepper-header-hover-state-layer-color: transparent;
+  --mat-stepper-header-focus-state-layer-color: transparent;
+
+  .mat-step-header {
+    .mat-step-header-ripple {
+      display: none;
+    }
+    &.cdk-keyboard-focused .mat-step-icon {
+      outline: 3px solid var(--bb-sky-300);
+      outline-offset: 2px;
+    }
+  }
+  .mat-step-icon {
+    background: #9aa5b1;
+    border: 2px solid #9aa5b1;
+    border-radius: 50%;
+    box-sizing: border-box;
+    color: #fff;
+    font-weight: 700;
+    height: 28px;
+    transition:
+      background-color var(--bb-medium) var(--bb-ease),
+      border-color var(--bb-medium) var(--bb-ease),
+      color var(--bb-medium) var(--bb-ease);
+    width: 28px;
+  }
+  .mat-step-icon-state-done,
+  .mat-step-icon-state-edit {
+    background: var(--mat-sys-primary);
+    border-color: var(--mat-sys-primary);
+  }
+  .mat-step-icon.mat-step-icon-selected {
+    background: #fff;
+    border-color: var(--mat-sys-primary);
+    color: var(--mat-sys-primary);
+  }
+  .mat-step-header .mat-step-label {
+    color: var(--mat-sys-on-surface-variant);
+  }
+  .mat-step-header .mat-step-label.mat-step-label-selected,
+  .mat-step-header:has(.mat-step-icon-state-done, .mat-step-icon-state-edit)
+    .mat-step-label {
+    color: var(--mat-sys-on-surface);
+    font-weight: 700;
+  }
+}
+
+// The "Are you sure?" dialog (shared/confirm-dialog): a white card with
+// softly rounded corners over a tinted page.
+.bb-confirm-panel {
+  --mat-dialog-container-shape: 12px;
+  --mat-dialog-container-color: #fff;
+
+  .mat-mdc-dialog-surface {
+    box-shadow: 0 16px 40px rgb(16 58 99 / 0.2);
+  }
+}
+.bb-confirm-backdrop {
+  background: rgb(16 58 99 / 0.32);
+}
+
+// Text actions (My items' Edit / View / Pause, the item page's Back and
+// Edit): only the words. On hover they thicken (a text shadow, so the width
+// doesn't jump) and an underline draws from left to right. Put the class on
+// the words. Only a parent marked .bb-text-action-host (e.g. a chevron +
+// label button) triggers it too, so a row of actions never lights up at once.
+.bb-text-action {
+  background: linear-gradient(currentColor, currentColor) 0 100% / 0 2px
+    no-repeat;
+  padding-bottom: 3px;
+  text-decoration: none;
+  transition:
+    background-size 350ms var(--bb-ease),
+    text-shadow 350ms var(--bb-ease);
+}
+.bb-text-action:not([disabled]):hover,
+.bb-text-action:focus-visible,
+.bb-text-action-host:not([disabled]):hover .bb-text-action,
+.bb-text-action-host:focus-visible .bb-text-action {
+  background-size: 100% 2px;
+  text-shadow:
+    0 0 0.6px currentColor,
+    0 0 0.6px currentColor;
+}
+// The same, drawn from right to left (the item page's Back and Edit).
+.bb-text-action.bb-text-action-rtl {
+  background-position: 100% 100%;
+}
+
+// An enlarged item photo (features/item/photo-viewer) over the blurred page.
+.bb-photo-viewer-panel {
+  --mat-dialog-container-shape: 0;
+  --mat-dialog-container-color: transparent;
+  --mat-dialog-container-elevation-shadow: none;
+}
+.bb-photo-viewer-backdrop {
+  backdrop-filter: blur(6px);
+  background: rgb(16 58 99 / 0.18);
+}
+
+// Explore's price filter holds a form: wider than Material's 280 px menus.
+.mat-mdc-menu-panel.bb-price-menu {
+  max-width: none;
+}
+
+// Explore's filter menus unroll downwards from their button and roll back
+// up when closing. Material's own animations still run (it waits for them
+// to know when the menu opened or closed): the enter one instantly, the
+// exit one alongside ours, which must end within its 200 ms fallback.
+// The filter menus in colour: pale blue, blue text, the chosen entry in
+// solid blue.
+.mat-mdc-menu-panel.bb-drop {
+  --mat-menu-container-color: var(--bb-sky-100);
+  --mat-menu-item-label-text-color: var(--bb-sky-700);
+  --mat-menu-item-hover-state-layer-color: var(--bb-sky-200);
+  --mat-menu-item-focus-state-layer-color: var(--bb-sky-200);
+  border: 1px solid var(--bb-sky-200);
+
+  .mat-mdc-menu-item {
+    transition: background-color var(--bb-medium) var(--bb-ease);
+  }
+  .mat-mdc-menu-item.chosen-item,
+  .mat-mdc-menu-item.chosen-item:hover {
+    background: var(--mat-sys-primary);
+    color: var(--mat-sys-on-primary);
+  }
+}
+
+.mat-mdc-menu-panel.bb-scroll-menu {
+  // About 7⅓ rows: the cut-off row shows that the rest scrolls.
+  max-height: 360px;
+  overscroll-behavior: contain;
+}
+.mat-mdc-menu-panel.bb-drop {
+  animation:
+    _mat-menu-enter 1ms,
+    bb-drop-down 340ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.mat-mdc-menu-panel.bb-drop.mat-menu-panel-exit-animation {
+  animation:
+    _mat-menu-exit 190ms ease-in forwards,
+    bb-drag-up 190ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+@keyframes bb-drop-down {
+  from {
+    clip-path: inset(0 0 100% 0);
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  40% {
+    opacity: 1;
+  }
+  to {
+    clip-path: inset(0 0 -20px 0);
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes bb-drag-up {
+  from {
+    clip-path: inset(0 0 -20px 0);
+  }
+  to {
+    clip-path: inset(0 0 100% 0);
+    transform: translateY(-8px);
+  }
+}
+
+// The main content sits straight on the page background: no white panels.
+// (Dialogs keep their surface; they're in the overlay, not the shell.)
+bb-app-shell {
+  @include mat.card-overrides(
+    (
+      elevated-container-color: transparent,
+      elevated-container-elevation: none,
+      filled-container-color: transparent,
+      filled-container-elevation: none,
+      outlined-container-color: transparent,
+      outlined-container-elevation: none,
+      outlined-outline-width: 0,
+    )
+  );
+}
+
 body {
-  // Soft light-blue wash behind every page.
-  background:
-    radial-gradient(
-      1200px 600px at 10% -10%,
-      var(--bb-sky-200) 0%,
-      transparent 60%
-    ),
-    radial-gradient(
-      900px 500px at 110% 10%,
-      var(--bb-sky-100) 0%,
-      transparent 55%
-    ),
-    linear-gradient(180deg, var(--bb-sky-50) 0%, #ffffff 100%);
-  background-attachment: fixed;
+  // One flat colour behind every page.
+  background: var(--bb-page-bg);
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-large);
   margin: 0;
@@ -132,7 +452,10 @@ body {
 }
 
 // Plain links follow the brand colour and underline smoothly on hover.
-a:not(.mat-mdc-button-base) {
+// Text actions draw their own underline (.bb-text-action). One :not() with
+// both, so this stays as weak as a single class: components' own link
+// styles (e.g. the top bar's) must still win.
+a:not(.mat-mdc-button-base, .bb-text-action) {
   color: var(--bb-sky-700);
   text-decoration: underline;
   text-decoration-color: transparent;

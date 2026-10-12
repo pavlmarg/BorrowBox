@@ -11,7 +11,7 @@ ADRs — read the relevant one before touching that area:
 - Monorepo layout, DB schemas & roles → `docs/adr/0002-nx-monorepo-schema-per-service.md`
 - Anything involving money / Stripe → `docs/adr/0003-stripe-separate-charges-transfers.md`
 - Item locations, maps, photos → `docs/adr/0004-location-fuzzing.md`, then `0007-location-privacy-search.md` (supersedes parts of 0004), then `0011-one-offset-per-place.md` (amends 0007's offset rule)
-- Map tiles, setting item locations → `docs/adr/0008-maps-pin-drop.md`
+- Map tiles, setting item locations → `docs/adr/0008-maps-pin-drop.md`; Explore's map markers → `docs/adr/0014-price-tags-on-explore-map.md`
 - Photo uploads and processing → `docs/adr/0009-photo-pipeline.md`, then `0013-wider-photo-formats.md` (formats, browser conversion, camera)
 - Item pricing (rate card, free items) and its effects on Bookings/Payments → `docs/adr/0010-flexible-pricing.md`, then `0012-free-items-match-price-limits.md` (search price filter)
 - Gateway → service calls (NestJS TCP) → `docs/adr/0005-gateway-service-transport-tcp.md`
@@ -21,7 +21,7 @@ ADRs — read the relevant one before touching that area:
 
 ## Current phase
 
-**Phase 2 – Catalog** (update this line as phases complete; see roadmap in `README.md`). Phase 1 follow-ups are listed there.
+**Phase 3 – Bookings** (update this line as phases complete; see roadmap in `README.md`). Phase 1 and 2 follow-ups are listed there.
 
 - Only build what the current phase needs. If a task seems to require a later-phase feature, stop and ask.
 - Messaging and Reviews start as modules inside `apps/bookings` until their event contracts settle.
@@ -96,7 +96,7 @@ ADRs — read the relevant one before touching that area:
 - Standalone components, Signals, NgRx SignalStore per feature, lazy-loaded feature routes.
 - Use the API client generated from the gateway's OpenAPI spec; don't hand-write HTTP calls to the gateway.
 - No hard-coded user-facing strings: add Transloco keys in **both Greek and English**. EUR formatting, `el-GR` locale.
-- Maps show a circle at the fuzzed location, never a precise pin.
+- Maps never show a precise pin. Item pages show a circle at the fuzzed location; Explore's map shows price tags there, with the circle on hover (`docs/adr/0014-price-tags-on-explore-map.md`).
 
 ## Testing
 

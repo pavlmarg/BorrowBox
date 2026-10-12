@@ -11,10 +11,10 @@ The PWA needs a map for Explore, the item page and the listing wizard. The docs 
 ## Decision
 - **Tiles: MapTiler**, rendered with MapLibre GL (OpenStreetMap data, EU-based provider, free tier).
   - The API key is public by design and restricted to our domains in MapTiler's dashboard.
-  - The PWA reads the style URL and key from its build configuration, so changing provider (or self-hosting tiles) is a configuration change.
+  - The PWA reads the style URL, key included, from a runtime configuration file (`/config.json`, not committed), so changing provider (or self-hosting tiles) is a configuration change and needs no rebuild. *(Amended in Phase 2 step 12a: originally "build configuration". A runtime file lets one build serve every environment and keeps the key out of CI.)*
 - **No geocoding.** In the listing wizard the lender sets the item's location by **dropping a pin on the map**, or by pressing "use my location" (the browser Geolocation API). No address is typed, so nothing is sent to a geocoder.
 - **Searchers** choose their area the same way: "use my location", or panning the map. The default is central Athens.
-- **Map display:** fuzzed points ([ADR-0007](0007-location-privacy-search.md)) are clustered when zoomed out and shown as circles when zoomed in, never as precise pins.
+- **Map display:** fuzzed points ([ADR-0007](0007-location-privacy-search.md)) are clustered when zoomed out and shown as circles when zoomed in, never as precise pins. *(Explore's map: amended by [ADR-0014](0014-price-tags-on-explore-map.md).)*
 - **Bundle size:** MapLibre is large, so it's lazy-loaded on the pages that show a map.
 
 ## Consequences

@@ -1,5 +1,5 @@
 const STORAGE_KEY = 'bb.returnUrl';
-export const DEFAULT_AFTER_LOGIN = '/profile';
+export const DEFAULT_AFTER_LOGIN = '/explore';
 
 /**
  * Only same-app paths: must start with a single `/` (no `//host`, no

@@ -2,10 +2,12 @@ import { BreakpointObserver } from '@angular/cdk/layout';
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { MatButtonModule } from '@angular/material/button';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import {
   NavigationEnd,
@@ -20,15 +22,17 @@ import { AuthStore } from '../auth/auth.store';
 import { AccountLanguage } from '../i18n/account-language';
 import { LanguageService } from '../i18n/language';
 import { LanguageToggle } from '../i18n/language-toggle';
+import { Avatar } from '../../shared/avatar/avatar';
 import { NavIcon } from './nav-icon';
 import { FOOTER_NAV, MAIN_NAV } from './nav-items';
 
-/** At this width and up the sidebar stays open beside the page. */
+/** At this width and up the navigation sits in the top bar. */
 const WIDE = '(min-width: 960px)';
 
 /**
- * Layout for every signed-in page: a sidebar with the app's navigation on
- * desktop, and on phones a top bar whose ☰ button opens it as a drawer.
+ * Layout for the app's pages: a top bar over the full width. On desktop it
+ * holds the navigation, the avatar (to the profile) and Sign out; on phones
+ * its ☰ button opens the navigation as a drawer.
  */
 @Component({
   selector: 'bb-app-shell',
@@ -38,8 +42,10 @@ const WIDE = '(min-width: 960px)';
     RouterLinkActive,
     TranslocoDirective,
     MatSidenavModule,
+    MatButtonModule,
     LanguageToggle,
     NavIcon,
+    Avatar,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -47,29 +53,26 @@ const WIDE = '(min-width: 960px)';
       <mat-sidenav
         id="bb-nav"
         class="sidebar"
-        [mode]="wide() ? 'side' : 'over'"
-        [opened]="wide() || menuOpen()"
-        [disableClose]="wide()"
-        [fixedInViewport]="!wide()"
+        mode="over"
+        [opened]="!wide() && menuOpen()"
+        [fixedInViewport]="true"
         (openedChange)="menuOpen.set($event)"
       >
         <nav class="nav" [attr.aria-label]="t('nav.menu')">
           <div class="nav-head">
-            <a class="brand" routerLink="/profile">{{ t('app.name') }}</a>
-            @if (!wide()) {
-              <button
-                type="button"
-                class="icon-button"
-                [attr.aria-label]="t('nav.close')"
-                (click)="menuOpen.set(false)"
-              >
-                <bb-nav-icon name="close" />
-              </button>
-            }
+            <a class="brand" routerLink="/explore">{{ t('app.name') }}</a>
+            <button
+              type="button"
+              class="icon-button"
+              [attr.aria-label]="t('nav.close')"
+              (click)="menuOpen.set(false)"
+            >
+              <bb-nav-icon name="close" />
+            </button>
           </div>
 
           <ul class="links">
-            @for (item of mainNav; track item.key) {
+            @for (item of barNav(); track item.key) {
               <li>
                 @if (item.route) {
                   <a
@@ -93,25 +96,44 @@ const WIDE = '(min-width: 960px)';
           </ul>
 
           <ul class="links footer">
-            @for (item of footerNav; track item.key) {
+            @if (signedIn()) {
+              @for (item of footerNav; track item.key) {
+                <li>
+                  <a
+                    class="link"
+                    [routerLink]="item.route"
+                    routerLinkActive="active"
+                    ariaCurrentWhenActive="page"
+                  >
+                    <bb-nav-icon [name]="item.icon" />
+                    <span>{{ t('nav.' + item.key) }}</span>
+                  </a>
+                </li>
+              }
+              <li>
+                <button type="button" class="link" (click)="logout()">
+                  <bb-nav-icon name="logout" />
+                  <span>{{ t('nav.logout') }}</span>
+                </button>
+              </li>
+            } @else {
               <li>
                 <a
                   class="link"
-                  [routerLink]="item.route"
-                  routerLinkActive="active"
-                  ariaCurrentWhenActive="page"
+                  routerLink="/auth/login"
+                  [queryParams]="{ returnUrl: currentUrl() }"
                 >
-                  <bb-nav-icon [name]="item.icon" />
-                  <span>{{ t('nav.' + item.key) }}</span>
+                  <bb-nav-icon name="login" />
+                  <span>{{ t('nav.login') }}</span>
+                </a>
+              </li>
+              <li>
+                <a class="link" routerLink="/auth/register">
+                  <bb-nav-icon name="register" />
+                  <span>{{ t('nav.register') }}</span>
                 </a>
               </li>
             }
-            <li>
-              <button type="button" class="link" (click)="logout()">
-                <bb-nav-icon name="logout" />
-                <span>{{ t('nav.logout') }}</span>
-              </button>
-            </li>
             <li class="language">
               <bb-language-toggle (changed)="accountLanguage.set($event)" />
               <span>{{ t('languages.' + language()) }}</span>
@@ -121,8 +143,8 @@ const WIDE = '(min-width: 960px)';
       </mat-sidenav>
 
       <mat-sidenav-content class="page">
-        @if (!wide()) {
-          <header class="topbar">
+        <header class="topbar" [class.wide]="wide()">
+          @if (!wide()) {
             <button
               type="button"
               class="icon-button"
@@ -133,11 +155,74 @@ const WIDE = '(min-width: 960px)';
             >
               <bb-nav-icon name="menu" />
             </button>
-            <a class="brand" routerLink="/profile">{{ t('app.name') }}</a>
+          }
+          <a class="brand" routerLink="/explore">{{ t('app.name') }}</a>
+          @if (wide()) {
+            <nav class="bar-nav" [attr.aria-label]="t('nav.menu')">
+              <ul class="bar-links">
+                @for (item of barNav(); track item.key) {
+                  <li>
+                    @if (item.route) {
+                      <a
+                        class="bar-link"
+                        [routerLink]="item.route"
+                        routerLinkActive="active"
+                        ariaCurrentWhenActive="page"
+                      >
+                        <bb-nav-icon [name]="item.icon" />
+                        <span>{{ t('nav.' + item.key) }}</span>
+                      </a>
+                    } @else {
+                      <span class="bar-link soon" aria-disabled="true">
+                        <bb-nav-icon [name]="item.icon" />
+                        <span>{{ t('nav.' + item.key) }}</span>
+                        <span class="badge">{{ t('nav.soon') }}</span>
+                      </span>
+                    }
+                  </li>
+                }
+              </ul>
+            </nav>
+          }
+          <span class="spacer"></span>
+          <!-- Phones: the language is in the drawer, to leave room here. -->
+          @if (wide()) {
             <bb-language-toggle (changed)="accountLanguage.set($event)" />
-          </header>
-        }
-        <main class="main">
+          }
+          @if (signedIn()) {
+            <!-- The avatar is the way to the profile (and from there to the
+                 settings). Desktop: Sign out beside it; phones: in the drawer. -->
+            <a
+              class="account"
+              routerLink="/profile"
+              [attr.aria-label]="t('nav.profile')"
+            >
+              <bb-avatar [size]="32" />
+            </a>
+            @if (wide()) {
+              <button
+                mat-stroked-button
+                type="button"
+                class="bar-button sign-out"
+                (click)="logout()"
+              >
+                {{ t('nav.logout') }}
+              </button>
+            }
+          } @else {
+            <a
+              mat-button
+              class="bar-button"
+              routerLink="/auth/login"
+              [queryParams]="{ returnUrl: currentUrl() }"
+              >{{ t('nav.login') }}</a
+            >
+            <a mat-flat-button class="bar-button" routerLink="/auth/register">{{
+              t(wide() ? 'nav.register' : 'nav.registerShort')
+            }}</a>
+          }
+        </header>
+        <main class="main" [class.full-bleed]="fullBleed()">
           <router-outlet />
         </main>
       </mat-sidenav-content>
@@ -154,7 +239,7 @@ const WIDE = '(min-width: 960px)';
       --mat-sidenav-container-width: 280px;
       --mat-sidenav-content-background-color: transparent;
       background: transparent;
-      /* Screen height: the page scrolls inside, the sidebar stays put. */
+      /* Screen height: the page scrolls inside, under the sticky top bar. */
       height: 100dvh;
     }
     .sidebar {
@@ -219,9 +304,9 @@ const WIDE = '(min-width: 960px)';
         transform var(--bb-fast) var(--bb-ease);
       width: 100%;
     }
+    /* Hover: only the words turn blue, not the whole row. */
     a.link:hover,
     button.link:hover {
-      background: var(--bb-sky-50);
       color: var(--bb-sky-700);
     }
     a.link:hover bb-nav-icon,
@@ -247,7 +332,7 @@ const WIDE = '(min-width: 960px)';
     }
     .badge {
       background: var(--bb-sky-100);
-      border-radius: 999px;
+      border-radius: var(--bb-radius);
       color: var(--bb-sky-700);
       font: var(--mat-sys-label-small);
       margin-left: auto;
@@ -266,7 +351,7 @@ const WIDE = '(min-width: 960px)';
       align-items: center;
       background: none;
       border: 0;
-      border-radius: 50%;
+      border-radius: var(--bb-button-radius);
       color: var(--mat-sys-on-surface);
       cursor: pointer;
       display: inline-flex;
@@ -287,16 +372,121 @@ const WIDE = '(min-width: 960px)';
       backdrop-filter: blur(12px);
       background: rgb(255 255 255 / 0.8);
       border-bottom: 1px solid rgb(16 58 99 / 0.08);
+      /* 64 px with its border, as Explore's height assumes. */
+      box-sizing: border-box;
       display: flex;
       gap: 8px;
-      height: 56px;
+      height: 64px;
       padding: 0 12px 0 8px;
       position: sticky;
       top: 0;
       z-index: 2;
     }
+    .topbar.wide {
+      gap: 4px;
+      padding: 0 24px;
+    }
     .topbar .brand {
+      margin-right: 20px;
+    }
+    .topbar:not(.wide) .brand {
       flex: 1;
+    }
+    .spacer {
+      flex: 1;
+    }
+    .bar-nav {
+      align-self: stretch;
+    }
+    .bar-links {
+      display: flex;
+      gap: 4px;
+      height: 100%;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .bar-links li {
+      display: flex;
+    }
+    /* Tab-like links: the active page is underlined at the bar's bottom. */
+    .bar-link {
+      align-items: center;
+      border-bottom: 2px solid transparent;
+      box-sizing: border-box;
+      color: var(--mat-sys-on-surface);
+      display: flex;
+      font: var(--mat-sys-body-large);
+      font-size: 15px;
+      gap: 8px;
+      padding: 0 12px;
+      text-decoration: none;
+      transition:
+        background-color var(--bb-fast) var(--bb-ease),
+        border-color var(--bb-fast) var(--bb-ease),
+        color var(--bb-fast) var(--bb-ease);
+      white-space: nowrap;
+    }
+    .bar-link bb-nav-icon {
+      height: 20px;
+      width: 20px;
+    }
+    a.bar-link:hover {
+      color: var(--bb-sky-700);
+    }
+    .bar-link:focus-visible {
+      outline: 3px solid var(--bb-sky-300);
+      outline-offset: -3px;
+    }
+    .bar-link.active {
+      border-bottom-color: var(--bb-sky-700);
+      color: var(--bb-sky-700);
+      font-weight: 600;
+    }
+    .bar-link .badge {
+      margin-left: 2px;
+    }
+    /* The avatar: no box or background on hover. */
+    .account {
+      border-radius: 50%;
+      display: inline-flex;
+      margin-left: 8px;
+    }
+    .account:focus-visible {
+      outline: 3px solid var(--bb-sky-300);
+      outline-offset: 2px;
+    }
+    .bar-button {
+      margin-left: 8px;
+    }
+    /* A compact box: thin outline, slightly rounded. */
+    .sign-out {
+      --mat-button-outlined-outline-color: rgb(16 58 99 / 0.3);
+      --mat-button-outlined-outline-width: 1px;
+      --mat-button-outlined-container-shape: 8px;
+      --mat-button-outlined-container-height: 34px;
+      --mat-button-outlined-horizontal-padding: 12px;
+      /* No tint or lift on hover: only the words turn red. */
+      --mat-button-outlined-hover-state-layer-opacity: 0;
+      --mat-button-outlined-focus-state-layer-opacity: 0;
+      --mat-button-outlined-pressed-state-layer-opacity: 0;
+      /* Never squeezed by the bar: the label stays inside its box. */
+      flex: none;
+      min-width: 0;
+      white-space: nowrap;
+    }
+    .sign-out:not([disabled]):hover,
+    .sign-out:not([disabled]):active {
+      --mat-button-outlined-label-text-color: var(--mat-sys-error);
+      /* styles.scss gives outlined buttons a lift and shadow on hover. */
+      box-shadow: none;
+      transform: none;
+    }
+    /* Phones: two compact buttons beside the name. */
+    .topbar:not(.wide) .bar-button {
+      margin-left: 0;
+      min-width: 0;
+      padding: 0 12px;
     }
 
     .main {
@@ -310,6 +500,11 @@ const WIDE = '(min-width: 960px)';
         padding: 20px 16px 40px;
       }
     }
+    /* Pages like Explore use the whole area (route data fullBleed). */
+    .main.full-bleed {
+      max-width: none;
+      padding: 0;
+    }
   `,
 })
 export class AppShell {
@@ -319,8 +514,35 @@ export class AppShell {
   protected readonly accountLanguage = inject(AccountLanguage);
   protected readonly language = inject(LanguageService).current;
 
-  protected readonly mainNav = MAIN_NAV;
+  protected readonly signedIn = this.auth.isAuthenticated;
+  /** Signed-out visitors don't see pages they can't open (E3). */
+  protected readonly mainNav = computed(() =>
+    MAIN_NAV.filter((item) => this.signedIn() || !item.requiresAuth),
+  );
   protected readonly footerNav = FOOTER_NAV;
+  /**
+   * The bar's links (desktop) and the drawer's (phones). Profile is left
+   * out: the avatar leads there.
+   */
+  protected readonly barNav = computed(() =>
+    this.mainNav().filter((item) => !item.accountMenu),
+  );
+
+  private readonly navigationEnd = toSignal(
+    this.router.events.pipe(filter((e) => e instanceof NavigationEnd)),
+  );
+  /** Where "Sign in" brings the visitor back to. */
+  protected readonly currentUrl = computed(() => {
+    this.navigationEnd();
+    return this.router.url;
+  });
+  /** The page asked for the whole area (route data `fullBleed`). */
+  protected readonly fullBleed = computed(() => {
+    this.navigationEnd();
+    let route = this.router.routerState.snapshot.root;
+    while (route.firstChild) route = route.firstChild;
+    return route.data['fullBleed'] === true;
+  });
 
   protected readonly wide = toSignal(
     this.breakpoints.observe(WIDE).pipe(map((state) => state.matches)),

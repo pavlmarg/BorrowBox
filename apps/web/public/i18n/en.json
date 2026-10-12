@@ -17,7 +17,9 @@
     "logout": "Sign out",
     "switchTo": "Switch to {{language}}",
     "login": "Sign in",
-    "register": "Create account"
+    "register": "Create account",
+    "account": "Account",
+    "registerShort": "Sign up"
   },
   "languages": {
     "el": "Ελληνικά",
@@ -101,7 +103,9 @@
     "email": "Enter a valid email address",
     "password": "8–64 characters, with at least one letter and one digit",
     "passwordMismatch": "Passwords don’t match",
-    "displayName": "1–50 characters"
+    "displayName": "1–50 characters",
+    "euros": "Enter an amount, e.g. 5.50 (no thousands separators)",
+    "centsRange": "Between {{min}} and {{max}}"
   },
   "errors": {
     "VALIDATION_FAILED": "Please check the highlighted fields.",
@@ -117,6 +121,237 @@
     "RATE_LIMITED": "Too many attempts. Please wait a minute and try again.",
     "SERVICE_UNAVAILABLE": "BorrowBox is temporarily unavailable. Please try again shortly.",
     "INTERNAL": "Something went wrong on our side. Please try again.",
-    "NETWORK": "Can't reach BorrowBox. Check your connection."
+    "NETWORK": "Can't reach BorrowBox. Check your connection.",
+    "NOT_FOUND": "This item doesn’t exist or is no longer available.",
+    "INVALID_STATE": "That can’t be done right now. Please refresh the page and try again.",
+    "NOT_PUBLISHABLE": "To publish, an item needs a location and at least one photo.",
+    "ITEM_LIMIT_REACHED": "You’ve reached the item limit. Delete one to add another.",
+    "PHOTO_LIMIT_REACHED": "You’ve reached the photo limit for this item."
+  },
+  "catalog": {
+    "categories": {
+      "tools": "Tools",
+      "diy-ladders": "DIY & ladders",
+      "garden": "Garden",
+      "cleaning": "Cleaning",
+      "kitchen": "Kitchen",
+      "electronics": "Electronics",
+      "photo-video": "Photo & video",
+      "music": "Music",
+      "sports": "Sports",
+      "camping": "Camping",
+      "travel": "Travel",
+      "kids": "Kids",
+      "party": "Party & events",
+      "vehicles": "Vehicles",
+      "other": "Other"
+    },
+    "distance": {
+      "UNDER_1_KM": "Under 1 km",
+      "1_2_KM": "1–2 km",
+      "2_5_KM": "2–5 km",
+      "5_10_KM": "5–10 km",
+      "OVER_10_KM": "Over 10 km"
+    },
+    "units": {
+      "HOUR": "Hour",
+      "DAY": "Day",
+      "WEEK": "Week",
+      "MONTH": "Month"
+    },
+    "perUnit": {
+      "HOUR": "/hour",
+      "DAY": "/day",
+      "WEEK": "/week",
+      "MONTH": "/month"
+    },
+    "free": "Free",
+    "moreRates": "+{{count}} more"
+  },
+  "map": {
+    "loading": "Loading map…",
+    "unavailable": "The map isn’t available right now.",
+    "approximateArea": "Approximate area"
+  },
+  "geo": {
+    "useMyLocation": "My location",
+    "errors": {
+      "denied": "Location access was denied. You can allow it in your browser’s settings.",
+      "unavailable": "Your location couldn’t be found. Move the map instead.",
+      "timeout": "Finding your location took too long. Please try again.",
+      "unsupported": "Your browser doesn’t support location."
+    }
+  },
+  "explore": {
+    "results": "Results",
+    "map": "Results map",
+    "searchPlaceholder": "What are you looking for?",
+    "clear": "Clear search",
+    "filters": "Filters",
+    "category": "Category",
+    "allCategories": "All categories",
+    "radius": "Distance",
+    "radiusKm": "{{km}} km",
+    "maxPrice": "Max price",
+    "maxPriceHint": "Free items are shown too",
+    "priceUnit": "Per",
+    "freeOnly": "Free only",
+    "searchArea": "Search this area",
+    "showMap": "Map",
+    "showList": "List",
+    "loadMore": "Show more",
+    "loading": "Loading results",
+    "empty": "No items here yet.",
+    "emptyHint": "Try a larger distance or fewer filters.",
+    "retry": "Try again",
+    "price": "Price",
+    "priceUpTo": "Up to {{price}}",
+    "apply": "Apply",
+    "clearPrice": "Clear",
+    "clearAll": "Clear filters",
+    "featured": {
+      "title": "New near you",
+      "previous": "Previous",
+      "next": "Next",
+      "pause": "Pause automatic scrolling",
+      "play": "Resume automatic scrolling"
+    },
+    "rails": {
+      "categories": "Browse by category"
+    },
+    "lend": {
+      "title": "Lend your things",
+      "text": "Earn a little from things you rarely use. Listing one takes a few minutes.",
+      "cta": "List an item"
+    },
+    "how": {
+      "title": "How BorrowBox works",
+      "find": {
+        "title": "Find it nearby",
+        "text": "Search what your neighbours lend and see roughly where it is."
+      },
+      "pay": {
+        "title": "Pay safely",
+        "text": "Pay through BorrowBox. The deposit comes back after the return."
+      },
+      "handoff": {
+        "title": "Hand over with a QR code",
+        "text": "Scan a code at pickup and at return, so you both confirm."
+      },
+      "show": "Show step {{n}}",
+      "pause": "Pause the animation",
+      "play": "Play the animation"
+    }
+  },
+  "item": {
+    "back": "Back",
+    "loading": "Loading item",
+    "notFound": "Not found",
+    "backToExplore": "Back to Explore",
+    "yours": "This is your item.",
+    "edit": "Edit",
+    "about": "About this item",
+    "areaHint": "The exact spot is shared only once a booking is paid.",
+    "deposit": "Deposit",
+    "noDeposit": "No deposit",
+    "depositHint": "Charged with the rent and refunded when the item comes back.",
+    "requestToBorrow": "Request to borrow",
+    "requestsSoon": "Borrowing requests open soon.",
+    "lentBy": "Lent by",
+    "listedOn": "Listed {{date}}",
+    "similar": "Similar nearby",
+    "previousPhoto": "Previous photo",
+    "nextPhoto": "Next photo",
+    "photoCount": "{{n}} / {{total}}",
+    "enlargePhoto": "Enlarge photo"
+  },
+  "listing": {
+    "backToItems": "My items",
+    "newTitle": "New item",
+    "editTitle": "Edit item",
+    "loading": "Loading…",
+    "stepDetails": "Details",
+    "stepPrice": "Price",
+    "stepLocation": "Location",
+    "stepPhotos": "Photos",
+    "stepReview": "Publish",
+    "next": "Next",
+    "previous": "Back",
+    "title": "Title",
+    "titleRule": "{{min}}–{{max}} characters",
+    "description": "Description",
+    "descriptionHint": "Condition, what's included, how pickup works.",
+    "descriptionRule": "Up to {{max}} characters",
+    "freeToggle": "Lend it for free",
+    "ratesIntro": "Fill in the rates you want to offer (at least one).",
+    "ratePer": {
+      "HOUR": "Per hour",
+      "DAY": "Per day",
+      "WEEK": "Per week",
+      "MONTH": "Per month"
+    },
+    "noRate": "Add at least one rate, or lend it for free.",
+    "depositHint": "0 for no deposit.",
+    "locationIntro": "Put the pin where the item is picked up: tap the map or drag the pin.",
+    "dropPin": "Tap the map to place the pin.",
+    "locationPrivacy": "Others only see an area of about 300 m around it, never the exact spot.",
+    "photosIntro": "Up to {{max}} photos, 10 MB each. The first one is the cover.",
+    "takePhoto": "Take photo",
+    "choosePhotos": "Choose photos",
+    "photosSkipped": "{{count}} photos weren't added: up to {{max}} per item.",
+    "cover": "Cover",
+    "processing": "Processing…",
+    "uploading": "Uploading…",
+    "photoFailed": "This photo can't be used.",
+    "removePhoto": "Remove photo",
+    "dismiss": "Dismiss",
+    "dragToReorder": "Drag the photos to change their order.",
+    "photoErrors": {
+      "unsupported": "This file type isn't supported here. Try JPEG or PNG.",
+      "tooSmall": "Photo too small (at least 320 px wide).",
+      "tooLarge": "File too large (up to 10 MB).",
+      "unreadable": "This photo can't be read."
+    },
+    "checkDetails": "Details and price",
+    "checkLocation": "Location",
+    "checkPhoto": "At least one photo",
+    "publishIntro": "Once published, the item shows up in search.",
+    "isActive": "This item is published. Changes apply right away.",
+    "isPaused": "This item is paused and doesn't show up in search.",
+    "keepDraft": "Keep as draft",
+    "publish": "Publish",
+    "done": "Done",
+    "published": "Your item is published.",
+    "leaveUnsaved": "You have unsaved changes. Leave this page?",
+    "photoNeeded": "Add at least one photo to continue: items are listed with a photo.",
+    "dropPhotos": "Drag photos here",
+    "dropRelease": "Drop them to upload",
+    "dropOr": "or"
+  },
+  "myItems": {
+    "count": "{{count}} of {{max}} items",
+    "new": "New item",
+    "empty": "You haven't listed anything yet.",
+    "emptyHint": "Lend the things you rarely use to your neighbours.",
+    "first": "List your first item",
+    "status": {
+      "DRAFT": "Draft",
+      "ACTIVE": "Published",
+      "PAUSED": "Paused",
+      "DELETED": "Deleted"
+    },
+    "needs": "Needs:",
+    "missing": {
+      "location": "a location",
+      "photo": "a photo"
+    },
+    "view": "View",
+    "pause": "Pause",
+    "unpause": "Unpause",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "deleteTitle": "Delete this item?",
+    "deleteMessage": "“{{title}}” and its photos will be deleted for good.",
+    "deleted": "Item deleted."
   }
 }

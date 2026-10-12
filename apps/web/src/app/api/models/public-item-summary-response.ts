@@ -13,6 +13,11 @@ export interface PublicItemSummaryResponse {
   coverPhoto: (PhotoUrlsResponse & {
 }) | null;
   depositCents: number;
+
+  /**
+   * The description’s start, up to 200 characters, ending in “…” when cut
+   */
+  descriptionExcerpt: string;
   distanceBand: DistanceBand;
   id: string;
   lender: LenderSummaryResponse;

@@ -2,13 +2,20 @@ import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import {
   CatalogRpc,
+  type CategoryCountsResponse,
+  type FeaturedItemsResponse,
   type PublicItemDetail,
   type SearchItemsResponse,
   type SimilarItemsResponse,
   type SuggestItemsResponse,
 } from '@borrowbox/contracts';
 import { ItemRefDto } from '../items/items.dto';
-import { SearchItemsDto, SuggestItemsDto } from './search.dto';
+import {
+  CategoryCountsDto,
+  FeaturedItemsDto,
+  SearchItemsDto,
+  SuggestItemsDto,
+} from './search.dto';
 import { SearchService } from './search.service';
 
 /** Public: no access token needed (signed-out visitors may browse). */
@@ -36,5 +43,19 @@ export class SearchController {
   @MessagePattern(CatalogRpc.similar)
   similar(@Payload('data') dto: ItemRefDto): Promise<SimilarItemsResponse> {
     return this.search.similar(dto.itemId);
+  }
+
+  @MessagePattern(CatalogRpc.categoryCounts)
+  categoryCounts(
+    @Payload('data') dto: CategoryCountsDto,
+  ): Promise<CategoryCountsResponse> {
+    return this.search.categoryCounts(dto);
+  }
+
+  @MessagePattern(CatalogRpc.featured)
+  featured(
+    @Payload('data') dto: FeaturedItemsDto,
+  ): Promise<FeaturedItemsResponse> {
+    return this.search.featured(dto);
   }
 }
