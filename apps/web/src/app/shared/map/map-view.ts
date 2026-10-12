@@ -5,6 +5,7 @@ import {
   ElementRef,
   TemplateRef,
   afterNextRender,
+  computed,
   effect,
   inject,
   input,
@@ -30,15 +31,14 @@ import {
   AREA_SOURCE,
   CLUSTER_MAX_ZOOM,
   CLUSTERS_LAYER,
-  ITEM_AREAS_LAYER,
+  ITEM_AREA_LAYER,
   ITEMS_SOURCE,
   SEARCH_SOURCE,
   SKY_700,
+  areaFilter,
   areaLayers,
   browseLayers,
   circleData,
-  itemColour,
-  itemRadiusPx,
   itemsData,
   searchLayers,
   styleLabelFont,
@@ -48,7 +48,8 @@ import { MAP_LIBRE, type MapLibre } from './map-loader';
 
 /**
  * - `browse`: items at their public points, clustered when zoomed out,
- *   circles when zoomed in (Explore).
+ *   price tags when zoomed in, the highlighted one with its area (Explore,
+ *   ADR-0014).
  * - `area`: one approximate area (item page).
  * - `pin`: the owner places their own item's exact point, and sees the
  *   approximate area others get (listing wizard).
@@ -67,23 +68,32 @@ export interface SearchCircle {
 
 type MapState = 'loading' | 'ready' | 'unavailable';
 
-/** The hovered item and where its card points to, in map pixels. */
+/** The item under the pointer and where its card points to, in map pixels. */
 interface Hovered {
   id: string;
   x: number;
   y: number;
-  /** Below the circle: too close to the top for the card above it. */
+  /** Below the tag: too close to the top for the card above it. */
   below: boolean;
 }
 
-/** Room the card needs above the circle; with less, it goes below. */
+/** Room the card needs above the tag; with less, it goes below. */
 const CARD_ROOM_PX = 150;
+/** A price tag's height, its pointer included: the card sits above it. */
+const TAG_HEIGHT_PX = 34;
+
+/** A price tag on the map and what it shows. */
+interface Tag {
+  marker: Marker;
+  element: HTMLElement;
+  label: string;
+}
 /** How long the card waits for the pointer to come back before closing. */
 const CARD_CLOSE_MS = 200;
 
 /**
  * The one map component (ADR-0008). Everyone but an item's owner only ever
- * sees circles around public points (ADR-0007). Without a configured style
+ * sees public points (ADR-0007): areas, or Explore's price tags (ADR-0014). Without a configured style
  * or WebGL it says the map is unavailable and the page carries on.
  *
  * Give the host a height: `bb-map { height: 360px }`.
@@ -130,7 +140,7 @@ const CARD_CLOSE_MS = 200;
       inset: 0;
       position: absolute;
     }
-    /* Above (or below) the hovered circle. Its transparent padding bridges
+    /* Above (or below) the hovered tag. Its transparent padding bridges
        the gap, so the pointer can reach the card without closing it. */
     .hover-card {
       animation: bb-card-in 220ms var(--bb-ease) both;
@@ -179,8 +189,8 @@ export class MapView {
   /** `pin`: the exact point, set by clicking the map or dragging the pin. */
   readonly pin = model<GeoPoint | null>(null);
   /**
-   * `browse`: shown above an item's circle while the pointer is on it (or
-   * on the card), given the item's id. Pointer devices only.
+   * `browse`: shown above an item's price tag while the pointer is on it
+   * (or on the card), given the item's id. Pointer devices only.
    */
   readonly hoverCard = input<TemplateRef<{ $implicit: string }> | null>(null);
 
@@ -190,7 +200,16 @@ export class MapView {
 
   protected readonly state = signal<MapState>('loading');
   protected readonly hovered = signal<Hovered | null>(null);
+  /**
+   * The item in orange with its area drawn: the one under the pointer,
+   * otherwise the one picked in the list (ADR-0014).
+   */
+  private readonly highlightId = computed(
+    () => this.hovered()?.id ?? this.selectedId(),
+  );
   private closeTimer?: ReturnType<typeof setTimeout>;
+  /** `browse`: the price tags on the map, by item id. */
+  private readonly tags = new Map<string, Tag>();
 
   private readonly canvas =
     viewChild.required<ElementRef<HTMLElement>>('canvas');
@@ -209,6 +228,7 @@ export class MapView {
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
       clearTimeout(this.closeTimer);
+      this.tags.clear();
       this.map?.remove();
     });
 
@@ -217,14 +237,12 @@ export class MapView {
       if (this.drawn()) this.source(ITEMS_SOURCE)?.setData(data);
     });
     effect(() => {
-      const colour = itemColour(this.selectedId());
+      const id = this.highlightId();
       if (!this.drawn() || this.mode() !== 'browse') return;
-      this.map?.setPaintProperty(ITEM_AREAS_LAYER, 'circle-color', colour);
-      this.map?.setPaintProperty(
-        ITEM_AREAS_LAYER,
-        'circle-stroke-color',
-        colour,
-      );
+      for (const [tagId, tag] of this.tags) {
+        tag.element.classList.toggle('highlight', tagId === id);
+      }
+      this.map?.setFilter(ITEM_AREA_LAYER, areaFilter(id));
     });
     effect(() => {
       const circle = this.searchCircle();
@@ -333,28 +351,25 @@ export class MapView {
         clusterRadius: 50,
       });
       const font = styleLabelFont(map.getStyle().layers ?? []);
-      for (const layer of browseLayers(this.selectedId(), font)) {
+      for (const layer of browseLayers(this.highlightId(), font)) {
         map.addLayer(layer);
       }
 
       map.on('click', CLUSTERS_LAYER, (event) => void this.zoomInto(event));
-      map.on('click', ITEM_AREAS_LAYER, (event) => {
-        const id = event.features?.[0]?.properties?.['id'];
-        if (typeof id === 'string') this.pointSelected.emit(id);
+      map.on('mouseenter', CLUSTERS_LAYER, () => {
+        map.getCanvas().style.cursor = 'pointer';
       });
-      for (const layer of [CLUSTERS_LAYER, ITEM_AREAS_LAYER]) {
-        map.on('mouseenter', layer, () => {
-          map.getCanvas().style.cursor = 'pointer';
-        });
-        map.on('mouseleave', layer, () => {
-          map.getCanvas().style.cursor = '';
-        });
-      }
-      map.on('mousemove', ITEM_AREAS_LAYER, (event) =>
-        this.showCard(map, event),
-      );
-      map.on('mouseleave', ITEM_AREAS_LAYER, () => this.closeCardSoon());
-      // The card would drift from its circle: it goes until the next hover.
+      map.on('mouseleave', CLUSTERS_LAYER, () => {
+        map.getCanvas().style.cursor = '';
+      });
+      // The tags follow the clusters: refreshed once the map settles or the
+      // items change.
+      const sync = () => this.syncTags(maplibre, map);
+      map.on('moveend', sync);
+      map.on('sourcedata', (event) => {
+        if (event.sourceId === ITEMS_SOURCE && event.isSourceLoaded) sync();
+      });
+      // The card would drift from its tag: it goes until the next hover.
       map.on('movestart', () => this.hovered.set(null));
       return;
     }
@@ -378,29 +393,80 @@ export class MapView {
     }
   }
 
-  /** The card for the item under the pointer, pointing at its circle. */
-  private showCard(map: MapLibreMap, event: MapLayerMouseEvent): void {
-    this.keepCard();
-    const feature = event.features?.[0];
-    const id = feature?.properties?.['id'];
-    const r0 = feature?.properties?.['r0'];
-    if (
-      !this.hoverCard() ||
-      typeof id !== 'string' ||
-      typeof r0 !== 'number' ||
-      feature?.geometry.type !== 'Point' ||
-      this.hovered()?.id === id
-    ) {
-      return;
+  /**
+   * A price tag for every item not in a cluster bubble, at its public point
+   * (the tag's pointer marks it). Tags out of view or now clustered go.
+   */
+  private syncTags(maplibre: MapLibre, map: MapLibreMap): void {
+    const seen = new Set<string>();
+    const features = map.querySourceFeatures(ITEMS_SOURCE, {
+      filter: ['!', ['has', 'point_count']],
+    });
+    for (const feature of features) {
+      const id = feature.properties?.['id'];
+      const label = String(feature.properties?.['label'] ?? '');
+      if (
+        typeof id !== 'string' ||
+        seen.has(id) ||
+        feature.geometry.type !== 'Point'
+      ) {
+        continue;
+      }
+      seen.add(id);
+      const [lng, lat] = feature.geometry.coordinates;
+      const existing = this.tags.get(id);
+      if (existing) {
+        existing.marker.setLngLat([lng, lat]);
+        if (existing.label !== label) {
+          existing.element.textContent = label;
+          existing.label = label;
+        }
+        continue;
+      }
+      const element = this.tagElement(map, id, label);
+      const marker = new maplibre.Marker({ element, anchor: 'bottom' })
+        .setLngLat([lng, lat])
+        .addTo(map);
+      this.tags.set(id, { marker, element, label });
     }
-    const [lng, lat] = feature.geometry.coordinates;
-    const centre = map.project([lng, lat]);
-    const radius = itemRadiusPx(r0, map.getZoom());
-    const below = centre.y - radius < CARD_ROOM_PX;
+    for (const [id, tag] of this.tags) {
+      if (!seen.has(id)) {
+        tag.marker.remove();
+        this.tags.delete(id);
+      }
+    }
+  }
+
+  /**
+   * A price tag: points at the item, highlights it and shows its card while
+   * pointed at, and reports a click. Styled in styles.scss (`.bb-price-tag`):
+   * MapLibre places it outside this component's view.
+   */
+  private tagElement(map: MapLibreMap, id: string, label: string): HTMLElement {
+    const element = document.createElement('div');
+    element.className = 'bb-price-tag';
+    element.textContent = label;
+    element.classList.toggle('highlight', this.highlightId() === id);
+    element.addEventListener('mouseenter', () => this.showCard(map, id));
+    element.addEventListener('mouseleave', () => this.closeCardSoon());
+    element.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.pointSelected.emit(id);
+    });
+    return element;
+  }
+
+  /** The item under the pointer: highlighted, with its card above its tag. */
+  private showCard(map: MapLibreMap, id: string): void {
+    this.keepCard();
+    const tag = this.tags.get(id);
+    if (!tag || this.hovered()?.id === id) return;
+    const point = map.project(tag.marker.getLngLat());
+    const below = point.y - TAG_HEIGHT_PX < CARD_ROOM_PX;
     this.hovered.set({
       id,
-      x: centre.x,
-      y: below ? centre.y + radius : centre.y - radius,
+      x: point.x,
+      y: below ? point.y + 4 : point.y - TAG_HEIGHT_PX,
       below,
     });
   }

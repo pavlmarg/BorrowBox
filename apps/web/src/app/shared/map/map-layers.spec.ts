@@ -5,10 +5,10 @@ import {
   browseLayers,
   circleData,
   CLUSTER_COUNT_LAYER,
-  ITEM_AREAS_LAYER,
+  ITEM_AREA_LAYER,
+  areaFilter,
   itemsData,
   styleLabelFont,
-  itemRadiusPx,
 } from './map-layers';
 
 describe('itemsData', () => {
@@ -38,11 +38,17 @@ describe('circleData', () => {
 });
 
 describe('browseLayers', () => {
-  it('draws items as circles, never as symbols or pins', () => {
-    const items = browseLayers(null, null).find(
-      (l) => l.id === ITEM_AREAS_LAYER,
-    );
-    expect(items?.type).toBe('circle');
+  it('draws no item symbols or pins: items are HTML price tags', () => {
+    const layers = browseLayers(null, null);
+    expect(layers.some((l) => l.type === 'symbol')).toBe(false);
+  });
+
+  it('draws the highlighted item’s area, and no other', () => {
+    const ids = browseLayers('a', null).map((l) => l.id);
+    expect(ids).toContain(ITEM_AREA_LAYER);
+    expect(JSON.stringify(areaFilter('a'))).toContain('"a"');
+    // Without a highlight, the filter matches no item.
+    expect(JSON.stringify(areaFilter(null))).toContain('""');
   });
 
   it('adds cluster counts only with a font the style has', () => {
@@ -69,13 +75,5 @@ describe('styleLabelFont', () => {
         { type: 'symbol', layout: { 'text-font': ['get', 'font'] } },
       ]),
     ).toBeNull();
-  });
-
-  it('measures an item circle as the layer draws it', () => {
-    // True size from zoom 11: doubles with each zoom step.
-    expect(itemRadiusPx(0.01, 14)).toBeCloseTo(0.01 * 2 ** 14);
-    expect(itemRadiusPx(0.01, 15)).toBeCloseTo(2 * itemRadiusPx(0.01, 14));
-    // Further out it keeps zoom 11's size.
-    expect(itemRadiusPx(0.01, 8)).toBeCloseTo(0.01 * 2 ** 11);
   });
 });

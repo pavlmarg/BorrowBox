@@ -4,12 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideTransloco } from '@jsverse/transloco';
 import type { GeoPoint } from '@borrowbox/contracts';
 import { AppConfigService } from '../../core/config/app-config';
-import {
-  CLUSTERS_LAYER,
-  ITEM_AREAS_LAYER,
-  ITEMS_SOURCE,
-  type MapPoint,
-} from './map-layers';
+import { CLUSTERS_LAYER, ITEMS_SOURCE, type MapPoint } from './map-layers';
 import { MAP_LIBRE } from './map-loader';
 import { MapView, type MapMode } from './map-view';
 
@@ -28,8 +23,11 @@ class FakeMap {
   readonly easeTo = jest.fn();
   readonly setLayoutProperty = jest.fn();
   readonly setPaintProperty = jest.fn();
+  readonly setFilter = jest.fn();
   readonly touchZoomRotate = { disableRotation: jest.fn() };
   center = { lat: 37.9838, lng: 23.7275 };
+  /** What the items source holds outside clusters, for the price tags. */
+  unclustered: Array<Record<string, unknown>> = [];
 
   constructor(readonly options: Record<string, unknown>) {
     FakeMap.last = this;
@@ -75,13 +73,23 @@ class FakeMap {
   getCanvas() {
     return { style: {} as Record<string, string> };
   }
+  querySourceFeatures() {
+    return this.unclustered;
+  }
+  project() {
+    return { x: 200, y: 300 };
+  }
 }
 
 class FakeMarker {
   static last: FakeMarker;
+  static all: FakeMarker[] = [];
   lngLat: [number, number] | null = null;
-  constructor() {
+  readonly element?: HTMLElement;
+  constructor(options: { element?: HTMLElement } = {}) {
     FakeMarker.last = this;
+    FakeMarker.all.push(this);
+    this.element = options.element;
   }
   on() {
     return this;
@@ -97,7 +105,7 @@ class FakeMarker {
     this.lngLat = null;
   }
   getLngLat() {
-    return null;
+    return this.lngLat;
   }
 }
 
@@ -176,7 +184,7 @@ describe('MapView', () => {
     expect(text(fixture.nativeElement)).toContain('map.unavailable');
   });
 
-  it('clusters items and draws them as circles, never pins', async () => {
+  it('clusters items and draws no symbol or pin layers', async () => {
     const { fixture } = await setup({});
     FakeMap.last.fire('load');
     fixture.detectChanges();
@@ -185,8 +193,6 @@ describe('MapView', () => {
       type: 'geojson',
       cluster: true,
     });
-    const items = FakeMap.last.layers.find((l) => l.id === ITEM_AREAS_LAYER);
-    expect(items?.type).toBe('circle');
     expect(
       FakeMap.last.layers.some(
         (l) => l.type === 'symbol' && l.id !== 'bb-cluster-count',
@@ -207,15 +213,41 @@ describe('MapView', () => {
     expect(data.features.map((f) => f.id)).toEqual(['a']);
   });
 
-  it('reports a clicked item', async () => {
+  /** A tag for item `id` once the map settles, as MapLibre would place it. */
+  function tagFor(id: string, label: string): HTMLElement {
+    FakeMap.last.unclustered = [
+      {
+        properties: { id, label },
+        geometry: { type: 'Point', coordinates: [23.7, 38] },
+      },
+    ];
+    FakeMap.last.fire('moveend');
+    const marker = FakeMarker.all.find((m) => m.element?.textContent === label);
+    return marker?.element as HTMLElement;
+  }
+
+  it('shows each item as a price tag, and reports a clicked one', async () => {
     const { host } = await setup({});
     FakeMap.last.fire('load');
-    FakeMap.last.fire(
-      'click',
-      { features: [{ properties: { id: 'item-1' } }] },
-      ITEM_AREAS_LAYER,
-    );
+    const tag = tagFor('item-1', '€8');
+    expect(tag.classList).toContain('bb-price-tag');
+    tag.click();
     expect(host.selected).toBe('item-1');
+  });
+
+  it('highlights a tag while pointed at, and drops it once clustered', async () => {
+    const { fixture } = await setup({});
+    FakeMap.last.fire('load');
+    const tag = tagFor('item-2', 'Free');
+    tag.dispatchEvent(new Event('mouseenter'));
+    fixture.detectChanges();
+    await settle();
+    expect(tag.classList).toContain('highlight');
+
+    const marker = FakeMarker.all.find((m) => m.element === tag) as FakeMarker;
+    FakeMap.last.unclustered = [];
+    FakeMap.last.fire('moveend');
+    expect(marker.lngLat).toBeNull();
   });
 
   it('has clickable clusters', async () => {

@@ -17,6 +17,8 @@ export type ColourValue = CirclePaint['circle-color'];
 
 export const SKY_500 = '#4aa8f0';
 export const SKY_700 = '#1f6fb2';
+/** The highlighted item: its tag and its area (ADR-0014; also in styles.scss). */
+export const HIGHLIGHT = '#ea580c';
 
 export const ITEMS_SOURCE = 'bb-items';
 export const AREA_SOURCE = 'bb-area';
@@ -24,12 +26,14 @@ export const SEARCH_SOURCE = 'bb-search';
 
 export const CLUSTERS_LAYER = 'bb-clusters';
 export const CLUSTER_COUNT_LAYER = 'bb-cluster-count';
-export const ITEM_AREAS_LAYER = 'bb-item-areas';
+export const ITEM_AREA_LAYER = 'bb-item-area';
 
 /** An item on the map, at its public (fuzzed) point. */
 export interface MapPoint {
   id: string;
   location: GeoPoint;
+  /** `browse`: its price tag's text, e.g. "€8" or "Free". */
+  label?: string;
 }
 
 /** Clusters dissolve into single items above this zoom. */
@@ -42,11 +46,12 @@ export const CLUSTER_MAX_ZOOM = 13;
 export function itemsData(points: readonly MapPoint[]): FeatureCollection {
   return {
     type: 'FeatureCollection',
-    features: points.map(({ id, location }) => ({
+    features: points.map(({ id, location, label }) => ({
       type: 'Feature',
       id,
       properties: {
         id,
+        label: label ?? '',
         r0: pixelsAtZoom0(LOCATION_OFFSET_MAX_M, location.lat),
       },
       geometry: { type: 'Point', coordinates: [location.lng, location.lat] },
@@ -84,12 +89,14 @@ const TRUE_SIZE_FROM_ZOOM = 11;
 const MAX_ZOOM = 22;
 
 /**
- * Bubbles with counts when zoomed out; circles of the offset radius at the
- * public points when zoomed in. Never a pin (ADR-0007). `labelFont` is a
- * font the base style has glyphs for; without one, bubbles show no count.
+ * Bubbles with counts when zoomed out; when zoomed in, the highlighted
+ * item's area (the offset radius) around its public point. The items
+ * themselves are price tags, HTML markers MapView adds (ADR-0014). Never a
+ * teardrop pin. `labelFont` is a font the base style has glyphs for;
+ * without one, bubbles show no count.
  */
 export function browseLayers(
-  selectedId: string | null,
+  highlightId: string | null,
   labelFont: string[] | null,
 ): AddLayerObject[] {
   const layers: AddLayerObject[] = [
@@ -107,14 +114,14 @@ export function browseLayers(
       },
     },
     {
-      id: ITEM_AREAS_LAYER,
+      id: ITEM_AREA_LAYER,
       type: 'circle',
       source: ITEMS_SOURCE,
-      filter: ['!', ['has', 'point_count']],
+      filter: areaFilter(highlightId),
       paint: {
-        'circle-color': itemColour(selectedId),
-        'circle-opacity': 0.28,
-        'circle-stroke-color': itemColour(selectedId),
+        'circle-color': HIGHLIGHT,
+        'circle-opacity': 0.16,
+        'circle-stroke-color': HIGHLIGHT,
         'circle-stroke-width': 2,
         'circle-pitch-alignment': 'map',
         'circle-radius': [
@@ -147,16 +154,15 @@ export function browseLayers(
   return layers;
 }
 
-/** An item circle's radius in pixels at `zoom`, as the layer above draws it. */
-export function itemRadiusPx(r0: number, zoom: number): number {
-  return r0 * 2 ** Math.min(Math.max(zoom, TRUE_SIZE_FROM_ZOOM), MAX_ZOOM);
-}
-
-/** The selected item stands out in the darker blue. */
-export function itemColour(selectedId: string | null): ColourValue {
-  return selectedId === null
-    ? SKY_500
-    : ['case', ['==', ['get', 'id'], selectedId], SKY_700, SKY_500];
+/** Only the highlighted item's area is drawn (none without one). */
+export function areaFilter(
+  highlightId: string | null,
+): NonNullable<Extract<AddLayerObject, { type: 'circle' }>['filter']> {
+  return [
+    'all',
+    ['!', ['has', 'point_count']],
+    ['==', ['get', 'id'], highlightId ?? ''],
+  ];
 }
 
 /** A filled circle: an item's approximate area. */

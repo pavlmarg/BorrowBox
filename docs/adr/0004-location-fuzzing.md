@@ -12,5 +12,5 @@ Items are listed from people's homes. Showing exact coordinates would expose hom
 - Strip EXIF metadata, including GPS, from every uploaded photo.
 
 ## Consequences
-- Pins on the map are approximate, so the UI shows a circle rather than a pin.
+- Pins on the map are approximate, so the UI shows a circle rather than a pin. *(Explore's map: amended by [ADR-0014](0014-price-tags-on-explore-map.md).)*
 - Because the offset is fixed rather than re-randomised per request, averaging repeated queries can't recover the real location.

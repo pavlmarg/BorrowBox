@@ -268,10 +268,10 @@ See [ADR-0003](adr/0003-stripe-separate-charges-transfers.md).
 - **Dev:** `nx serve web` on port 4200 proxies `/api` to the gateway on 3000, so cookies stay same-origin, as they are behind Caddy in production.
 - **Fonts and icons:** system fonts, and no fonts or icon fonts from Google's CDN, which would share visitors' IPs with Google (a GDPR issue).
 - **Features:** `auth`, `explore` (map + list), `item-detail`, `listing-wizard`, `bookings` (renter/lender tabs), `handoff` (show/scan QR, condition photos), `chat`, `notifications`, `profile` (verification, Stripe onboarding, payouts), `admin` (disputes).
-- **Map:** MapLibre GL with MapTiler tiles, lazy-loaded. Fuzzed locations are clustered when zoomed out and drawn as circles when zoomed in, never as precise pins. Radius search, and pin-drop to set an item's location ([ADR-0008](adr/0008-maps-pin-drop.md)).
+- **Map:** MapLibre GL with MapTiler tiles, lazy-loaded. Fuzzed locations are clustered when zoomed out. Zoomed in, Explore shows price tags at the public points, with the item's area circle on hover ([ADR-0014](adr/0014-price-tags-on-explore-map.md)); the item page shows the area circle. Never a precise pin. Radius search, and pin-drop to set an item's location ([ADR-0008](adr/0008-maps-pin-drop.md)).
   - One `MapView` component (`shared/map`) with three modes: browse (Explore), area (item page) and pin (the owner's own item in the listing wizard).
-  - Each circle has the largest offset's radius (`LOCATION_OFFSET_MAX_M`, 300 m) around the public point, so the exact point is always inside it.
-  - Explore, with a mouse: hovering a circle shows a small card above it (photo, category, title, price) linking to the item; it closes shortly after the pointer leaves both, or when the map moves.
+  - Each area circle has the largest offset's radius (`LOCATION_OFFSET_MAX_M`, 300 m) around the public point, so the exact point is always inside it.
+  - Explore, with a mouse: hovering a price tag turns it orange, draws its area and shows a small card above it (photo, category, title, price) linking to the item; it closes shortly after the pointer leaves both, or when the map moves. Clicking a tag opens the item.
   - The style URL comes from `/config.json` at runtime, loaded the first time a map is shown; without it, maps say they're unavailable and pages keep working. Place names follow the UI language.
   - MapLibre's worker and stylesheet are served from our own origin (`/vendor/maplibre/`).
 - **PWA:** `@angular/pwa` service worker, installable, offline shell, Web Push (VAPID). iOS supports push only for installed PWAs (16.4+), so email is always the fallback.

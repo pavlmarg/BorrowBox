@@ -41,7 +41,9 @@ import type { PublicItemSummaryResponse } from '../../api/models';
 import { categoryColor } from '../../shared/catalog/category-colors';
 import { ResultRow } from '../../shared/catalog/result-row';
 import { EurPipe } from '../../shared/format/eur.pipe';
+import { formatCents } from '../../shared/format/money';
 import { cardRate } from '../../shared/format/pricing';
+import { LanguageService } from '../../core/i18n/language';
 import { LendRail } from './lend-rail';
 import { SearchBar } from './search-bar';
 
@@ -201,7 +203,7 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
           [selectedId]="store.selectedId()"
           [hoverCard]="mapCard"
           (cameraChange)="camera.set($event)"
-          (pointSelected)="pick($event)"
+          (pointSelected)="openItem($event)"
         />
         <ng-template #mapCard let-id>
           @if (itemsById().get(id); as item) {
@@ -574,6 +576,7 @@ export class ExplorePage {
   private readonly geolocation = inject(GeolocationService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly transloco = inject(TranslocoService);
+  private readonly language = inject(LanguageService);
   private readonly document = inject(DOCUMENT);
   private readonly breakpoints = inject(BreakpointObserver);
 
@@ -613,11 +616,24 @@ export class ExplorePage {
   protected rateOf(item: PublicItemSummaryResponse) {
     return cardRate(item.pricing);
   }
-  protected readonly points = computed<MapPoint[]>(() =>
-    this.store
-      .items()
-      .map((i) => ({ id: i.id, location: i.approximateLocation })),
-  );
+
+  /** A map tag: the card's rate without its unit, e.g. "€8", or "Free". */
+  private tagLabel(item: PublicItemSummaryResponse, locale: string): string {
+    const r = cardRate(item.pricing);
+    return r.free
+      ? this.transloco.translate('catalog.free')
+      : formatCents(r.rate.cents, locale);
+  }
+  protected readonly points = computed<MapPoint[]>(() => {
+    const locale = this.language.formatLocale();
+    // Read so the labels follow a language switch.
+    this.language.current();
+    return this.store.items().map((i) => ({
+      id: i.id,
+      location: i.approximateLocation,
+      label: this.tagLabel(i, locale),
+    }));
+  });
   /** The map moved or zoomed away from the area last searched. */
   protected readonly areaMoved = computed(() => {
     const camera = this.camera();
@@ -683,14 +699,9 @@ export class ExplorePage {
   }
 
   /** A circle on the map: highlight its result and bring it into view. */
-  protected pick(id: string): void {
-    this.store.select(id);
-    this.mapOpen.set(false);
-    requestAnimationFrame(() =>
-      this.document
-        .getElementById(`result-${id}`)
-        ?.scrollIntoView({ block: 'nearest' }),
-    );
+  /** A price tag on the map: straight to its item's page. */
+  protected openItem(id: string): void {
+    void this.router.navigate(['/items', id]);
   }
 
   /**

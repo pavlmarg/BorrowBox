@@ -193,6 +193,44 @@ bb-app-shell,
   );
 }
 
+// Price tags on Explore's map (ADR-0014): a blue label whose pointer marks
+// the item's public point; orange while highlighted. HTML markers live
+// outside any component, so they're styled here.
+.bb-price-tag {
+  --tag: var(--bb-sky-700);
+  background: var(--tag);
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgb(16 58 99 / 0.3);
+  color: #fff;
+  cursor: pointer;
+  font: 700 13px/1 var(--mat-sys-body-medium-font, system-ui);
+  margin-bottom: 6px;
+  padding: 7px 10px;
+  position: relative;
+  transition:
+    background-color var(--bb-medium) var(--bb-ease),
+    transform var(--bb-medium) var(--bb-ease);
+  white-space: nowrap;
+
+  // The pointer, at the item's spot.
+  &::after {
+    border: 6px solid transparent;
+    border-top-color: var(--tag);
+    content: '';
+    left: 50%;
+    margin-left: -6px;
+    position: absolute;
+    top: 100%;
+    transition: border-color var(--bb-medium) var(--bb-ease);
+  }
+
+  &.highlight {
+    --tag: #ea580c;
+    transform: scale(1.08);
+    z-index: 2;
+  }
+}
+
 // Explore's price filter holds a form: wider than Material's 280 px menus.
 .mat-mdc-menu-panel.bb-price-menu {
   max-width: none;
