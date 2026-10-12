@@ -391,11 +391,11 @@ const WIDE = '(min-width: 960px)';
       backdrop-filter: blur(12px);
       background: rgb(255 255 255 / 0.8);
       border-bottom: 1px solid rgb(16 58 99 / 0.08);
-      /* 56 px with its border, as Explore's height assumes. */
+      /* 64 px with its border, as Explore's height assumes. */
       box-sizing: border-box;
       display: flex;
       gap: 8px;
-      height: 56px;
+      height: 64px;
       padding: 0 12px 0 8px;
       position: sticky;
       top: 0;

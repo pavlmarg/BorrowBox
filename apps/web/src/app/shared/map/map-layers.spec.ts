@@ -8,6 +8,7 @@ import {
   ITEM_AREAS_LAYER,
   itemsData,
   styleLabelFont,
+  itemRadiusPx,
 } from './map-layers';
 
 describe('itemsData', () => {
@@ -68,5 +69,13 @@ describe('styleLabelFont', () => {
         { type: 'symbol', layout: { 'text-font': ['get', 'font'] } },
       ]),
     ).toBeNull();
+  });
+
+  it('measures an item circle as the layer draws it', () => {
+    // True size from zoom 11: doubles with each zoom step.
+    expect(itemRadiusPx(0.01, 14)).toBeCloseTo(0.01 * 2 ** 14);
+    expect(itemRadiusPx(0.01, 15)).toBeCloseTo(2 * itemRadiusPx(0.01, 14));
+    // Further out it keeps zoom 11's size.
+    expect(itemRadiusPx(0.01, 8)).toBeCloseTo(0.01 * 2 ** 11);
   });
 });

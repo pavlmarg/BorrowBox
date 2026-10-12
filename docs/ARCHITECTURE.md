@@ -271,6 +271,7 @@ See [ADR-0003](adr/0003-stripe-separate-charges-transfers.md).
 - **Map:** MapLibre GL with MapTiler tiles, lazy-loaded. Fuzzed locations are clustered when zoomed out and drawn as circles when zoomed in, never as precise pins. Radius search, and pin-drop to set an item's location ([ADR-0008](adr/0008-maps-pin-drop.md)).
   - One `MapView` component (`shared/map`) with three modes: browse (Explore), area (item page) and pin (the owner's own item in the listing wizard).
   - Each circle has the largest offset's radius (`LOCATION_OFFSET_MAX_M`, 300 m) around the public point, so the exact point is always inside it.
+  - Explore, with a mouse: hovering a circle shows a small card above it (photo, category, title, price) linking to the item; it closes shortly after the pointer leaves both, or when the map moves.
   - The style URL comes from `/config.json` at runtime, loaded the first time a map is shown; without it, maps say they're unavailable and pages keep working. Place names follow the UI language.
   - MapLibre's worker and stylesheet are served from our own origin (`/vendor/maplibre/`).
 - **PWA:** `@angular/pwa` service worker, installable, offline shell, Web Push (VAPID). iOS supports push only for installed PWAs (16.4+), so email is always the fallback.

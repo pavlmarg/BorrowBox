@@ -147,6 +147,11 @@ export function browseLayers(
   return layers;
 }
 
+/** An item circle's radius in pixels at `zoom`, as the layer above draws it. */
+export function itemRadiusPx(r0: number, zoom: number): number {
+  return r0 * 2 ** Math.min(Math.max(zoom, TRUE_SIZE_FROM_ZOOM), MAX_ZOOM);
+}
+
 /** The selected item stands out in the darker blue. */
 export function itemColour(selectedId: string | null): ColourValue {
   return selectedId === null

@@ -16,7 +16,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import type { GeoPoint } from '@borrowbox/contracts';
 import { map } from 'rxjs';
@@ -37,7 +37,11 @@ import { CategoryRail } from './category-rail';
 import { ExploreFilters } from './explore-filters';
 import { FeaturedCarousel } from './featured-carousel';
 import { ExploreStore } from './explore.store';
+import type { PublicItemSummaryResponse } from '../../api/models';
+import { categoryColor } from '../../shared/catalog/category-colors';
 import { ResultRow } from '../../shared/catalog/result-row';
+import { EurPipe } from '../../shared/format/eur.pipe';
+import { cardRate } from '../../shared/format/pricing';
 import { LendRail } from './lend-rail';
 import { SearchBar } from './search-bar';
 
@@ -71,6 +75,8 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
     ResultRow,
     CategoryRail,
     LendRail,
+    RouterLink,
+    EurPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -193,9 +199,41 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
           [zoom]="view().zoom"
           [points]="points()"
           [selectedId]="store.selectedId()"
+          [hoverCard]="mapCard"
           (cameraChange)="camera.set($event)"
           (pointSelected)="pick($event)"
         />
+        <ng-template #mapCard let-id>
+          @if (itemsById().get(id); as item) {
+            <a
+              class="map-card"
+              [routerLink]="['/items', item.id]"
+              [style.--cat]="colorOf(item.category)"
+            >
+              <span class="map-card-photo">
+                @if (item.coverPhoto; as cover) {
+                  <img [src]="cover.small" alt="" />
+                }
+              </span>
+              <span class="map-card-text">
+                <span class="map-card-category">{{
+                  t('catalog.categories.' + item.category)
+                }}</span>
+                <span class="map-card-title">{{ item.title }}</span>
+                @if (rateOf(item); as r) {
+                  <span class="map-card-price">
+                    @if (r.free) {
+                      {{ t('catalog.free') }}
+                    } @else {
+                      <strong>{{ r.rate.cents | eur }}</strong
+                      >{{ t('catalog.perUnit.' + r.rate.unit) }}
+                    }
+                  </span>
+                }
+              </span>
+            </a>
+          }
+        </ng-template>
         @if (areaMoved()) {
           <button
             mat-flat-button
@@ -233,7 +271,7 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
   styles: `
     .explore {
       /* Below the app's top bar. */
-      height: calc(100dvh - 56px);
+      height: calc(100dvh - 64px);
       position: relative;
     }
 
@@ -462,6 +500,63 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
       position: absolute;
       top: 16px;
     }
+    /* The card above a hovered circle on the map: the item at a glance,
+       linking to its page. */
+    .map-card {
+      align-items: center;
+      background: #fff;
+      box-shadow: var(--bb-shadow-md);
+      color: var(--mat-sys-on-surface);
+      display: flex;
+      gap: 10px;
+      padding: 8px 12px 8px 8px;
+      text-decoration: none;
+      width: 260px;
+    }
+    .map-card-photo {
+      background: var(--bb-sky-100);
+      flex: none;
+      height: 64px;
+      overflow: hidden;
+      width: 64px;
+    }
+    .map-card-photo img {
+      display: block;
+      height: 100%;
+      object-fit: cover;
+      width: 100%;
+    }
+    .map-card-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .map-card-category {
+      color: var(--cat);
+      font: var(--mat-sys-label-small);
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+    }
+    .map-card-title {
+      font: var(--mat-sys-title-small);
+      overflow: hidden;
+      text-decoration: underline;
+      text-overflow: ellipsis;
+      text-underline-offset: 3px;
+      transition: color var(--bb-fast) var(--bb-ease);
+      white-space: nowrap;
+    }
+    .map-card:hover .map-card-title {
+      color: var(--cat);
+    }
+    .map-card-price {
+      font: var(--mat-sys-body-medium);
+    }
+    .map-card:focus-visible {
+      outline: 3px solid var(--bb-sky-300);
+    }
     .visually-hidden {
       clip: rect(0 0 0 0);
       height: 1px;
@@ -510,6 +605,14 @@ export class ExplorePage {
   /** The radius alone: unchanged by other filters (a computed compares values). */
   private readonly radiusKm = computed(() => this.store.filters().radiusKm);
   private readonly radiusM = computed(() => this.radiusKm() * 1000);
+  /** For the map's hover card. */
+  protected readonly itemsById = computed(
+    () => new Map(this.store.items().map((i) => [i.id, i])),
+  );
+  protected readonly colorOf = categoryColor;
+  protected rateOf(item: PublicItemSummaryResponse) {
+    return cardRate(item.pricing);
+  }
   protected readonly points = computed<MapPoint[]>(() =>
     this.store
       .items()
@@ -648,6 +751,6 @@ export class ExplorePage {
     const win = this.document.defaultView;
     const width = win?.innerWidth ?? 1024;
     const height = win?.innerHeight ?? 768;
-    return Math.min(width, height - 56);
+    return Math.min(width, height - 64);
   }
 }

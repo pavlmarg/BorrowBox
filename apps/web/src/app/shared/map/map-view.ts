@@ -3,6 +3,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  TemplateRef,
   afterNextRender,
   effect,
   inject,
@@ -12,6 +13,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { LOCATION_OFFSET_MAX_M, type GeoPoint } from '@borrowbox/contracts';
 import type {
@@ -36,6 +38,7 @@ import {
   browseLayers,
   circleData,
   itemColour,
+  itemRadiusPx,
   itemsData,
   searchLayers,
   styleLabelFont,
@@ -64,6 +67,20 @@ export interface SearchCircle {
 
 type MapState = 'loading' | 'ready' | 'unavailable';
 
+/** The hovered item and where its card points to, in map pixels. */
+interface Hovered {
+  id: string;
+  x: number;
+  y: number;
+  /** Below the circle: too close to the top for the card above it. */
+  below: boolean;
+}
+
+/** Room the card needs above the circle; with less, it goes below. */
+const CARD_ROOM_PX = 150;
+/** How long the card waits for the pointer to come back before closing. */
+const CARD_CLOSE_MS = 200;
+
 /**
  * The one map component (ADR-0008). Everyone but an item's owner only ever
  * sees circles around public points (ADR-0007). Without a configured style
@@ -73,10 +90,26 @@ type MapState = 'loading' | 'ready' | 'unavailable';
  */
 @Component({
   selector: 'bb-map',
-  imports: [TranslocoPipe],
+  imports: [TranslocoPipe, NgTemplateOutlet],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div #canvas class="canvas"></div>
+    @if (hovered(); as h) {
+      @if (hoverCard(); as card) {
+        <div
+          class="hover-card"
+          [class.below]="h.below"
+          [style.left.px]="h.x"
+          [style.top.px]="h.y"
+          (mouseenter)="keepCard()"
+          (mouseleave)="closeCardSoon()"
+        >
+          <ng-container
+            *ngTemplateOutlet="card; context: { $implicit: h.id }"
+          />
+        </div>
+      }
+    }
     @if (state() !== 'ready') {
       <p class="overlay" role="status">
         {{
@@ -96,6 +129,25 @@ type MapState = 'loading' | 'ready' | 'unavailable';
     .canvas {
       inset: 0;
       position: absolute;
+    }
+    /* Above (or below) the hovered circle. Its transparent padding bridges
+       the gap, so the pointer can reach the card without closing it. */
+    .hover-card {
+      animation: bb-card-in 220ms var(--bb-ease) both;
+      padding-bottom: 10px;
+      position: absolute;
+      transform: translate(-50%, -100%);
+      z-index: 3;
+    }
+    .hover-card.below {
+      padding: 10px 0 0;
+      transform: translate(-50%, 0);
+    }
+    @keyframes bb-card-in {
+      from {
+        opacity: 0;
+        margin-top: 6px;
+      }
     }
     .overlay {
       align-items: center;
@@ -126,12 +178,19 @@ export class MapView {
   readonly area = input<GeoPoint | null>(null);
   /** `pin`: the exact point, set by clicking the map or dragging the pin. */
   readonly pin = model<GeoPoint | null>(null);
+  /**
+   * `browse`: shown above an item's circle while the pointer is on it (or
+   * on the card), given the item's id. Pointer devices only.
+   */
+  readonly hoverCard = input<TemplateRef<{ $implicit: string }> | null>(null);
 
   /** After every move, by the user or the map itself. */
   readonly cameraChange = output<MapCamera>();
   readonly pointSelected = output<string>();
 
   protected readonly state = signal<MapState>('loading');
+  protected readonly hovered = signal<Hovered | null>(null);
+  private closeTimer?: ReturnType<typeof setTimeout>;
 
   private readonly canvas =
     viewChild.required<ElementRef<HTMLElement>>('canvas');
@@ -149,6 +208,7 @@ export class MapView {
     afterNextRender(() => void this.create());
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
+      clearTimeout(this.closeTimer);
       this.map?.remove();
     });
 
@@ -290,6 +350,12 @@ export class MapView {
           map.getCanvas().style.cursor = '';
         });
       }
+      map.on('mousemove', ITEM_AREAS_LAYER, (event) =>
+        this.showCard(map, event),
+      );
+      map.on('mouseleave', ITEM_AREAS_LAYER, () => this.closeCardSoon());
+      // The card would drift from its circle: it goes until the next hover.
+      map.on('movestart', () => this.hovered.set(null));
       return;
     }
 
@@ -310,6 +376,42 @@ export class MapView {
         this.pin.set({ lat: lngLat.lat, lng: lngLat.lng }),
       );
     }
+  }
+
+  /** The card for the item under the pointer, pointing at its circle. */
+  private showCard(map: MapLibreMap, event: MapLayerMouseEvent): void {
+    this.keepCard();
+    const feature = event.features?.[0];
+    const id = feature?.properties?.['id'];
+    const r0 = feature?.properties?.['r0'];
+    if (
+      !this.hoverCard() ||
+      typeof id !== 'string' ||
+      typeof r0 !== 'number' ||
+      feature?.geometry.type !== 'Point' ||
+      this.hovered()?.id === id
+    ) {
+      return;
+    }
+    const [lng, lat] = feature.geometry.coordinates;
+    const centre = map.project([lng, lat]);
+    const radius = itemRadiusPx(r0, map.getZoom());
+    const below = centre.y - radius < CARD_ROOM_PX;
+    this.hovered.set({
+      id,
+      x: centre.x,
+      y: below ? centre.y + radius : centre.y - radius,
+      below,
+    });
+  }
+
+  protected keepCard(): void {
+    clearTimeout(this.closeTimer);
+  }
+
+  protected closeCardSoon(): void {
+    clearTimeout(this.closeTimer);
+    this.closeTimer = setTimeout(() => this.hovered.set(null), CARD_CLOSE_MS);
   }
 
   private async zoomInto(event: MapLayerMouseEvent): Promise<void> {
