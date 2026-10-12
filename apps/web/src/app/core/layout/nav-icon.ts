@@ -21,6 +21,7 @@ export type NavIconName =
   | 'chevron-left'
   | 'chevron-right'
   | 'chevron-down'
+  | 'trash'
   | 'pause'
   | 'play';
 
@@ -111,6 +112,16 @@ export type NavIconName =
         @case ('chevron-right') {
           <path d="m9.5 6 6 6-6 6" />
         }
+        @case ('trash') {
+          <!-- The body, then the lid a little above it. -->
+          <path d="M10 11.5v5.5M14 11.5v5.5" />
+          <path
+            d="M6 8.5l1 11a1.5 1.5 0 0 0 1.5 1.5h7a1.5 1.5 0 0 0 1.5-1.5l1-11Z"
+          />
+          <g class="lid">
+            <path d="M4.5 6h15M9 6V3.5h6V6" />
+          </g>
+        }
         @case ('chevron-down') {
           <path d="m6 9.5 6 6 6-6" />
         }
@@ -133,11 +144,29 @@ export type NavIconName =
     svg {
       fill: none;
       height: 100%;
+      /* Moving parts (the bin's lid) may leave the 24 × 24 box. */
+      overflow: visible;
       stroke: currentColor;
       stroke-linecap: round;
       stroke-linejoin: round;
-      stroke-width: 1.7;
+      /* A parent may draw an icon bolder, e.g. on hover. */
+      stroke-width: var(--bb-icon-stroke, 1.7);
+      transition: stroke-width 300ms var(--bb-ease);
       width: 100%;
+    }
+    /* The bin's lid opens 30° on its right-hand hinge while a parent marked
+       bb-lid-trigger is pointed at or focused. */
+    .lid {
+      transform-box: view-box;
+      transform-origin: 19.5px 6px;
+      /* Closing: a soft settle. */
+      transition: transform 260ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    :host-context(.bb-lid-trigger:not([disabled]):hover) .lid,
+    :host-context(.bb-lid-trigger:focus-visible) .lid {
+      transform: rotate(30deg);
+      /* Opening: a little spring past 30° and back. */
+      transition: transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
     }
   `,
 })

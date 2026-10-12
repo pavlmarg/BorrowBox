@@ -105,7 +105,7 @@ describe('missingForPublish / coverOf', () => {
 
 describe('MyItemsPage', () => {
   it('offers the actions that fit each status', async () => {
-    const { buttons } = await render([
+    const { buttons, el } = await render([
       own('a'),
       own('b', { status: 'PAUSED' }),
       own('c', { status: 'DRAFT', location: null }),
@@ -114,13 +114,15 @@ describe('MyItemsPage', () => {
       'item.edit',
       'myItems.view',
       'myItems.pause',
-      'myItems.delete',
     ]);
     expect(buttons(1).map((b) => b.text)).toEqual([
       'item.edit',
       'myItems.unpause',
-      'myItems.delete',
     ]);
+    // Delete is a bin at each row's right, named for screen readers.
+    const bins = [...el.querySelectorAll('.row .bin')];
+    expect(bins).toHaveLength(3);
+    expect(bins[0].getAttribute('aria-label')).toBe('myItems.delete');
     // A draft without a location can't be published yet.
     expect(buttons(2).find((b) => b.text === 'listing.publish')?.disabled).toBe(
       true,

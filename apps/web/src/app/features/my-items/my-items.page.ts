@@ -10,12 +10,12 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { ITEM_FREE_LIMIT } from '@borrowbox/contracts';
-import { firstValueFrom } from 'rxjs';
 import type { OwnItemResponse } from '../../api/models';
 import {
-  ConfirmDialog,
+  openConfirm,
   type ConfirmDialogData,
 } from '../../shared/confirm-dialog';
+import { NavIcon } from '../../core/layout/nav-icon';
 import { EurPipe } from '../../shared/format/eur.pipe';
 import { cardRate } from '../../shared/format/pricing';
 import { MyItemsStore, type ItemAction } from './my-items.store';
@@ -44,7 +44,7 @@ export function coverOf(item: OwnItemResponse): string | null {
  */
 @Component({
   selector: 'bb-my-items-page',
-  imports: [RouterLink, TranslocoDirective, MatButtonModule, EurPipe],
+  imports: [RouterLink, TranslocoDirective, MatButtonModule, EurPipe, NavIcon],
   providers: [MyItemsStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -127,14 +127,14 @@ export function coverOf(item: OwnItemResponse): string | null {
                   }
                   <div class="actions">
                     <a
-                      mat-button
+                      class="action"
                       [routerLink]="['/my-items', item.id, 'edit']"
                       >{{ t('item.edit') }}</a
                     >
                     @switch (item.status) {
                       @case ('DRAFT') {
                         <button
-                          mat-button
+                          class="action"
                           type="button"
                           [disabled]="busy(item) || missing(item).length > 0"
                           (click)="run(item, 'publish')"
@@ -143,11 +143,11 @@ export function coverOf(item: OwnItemResponse): string | null {
                         </button>
                       }
                       @case ('ACTIVE') {
-                        <a mat-button [routerLink]="['/items', item.id]">{{
+                        <a class="action" [routerLink]="['/items', item.id]">{{
                           t('myItems.view')
                         }}</a>
                         <button
-                          mat-button
+                          class="action"
                           type="button"
                           [disabled]="busy(item)"
                           (click)="run(item, 'pause')"
@@ -157,7 +157,7 @@ export function coverOf(item: OwnItemResponse): string | null {
                       }
                       @case ('PAUSED') {
                         <button
-                          mat-button
+                          class="action"
                           type="button"
                           [disabled]="busy(item)"
                           (click)="run(item, 'unpause')"
@@ -166,17 +166,17 @@ export function coverOf(item: OwnItemResponse): string | null {
                         </button>
                       }
                     }
-                    <button
-                      mat-button
-                      type="button"
-                      class="delete"
-                      [disabled]="busy(item)"
-                      (click)="remove(item)"
-                    >
-                      {{ t('myItems.delete') }}
-                    </button>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  class="bin delete bb-lid-trigger"
+                  [disabled]="busy(item)"
+                  [attr.aria-label]="t('myItems.delete')"
+                  (click)="remove(item)"
+                >
+                  <bb-nav-icon name="trash" />
+                </button>
               </li>
             }
           </ul>
@@ -215,17 +215,27 @@ export function coverOf(item: OwnItemResponse): string | null {
       padding: 0;
     }
     .row {
+      align-items: flex-start;
       border-top: 1px solid rgb(16 58 99 / 0.08);
       display: flex;
-      gap: 16px;
-      padding: 16px 0;
+      gap: 24px;
+      padding: 24px 0;
     }
     .photo {
       background: var(--bb-sky-100);
       flex: none;
-      height: 96px;
+      height: 150px;
       overflow: hidden;
-      width: 96px;
+      width: 150px;
+    }
+    @media (max-width: 599px) {
+      .row {
+        gap: 16px;
+      }
+      .photo {
+        height: 104px;
+        width: 104px;
+      }
     }
     .photo img {
       display: block;
@@ -237,14 +247,14 @@ export function coverOf(item: OwnItemResponse): string | null {
       display: flex;
       flex: 1;
       flex-direction: column;
-      gap: 4px;
+      gap: 6px;
       min-width: 0;
     }
     .status {
       align-self: flex-start;
-      border: 1px solid currentColor;
-      font: var(--mat-sys-label-small);
-      padding: 1px 6px;
+      font: var(--mat-sys-label-medium);
+      font-weight: 800;
+      letter-spacing: 0.6px;
       text-transform: uppercase;
     }
     .status[data-status='ACTIVE'] {
@@ -257,11 +267,11 @@ export function coverOf(item: OwnItemResponse): string | null {
       color: #9a5b00;
     }
     .title {
-      font: var(--mat-sys-title-medium);
+      font: var(--mat-sys-title-large);
       overflow-wrap: anywhere;
     }
     .price {
-      font: var(--mat-sys-body-medium);
+      font: var(--mat-sys-body-large);
     }
     .needs {
       color: var(--mat-sys-on-surface-variant);
@@ -270,11 +280,72 @@ export function coverOf(item: OwnItemResponse): string | null {
     .actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 4px;
-      margin-left: -12px;
+      gap: 28px;
+      margin-top: 8px;
     }
-    .delete {
-      --mat-button-text-label-text-color: var(--mat-sys-error);
+    /* Only the words are links. On hover they thicken (a text shadow, so the
+       width doesn't jump) and an underline draws from left to right. */
+    .action {
+      background: linear-gradient(currentColor, currentColor) 0 100% / 0 2px
+        no-repeat;
+      border: 0;
+      color: var(--bb-sky-700);
+      cursor: pointer;
+      font: var(--mat-sys-title-medium);
+      padding: 0 0 3px;
+      text-decoration: none;
+      transition:
+        background-size 350ms var(--bb-ease),
+        text-shadow 350ms var(--bb-ease);
+    }
+    .action:hover:not([disabled]),
+    .action:focus-visible {
+      background-size: 100% 2px;
+      text-shadow:
+        0 0 0.6px currentColor,
+        0 0 0.6px currentColor;
+    }
+    .action:focus-visible {
+      outline: 3px solid var(--bb-sky-300);
+      outline-offset: 3px;
+    }
+    .action[disabled] {
+      color: var(--mat-sys-on-surface-variant);
+      cursor: default;
+      opacity: 0.5;
+    }
+    /* Delete: a bin at the row's right, red. On hover it turns a strong,
+       bolder red and its lid opens (nav-icon). */
+    .bin {
+      align-items: center;
+      background: none;
+      border: 0;
+      border-radius: 50%;
+      color: var(--mat-sys-error);
+      cursor: pointer;
+      display: inline-flex;
+      flex: none;
+      height: 44px;
+      justify-content: center;
+      padding: 0;
+      transition: color var(--bb-medium) var(--bb-ease);
+      width: 44px;
+    }
+    .bin bb-nav-icon {
+      height: 24px;
+      width: 24px;
+    }
+    .bin:hover:not([disabled]),
+    .bin:focus-visible {
+      --bb-icon-stroke: 2.4;
+      color: #c00000;
+    }
+    .bin:focus-visible {
+      outline: 3px solid var(--bb-sky-300);
+    }
+    .bin[disabled] {
+      cursor: default;
+      opacity: 0.45;
     }
     .message {
       color: var(--mat-sys-on-surface-variant);
@@ -325,10 +396,7 @@ export class MyItemsPage implements OnInit {
       cancel: t('myItems.cancel'),
       danger: true,
     };
-    const confirmed = await firstValueFrom(
-      this.dialog.open(ConfirmDialog, { data }).afterClosed(),
-    );
-    if (confirmed !== true) return;
+    if (!(await openConfirm(this.dialog, data))) return;
     const failed = await this.store.act(item.id, 'delete');
     this.say(failed ? `errors.${failed}` : 'myItems.deleted');
   }

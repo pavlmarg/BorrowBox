@@ -277,6 +277,23 @@ bb-app-shell,
   }
 }
 
+// The "Are you sure?" dialog (shared/confirm-dialog): a rounded white card
+// over a softly blurred, tinted page.
+.bb-confirm-panel {
+  --mat-dialog-container-shape: 20px;
+  --mat-dialog-container-color: #fff;
+
+  .mat-mdc-dialog-surface {
+    box-shadow:
+      0 24px 48px rgb(16 58 99 / 0.22),
+      0 4px 12px rgb(16 58 99 / 0.12);
+  }
+}
+.bb-confirm-backdrop {
+  backdrop-filter: blur(4px);
+  background: rgb(16 58 99 / 0.28);
+}
+
 // Explore's price filter holds a form: wider than Material's 280 px menus.
 .mat-mdc-menu-panel.bb-price-menu {
   max-width: none;
