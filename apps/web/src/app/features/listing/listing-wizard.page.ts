@@ -103,6 +103,7 @@ const WIDE = '(min-width: 760px)';
         }
         <mat-stepper
           #stepper
+          class="bb-steps"
           [linear]="!editing()"
           [orientation]="wide() ? 'horizontal' : 'vertical'"
           (selectionChange)="store.clearError()"
@@ -111,9 +112,9 @@ const WIDE = '(min-width: 760px)';
           <ng-template matStepperIcon="edit" let-index="index">{{
             index + 1
           }}</ng-template>
-          <ng-template matStepperIcon="done">
-            <bb-nav-icon name="check" class="step-check" />
-          </ng-template>
+          <ng-template matStepperIcon="done" let-index="index">{{
+            index + 1
+          }}</ng-template>
           <!-- 1. Details -->
           <mat-step [stepControl]="basics" [label]="t('listing.stepDetails')">
             <form
@@ -188,7 +189,7 @@ const WIDE = '(min-width: 760px)';
                 <p class="muted">{{ t('listing.ratesIntro') }}</p>
                 <div class="rates" formGroupName="rates">
                   @for (u of units; track u) {
-                    <mat-form-field>
+                    <mat-form-field floatLabel="always">
                       <mat-label>{{ t('listing.ratePer.' + u) }}</mat-label>
                       <span matTextPrefix>€&nbsp;</span>
                       <input
@@ -290,15 +291,22 @@ const WIDE = '(min-width: 760px)';
           <!-- 4. Photos -->
           <mat-step
             [completed]="store.readyPhotos() > 0"
-            [optional]="true"
             [label]="t('listing.stepPhotos')"
           >
             <bb-photos-step />
+            @if (store.readyPhotos() === 0) {
+              <p class="muted photo-needed">{{ t('listing.photoNeeded') }}</p>
+            }
             <div class="actions">
               <button mat-button matStepperPrevious type="button">
                 {{ t('listing.previous') }}
               </button>
-              <button mat-flat-button matStepperNext type="button">
+              <button
+                mat-flat-button
+                matStepperNext
+                type="button"
+                [disabled]="store.readyPhotos() === 0"
+              >
                 {{ t('listing.next') }}
               </button>
             </div>
@@ -391,6 +399,9 @@ const WIDE = '(min-width: 760px)';
       gap: 0 12px;
       grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     }
+    .photo-needed {
+      margin: 8px 0 0;
+    }
     .deposit {
       margin-top: 8px;
       max-width: 240px;
@@ -428,11 +439,6 @@ const WIDE = '(min-width: 760px)';
     .pin-map {
       height: 360px;
       max-width: 720px;
-    }
-    .step-check {
-      display: inline-flex;
-      height: 14px;
-      width: 14px;
     }
     .checklist {
       list-style: none;

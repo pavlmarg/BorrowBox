@@ -104,11 +104,6 @@ bb-app-shell,
   --mat-sys-corner-large: 0;
   --mat-sys-corner-extra-large: 0;
 
-  // The stepper's step numbers (Material draws them as circles).
-  .mat-step-icon {
-    border-radius: 0;
-  }
-
   // MapLibre's zoom buttons and attribution.
   .maplibregl-ctrl-group {
     border-radius: var(--bb-button-radius);
@@ -228,6 +223,57 @@ bb-app-shell,
     --tag: #ea580c;
     transform: scale(1.08);
     z-index: 2;
+  }
+}
+
+// The listing wizard's steps: round numbers, no hover or focus background.
+// Done steps are solid blue, the current one white with a blue ring, the
+// rest grey; done and current labels are bold.
+.bb-steps {
+  --mat-stepper-header-hover-state-layer-color: transparent;
+  --mat-stepper-header-focus-state-layer-color: transparent;
+
+  .mat-step-header {
+    .mat-step-header-ripple {
+      display: none;
+    }
+    &.cdk-keyboard-focused .mat-step-icon {
+      outline: 3px solid var(--bb-sky-300);
+      outline-offset: 2px;
+    }
+  }
+  .mat-step-icon {
+    background: #9aa5b1;
+    border: 2px solid #9aa5b1;
+    border-radius: 50%;
+    box-sizing: border-box;
+    color: #fff;
+    font-weight: 700;
+    height: 28px;
+    transition:
+      background-color var(--bb-medium) var(--bb-ease),
+      border-color var(--bb-medium) var(--bb-ease),
+      color var(--bb-medium) var(--bb-ease);
+    width: 28px;
+  }
+  .mat-step-icon-state-done,
+  .mat-step-icon-state-edit {
+    background: var(--mat-sys-primary);
+    border-color: var(--mat-sys-primary);
+  }
+  .mat-step-icon.mat-step-icon-selected {
+    background: #fff;
+    border-color: var(--mat-sys-primary);
+    color: var(--mat-sys-primary);
+  }
+  .mat-step-header .mat-step-label {
+    color: var(--mat-sys-on-surface-variant);
+  }
+  .mat-step-header .mat-step-label.mat-step-label-selected,
+  .mat-step-header:has(.mat-step-icon-state-done, .mat-step-icon-state-edit)
+    .mat-step-label {
+    color: var(--mat-sys-on-surface);
+    font-weight: 700;
   }
 }
 
