@@ -236,7 +236,7 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
     .column {
       box-sizing: border-box;
       margin: 0 auto;
-      max-width: 760px;
+      max-width: 1000px;
       width: 100%;
     }
     .search-row {

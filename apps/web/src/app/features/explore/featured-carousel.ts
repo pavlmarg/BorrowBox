@@ -191,10 +191,11 @@ const GAP_PX = 12;
       display: flex;
       gap: 12px;
       list-style: none;
-      margin: 0;
+      /* Inset by a margin, not padding: padding would scroll with the
+         cards and show a sliver of the previous one. */
+      margin: 0 16px;
       overflow-x: auto;
-      padding: 0 16px;
-      scroll-padding: 0 16px;
+      padding: 0;
       scroll-snap-type: x mandatory;
       scrollbar-width: none;
     }
