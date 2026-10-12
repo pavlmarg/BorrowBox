@@ -8,42 +8,53 @@ import {
 import { RouterLink } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
 import type { PublicItemSummaryResponse } from '../../api/models';
+import { NavIcon } from '../../core/layout/nav-icon';
 import { EurPipe } from '../format/eur.pipe';
 import { cardRate } from '../format/pricing';
+import { categoryColor } from './category-colors';
 
 /**
- * One search result (E7, E12): photo on the left; title, one rate and the
- * distance band on the right. No panel (E8): rows sit on the background,
+ * One search result (E7, E12); only its title links to the item: photo on the left; the category (in its
+ * colour), title, the description's start, one rate and the distance band
+ * on the right. No panel (E8): rows sit on the background,
  * separated by dividers, tinted when hovered or selected.
  */
 @Component({
   selector: 'bb-result-row',
-  imports: [RouterLink, TranslocoDirective, EurPipe],
+  imports: [RouterLink, TranslocoDirective, EurPipe, NavIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <a
+    <div
       class="row"
       *transloco="let t"
-      [routerLink]="['/items', item().id]"
       [class.selected]="selected()"
+      [style.--cat]="color()"
       (mouseenter)="hovered.emit(item().id)"
       (mouseleave)="hovered.emit(null)"
-      (focus)="hovered.emit(item().id)"
-      (blur)="hovered.emit(null)"
+      (focusin)="hovered.emit(item().id)"
+      (focusout)="hovered.emit(null)"
     >
       <span class="photo">
         @if (item().coverPhoto; as cover) {
           <img
             [src]="cover.small"
             [attr.srcset]="cover.small + ' 320w, ' + cover.medium + ' 800w'"
-            sizes="96px"
+            sizes="120px"
             loading="lazy"
             alt=""
           />
         }
       </span>
       <span class="text">
-        <span class="title">{{ item().title }}</span>
+        <span class="category">{{
+          t('catalog.categories.' + item().category)
+        }}</span>
+        <a class="title" [routerLink]="['/items', item().id]">{{
+          item().title
+        }}</a>
+        @if (item().descriptionExcerpt) {
+          <span class="description">{{ item().descriptionExcerpt }}</span>
+        }
         <span class="price">
           @if (rate(); as r) {
             @if (r.free) {
@@ -59,11 +70,12 @@ import { cardRate } from '../format/pricing';
             }
           }
         </span>
-        <span class="distance">{{
-          t('catalog.distance.' + item().distanceBand)
-        }}</span>
+        <span class="chip">
+          <bb-nav-icon name="location" />
+          {{ t('catalog.distance.' + item().distanceBand) }}
+        </span>
       </span>
-    </a>
+    </div>
   `,
   styles: `
     :host {
@@ -75,23 +87,18 @@ import { cardRate } from '../format/pricing';
       display: flex;
       gap: 14px;
       padding: 12px 16px;
-      text-decoration: none;
       transition: background-color var(--bb-fast) var(--bb-ease);
     }
     .row:hover,
     .row.selected {
       background: var(--bb-sky-100);
     }
-    .row:focus-visible {
-      outline: 3px solid var(--bb-sky-300);
-      outline-offset: -3px;
-    }
     .photo {
       background: var(--bb-sky-100);
       flex: none;
-      height: 96px;
+      height: 120px;
       overflow: hidden;
-      width: 96px;
+      width: 120px;
     }
     img {
       display: block;
@@ -104,14 +111,32 @@ import { cardRate } from '../format/pricing';
       flex-direction: column;
       gap: 4px;
       min-width: 0;
-      padding-top: 2px;
     }
+    /* The row's one link: underlined, in the category's colour on hover. */
     .title {
       -webkit-box-orient: vertical;
       -webkit-line-clamp: 2;
+      align-self: flex-start;
+      color: inherit;
       display: -webkit-box;
       font: var(--mat-sys-title-medium);
       overflow: hidden;
+      text-decoration: underline;
+      text-decoration-color: rgb(16 58 99 / 0.35);
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+      transition:
+        color var(--bb-fast) var(--bb-ease),
+        text-decoration-color var(--bb-fast) var(--bb-ease);
+    }
+    .title:hover {
+      color: var(--cat);
+      text-decoration-color: currentColor;
+      text-decoration-thickness: 2px;
+    }
+    .title:focus-visible {
+      outline: 3px solid var(--bb-sky-300);
+      outline-offset: 2px;
     }
     .price {
       font: var(--mat-sys-body-medium);
@@ -119,10 +144,40 @@ import { cardRate } from '../format/pricing';
     .price strong {
       font-weight: 700;
     }
-    .more,
-    .distance {
+    .description {
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      color: var(--mat-sys-on-surface-variant);
+      display: -webkit-box;
+      font: var(--mat-sys-body-medium);
+      overflow: hidden;
+    }
+    .more {
       color: var(--mat-sys-on-surface-variant);
       font: var(--mat-sys-body-small);
+    }
+    /* The distance as a chip, tinted with the category's colour. */
+    .chip {
+      align-items: center;
+      align-self: flex-start;
+      background: color-mix(in srgb, var(--cat) 7%, white);
+      border-radius: var(--bb-button-radius);
+      color: var(--cat);
+      display: inline-flex;
+      font: var(--mat-sys-label-medium);
+      gap: 4px;
+      padding: 2px 8px 2px 5px;
+    }
+    .chip bb-nav-icon {
+      height: 14px;
+      width: 14px;
+    }
+    .category {
+      color: var(--cat);
+      font: var(--mat-sys-label-small);
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
     }
   `,
 })
@@ -133,4 +188,7 @@ export class ResultRow {
   readonly hovered = output<string | null>();
 
   protected readonly rate = computed(() => cardRate(this.item().pricing));
+  protected readonly color = computed(() =>
+    categoryColor(this.item().category),
+  );
 }

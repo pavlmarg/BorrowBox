@@ -18,6 +18,7 @@ import type { PublicItemSummaryResponse } from '../../api/models';
 import { NavIcon } from '../../core/layout/nav-icon';
 import { EurPipe } from '../../shared/format/eur.pipe';
 import { cardRate } from '../../shared/format/pricing';
+import { categoryColor } from '../../shared/catalog/category-colors';
 
 /** Moves on by one card this often… */
 export const ADVANCE_EVERY_MS = 5000;
@@ -81,7 +82,11 @@ const GAP_PX = 12;
         >
           @for (item of items(); track item.id) {
             <li>
-              <a class="card" [routerLink]="['/items', item.id]">
+              <a
+                class="card"
+                [routerLink]="['/items', item.id]"
+                [style.--cat]="colorOf(item)"
+              >
                 <span class="photo">
                   @if (item.coverPhoto; as cover) {
                     <img
@@ -95,6 +100,9 @@ const GAP_PX = 12;
                     />
                   }
                 </span>
+                <span class="category">{{
+                  t('catalog.categories.' + item.category)
+                }}</span>
                 <span class="title">{{ item.title }}</span>
                 <span class="price">
                   @if (rateOf(item); as r) {
@@ -106,9 +114,10 @@ const GAP_PX = 12;
                     }
                   }
                 </span>
-                <span class="distance">{{
-                  t('catalog.distance.' + item.distanceBand)
-                }}</span>
+                <span class="chip">
+                  <bb-nav-icon name="location" />
+                  {{ t('catalog.distance.' + item.distanceBand) }}
+                </span>
               </a>
             </li>
           }
@@ -225,12 +234,25 @@ const GAP_PX = 12;
     .card:hover img {
       transform: scale(1.04);
     }
+    /* Underlined like a result's title; the whole card is the link. */
     .title {
       -webkit-box-orient: vertical;
       -webkit-line-clamp: 2;
       display: -webkit-box;
       font: var(--mat-sys-title-small);
       overflow: hidden;
+      text-decoration: underline;
+      text-decoration-color: rgb(16 58 99 / 0.35);
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+      transition:
+        color var(--bb-fast) var(--bb-ease),
+        text-decoration-color var(--bb-fast) var(--bb-ease);
+    }
+    .card:hover .title {
+      color: var(--cat);
+      text-decoration-color: currentColor;
+      text-decoration-thickness: 2px;
     }
     .price {
       font: var(--mat-sys-body-medium);
@@ -238,9 +260,28 @@ const GAP_PX = 12;
     .price strong {
       font-weight: 700;
     }
-    .distance {
-      color: var(--mat-sys-on-surface-variant);
-      font: var(--mat-sys-body-small);
+    /* The distance as a chip, tinted with the category's colour. */
+    .chip {
+      align-items: center;
+      align-self: flex-start;
+      background: color-mix(in srgb, var(--cat) 7%, white);
+      border-radius: var(--bb-button-radius);
+      color: var(--cat);
+      display: inline-flex;
+      font: var(--mat-sys-label-medium);
+      gap: 4px;
+      padding: 2px 8px 2px 5px;
+    }
+    .chip bb-nav-icon {
+      height: 14px;
+      width: 14px;
+    }
+    .category {
+      color: var(--cat);
+      font: var(--mat-sys-label-small);
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
     }
     /* Round on purpose, centred on the photos, over the row's edges. */
     .arrow {
@@ -335,6 +376,10 @@ export class FeaturedCarousel {
 
   protected rateOf(item: PublicItemSummaryResponse) {
     return cardRate(item.pricing);
+  }
+
+  protected colorOf(item: PublicItemSummaryResponse): string {
+    return categoryColor(item.category);
   }
 
   /** An arrow: one card on, and a break from moving by itself. */

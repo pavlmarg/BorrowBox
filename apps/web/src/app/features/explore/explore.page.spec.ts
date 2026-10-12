@@ -56,7 +56,16 @@ describe('ExplorePage', () => {
     const rows = el.querySelectorAll('bb-result-row');
     expect(rows.length).toBe(2);
     expect(rows[0].textContent).toContain('Drill');
-    expect(rows[0].querySelector('a')?.getAttribute('href')).toBe('/items/a');
+    // Only the title is a link.
+    const links = rows[0].querySelectorAll('a');
+    expect(links.length).toBe(1);
+    expect(links[0].classList).toContain('title');
+    expect(links[0].getAttribute('href')).toBe('/items/a');
+    // Its category in the category's colour, and the description's start.
+    expect(rows[0].textContent).toContain('catalog.categories.tools');
+    expect(rows[0].textContent).toContain('Works well');
+    const row = rows[0].querySelector('.row') as HTMLElement;
+    expect(row.style.getPropertyValue('--cat')).toBe('#c2410c');
   });
 
   it('says when there is nothing nearby', async () => {

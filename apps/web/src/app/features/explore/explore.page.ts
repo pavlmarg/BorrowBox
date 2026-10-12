@@ -314,8 +314,8 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
       display: block;
     }
     .photo {
-      height: 96px;
-      width: 96px;
+      height: 120px;
+      width: 120px;
     }
     .lines {
       display: flex;
