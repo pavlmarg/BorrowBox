@@ -319,13 +319,15 @@ bb-app-shell,
   background-position: 100% 100%;
 }
 
-// The full-screen photo viewer (features/item/photo-viewer).
+// An enlarged item photo (features/item/photo-viewer) over the blurred page.
 .bb-photo-viewer-panel {
   --mat-dialog-container-shape: 0;
-  --mat-dialog-container-color: #0b1220;
+  --mat-dialog-container-color: transparent;
+  --mat-dialog-container-elevation-shadow: none;
 }
 .bb-photo-viewer-backdrop {
-  background: rgb(11 18 32 / 0.92);
+  backdrop-filter: blur(6px);
+  background: rgb(16 58 99 / 0.18);
 }
 
 // Explore's price filter holds a form: wider than Material's 280 px menus.

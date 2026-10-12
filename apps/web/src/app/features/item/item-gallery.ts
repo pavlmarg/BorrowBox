@@ -14,8 +14,8 @@ import { PhotoViewer, type PhotoViewerData } from './photo-viewer';
 
 /**
  * An item's photos: swipe (scroll-snap, no library) on phones, arrows and
- * thumbnails on bigger screens; clicking one opens it full screen to zoom
- * into (PhotoViewer). Photos are decorative next to the title, so they
+ * thumbnails on bigger screens; clicking one enlarges it over the blurred
+ * page, and a click zooms back out (PhotoViewer). Photos are decorative next to the title, so they
  * carry the title as alt text only on the first one.
  */
 @Component({
@@ -214,14 +214,13 @@ export class ItemGallery {
   private readonly track = viewChild<ElementRef<HTMLElement>>('track');
   private readonly dialog = inject(MatDialog);
 
-  /** Photo `i` full screen; the gallery follows to the last one seen. */
+  /** Photo `i`, enlarged. */
   protected open(i: number): void {
     const data: PhotoViewerData = {
-      photos: this.photos(),
-      index: i,
+      photo: this.photos()[i],
       title: this.title(),
     };
-    const ref = this.dialog.open(PhotoViewer, {
+    this.dialog.open(PhotoViewer, {
       data,
       panelClass: 'bb-photo-viewer-panel',
       backdropClass: 'bb-photo-viewer-backdrop',
@@ -229,10 +228,6 @@ export class ItemGallery {
       height: '100dvh',
       maxWidth: '100vw',
       maxHeight: '100dvh',
-    });
-    ref.afterClosed().subscribe(() => {
-      const seen = ref.componentInstance?.shownIndex();
-      if (seen !== undefined) this.go(seen);
     });
   }
 
