@@ -18,7 +18,8 @@
     "switchTo": "Switch to {{language}}",
     "login": "Sign in",
     "register": "Create account",
-    "account": "Account"
+    "account": "Account",
+    "registerShort": "Sign up"
   },
   "languages": {
     "el": "Ελληνικά",

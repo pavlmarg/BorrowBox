@@ -95,6 +95,37 @@ describe('AppShell', () => {
     );
   });
 
+  describe('on phones', () => {
+    it('shows the avatar, linking to the profile, once signed in', async () => {
+      const { el } = await render(true, '/explore');
+      const bar = el.querySelector('header.topbar') as HTMLElement;
+      const avatar = bar.querySelector('a.account');
+      expect(avatar?.getAttribute('href')).toBe('/profile');
+      expect(bar.querySelector('a[href^="/auth/login"]')).toBeNull();
+      // The language is in the drawer, not the bar.
+      expect(bar.querySelector('bb-language-toggle')).toBeNull();
+    });
+
+    it('offers sign-in and sign-up in the bar to visitors', async () => {
+      const { el } = await render(false);
+      const bar = el.querySelector('header.topbar') as HTMLElement;
+      expect(bar.querySelector('a.account')).toBeNull();
+      expect(
+        bar.querySelector('a[href^="/auth/login"]')?.getAttribute('href'),
+      ).toBe('/auth/login?returnUrl=%2Fexplore%3Fq%3Ddrill');
+      expect(
+        bar.querySelector('a[href="/auth/register"]')?.textContent?.trim(),
+      ).toBe('nav.registerShort');
+    });
+  });
+
+  it('takes the name back to Explore', async () => {
+    const { el } = await render(true, '/profile');
+    for (const brand of Array.from(el.querySelectorAll('a.brand'))) {
+      expect(brand.getAttribute('href')).toBe('/explore');
+    }
+  });
+
   describe('on desktop', () => {
     it('puts the navigation in the top bar and the account pages under the avatar', async () => {
       const { el, fixture } = await render(true, '/explore', true);

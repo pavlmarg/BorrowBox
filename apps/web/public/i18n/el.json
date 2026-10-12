@@ -18,7 +18,8 @@
     "switchTo": "Αλλαγή σε {{language}}",
     "login": "Σύνδεση",
     "register": "Δημιουργία λογαριασμού",
-    "account": "Λογαριασμός"
+    "account": "Λογαριασμός",
+    "registerShort": "Εγγραφή"
   },
   "languages": {
     "el": "Ελληνικά",

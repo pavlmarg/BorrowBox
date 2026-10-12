@@ -62,7 +62,7 @@ const WIDE = '(min-width: 960px)';
       >
         <nav class="nav" [attr.aria-label]="t('nav.menu')">
           <div class="nav-head">
-            <a class="brand" routerLink="/">{{ t('app.name') }}</a>
+            <a class="brand" routerLink="/explore">{{ t('app.name') }}</a>
             <button
               type="button"
               class="icon-button"
@@ -158,7 +158,7 @@ const WIDE = '(min-width: 960px)';
               <bb-nav-icon name="menu" />
             </button>
           }
-          <a class="brand" routerLink="/">{{ t('app.name') }}</a>
+          <a class="brand" routerLink="/explore">{{ t('app.name') }}</a>
           @if (wide()) {
             <nav class="bar-nav" [attr.aria-label]="t('nav.menu')">
               <ul class="bar-links">
@@ -187,9 +187,20 @@ const WIDE = '(min-width: 960px)';
             </nav>
           }
           <span class="spacer"></span>
-          <bb-language-toggle (changed)="accountLanguage.set($event)" />
+          <!-- Phones: the language is in the drawer, to leave room here. -->
           @if (wide()) {
-            @if (signedIn()) {
+            <bb-language-toggle (changed)="accountLanguage.set($event)" />
+          }
+          @if (signedIn()) {
+            @if (!wide()) {
+              <a
+                class="account"
+                routerLink="/profile"
+                [attr.aria-label]="t('nav.profile')"
+              >
+                <bb-avatar [size]="32" />
+              </a>
+            } @else {
               <button
                 type="button"
                 class="account"
@@ -216,21 +227,18 @@ const WIDE = '(min-width: 960px)';
                   <span>{{ t('nav.logout') }}</span>
                 </button>
               </mat-menu>
-            } @else {
-              <a
-                mat-button
-                class="bar-button"
-                routerLink="/auth/login"
-                [queryParams]="{ returnUrl: currentUrl() }"
-                >{{ t('nav.login') }}</a
-              >
-              <a
-                mat-flat-button
-                class="bar-button"
-                routerLink="/auth/register"
-                >{{ t('nav.register') }}</a
-              >
             }
+          } @else {
+            <a
+              mat-button
+              class="bar-button"
+              routerLink="/auth/login"
+              [queryParams]="{ returnUrl: currentUrl() }"
+              >{{ t('nav.login') }}</a
+            >
+            <a mat-flat-button class="bar-button" routerLink="/auth/register">{{
+              t(wide() ? 'nav.register' : 'nav.registerShort')
+            }}</a>
           }
         </header>
         <main class="main" [class.full-bleed]="fullBleed()">
@@ -490,6 +498,12 @@ const WIDE = '(min-width: 960px)';
     }
     .bar-button {
       margin-left: 8px;
+    }
+    /* Phones: two compact buttons beside the name. */
+    .topbar:not(.wide) .bar-button {
+      margin-left: 0;
+      min-width: 0;
+      padding: 0 12px;
     }
 
     .main {
