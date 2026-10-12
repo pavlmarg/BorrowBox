@@ -9,7 +9,10 @@ import {
 } from '@ngrx/signals';
 import type { GeoPoint, SearchRadiusKm } from '@borrowbox/contracts';
 import { Api } from '../../api/api';
-import { publicItemsControllerSearch } from '../../api/functions';
+import {
+  publicItemsControllerFeatured,
+  publicItemsControllerSearch,
+} from '../../api/functions';
 import type { PublicItemSummaryResponse } from '../../api/models';
 import { errorCode, type KnownErrorCode } from '../../core/api-errors';
 import { DEFAULT_CENTER } from '../../shared/map/geo';
@@ -35,6 +38,8 @@ interface ExploreState {
   selectedId: string | null;
   /** The list's scroll position, restored when coming back (E10). */
   scrollTop: number;
+  /** The carousel above the results: by area and radius only, never filters. */
+  featured: PublicItemSummaryResponse[];
 }
 
 const initialState: ExploreState = {
@@ -47,6 +52,7 @@ const initialState: ExploreState = {
   error: null,
   selectedId: null,
   scrollTop: 0,
+  featured: [],
 };
 
 /**
@@ -64,10 +70,36 @@ export const ExploreStore = signalStore(
   withProps(() => ({
     _api: inject(Api),
     /** Bumped by every new search; answers to older ones are ignored. */
-    _meta: { seq: 0 },
+    _meta: { seq: 0, featuredFor: null as string | null },
   })),
   withMethods((store) => {
+    /**
+     * Featured items for the current area and radius, unless already loaded.
+     * Best effort: a failure just leaves the carousel out.
+     */
+    const loadFeatured = async (): Promise<void> => {
+      const near = store.center();
+      const radiusKm = store.filters().radiusKm;
+      const key = `${near.lat},${near.lng},${radiusKm}`;
+      if (key === store._meta.featuredFor) return;
+      store._meta.featuredFor = key;
+      patchState(store, { featured: [] });
+      try {
+        const { items } = await store._api.invoke(
+          publicItemsControllerFeatured,
+          { body: { near, radiusKm } },
+        );
+        if (key === store._meta.featuredFor) {
+          patchState(store, { featured: items });
+        }
+      } catch {
+        // Tried again with the next search.
+        if (key === store._meta.featuredFor) store._meta.featuredFor = null;
+      }
+    };
+
     const search = async (): Promise<void> => {
+      void loadFeatured();
       const seq = ++store._meta.seq;
       patchState(store, {
         status: 'loading',

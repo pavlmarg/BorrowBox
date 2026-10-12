@@ -206,7 +206,14 @@
     "priceUpTo": "Up to {{price}}",
     "apply": "Apply",
     "clearPrice": "Clear",
-    "clearAll": "Clear filters"
+    "clearAll": "Clear filters",
+    "featured": {
+      "title": "New near you",
+      "previous": "Previous",
+      "next": "Next",
+      "pause": "Pause automatic scrolling",
+      "play": "Resume automatic scrolling"
+    }
   },
   "item": {
     "back": "Back",

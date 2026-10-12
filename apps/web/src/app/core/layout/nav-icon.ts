@@ -17,7 +17,11 @@ export type NavIconName =
   | 'list'
   | 'location'
   | 'check'
-  | 'close';
+  | 'close'
+  | 'chevron-left'
+  | 'chevron-right'
+  | 'pause'
+  | 'play';
 
 /** Outline icons as inline SVG: no icon font, nothing loaded from a CDN. */
 @Component({
@@ -99,6 +103,18 @@ export type NavIconName =
         }
         @case ('close') {
           <path d="m6 6 12 12M18 6 6 18" />
+        }
+        @case ('chevron-left') {
+          <path d="m14.5 6-6 6 6 6" />
+        }
+        @case ('chevron-right') {
+          <path d="m9.5 6 6 6-6 6" />
+        }
+        @case ('pause') {
+          <path d="M9 6v12M15 6v12" />
+        }
+        @case ('play') {
+          <path d="M8 5.5v13l10-6.5-10-6.5Z" />
         }
       }
     </svg>

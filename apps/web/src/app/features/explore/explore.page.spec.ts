@@ -12,6 +12,7 @@ import { publicItem } from '../../../testing/catalog';
 import { ExplorePage } from './explore.page';
 
 const SEARCH = { method: 'POST', url: '/api/items/search' };
+const FEATURED = { method: 'POST', url: '/api/items/featured' };
 
 async function render(url = '/explore') {
   TestBed.configureTestingModule({
@@ -94,5 +95,27 @@ describe('ExplorePage', () => {
     expect(router.url).toContain('category=garden');
     expect(router.url).toContain('radius=10');
     expect(router.url).not.toContain('lat');
+  });
+
+  it('shows featured items above the results', async () => {
+    const { fixture, el, http } = await render();
+    http
+      .expectOne(FEATURED)
+      .flush({ items: [publicItem('f', { title: 'Tent' })] });
+    http.expectOne(SEARCH).flush({ items: [], nextCursor: null });
+    await tick();
+    await fixture.whenStable();
+    const carousel = el.querySelector('bb-featured-carousel');
+    expect(carousel?.textContent).toContain('Tent');
+    expect(carousel?.querySelector('a')?.getAttribute('href')).toBe('/items/f');
+  });
+
+  it('leaves featured items out while searching for text', async () => {
+    const { fixture, el, http } = await render('/explore?q=drill');
+    http.expectOne(FEATURED).flush({ items: [publicItem('f')] });
+    http.expectOne(SEARCH).flush({ items: [], nextCursor: null });
+    await tick();
+    await fixture.whenStable();
+    expect(el.querySelector('bb-featured-carousel')).toBeNull();
   });
 });

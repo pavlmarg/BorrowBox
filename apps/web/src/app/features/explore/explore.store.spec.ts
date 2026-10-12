@@ -21,6 +21,7 @@ function setup() {
 }
 
 const SEARCH = { method: 'POST', url: '/api/items/search' };
+const FEATURED = { method: 'POST', url: '/api/items/featured' };
 const answer = (req: TestRequest, ids: string[], nextCursor: string | null) =>
   req.flush({ items: ids.map((id) => publicItem(id)), nextCursor });
 
@@ -125,7 +126,53 @@ describe('ExploreStore', () => {
     answer(req, [], null);
     await done;
     expect(store.filters().radiusKm).toBe(2);
+    http.expectOne(FEATURED);
     http.verify();
+  });
+
+  it('loads featured items once per area and radius, whatever the other filters', async () => {
+    const { store, http } = setup();
+    const first = store.start(DEFAULT_FILTERS);
+    const featured = http.expectOne(FEATURED);
+    expect(featured.request.body).toEqual({
+      near: { lat: 37.9838, lng: 23.7275 },
+      radiusKm: 5,
+    });
+    featured.flush({ items: [publicItem('f1'), publicItem('f2')] });
+    answer(http.expectOne(SEARCH), [], null);
+    await first;
+    await tick();
+    expect(store.featured().map((i) => i.id)).toEqual(['f1', 'f2']);
+
+    const filtered = store.setFilters({ category: 'garden', q: 'saw' });
+    answer(http.expectOne(SEARCH), [], null);
+    await filtered;
+    http.expectNone(FEATURED);
+    expect(store.featured()).toHaveLength(2);
+
+    const wider = store.setFilters({ radiusKm: 10 });
+    expect(store.featured()).toEqual([]);
+    expect(http.expectOne(FEATURED).request.body.radiusKm).toBe(10);
+    answer(http.expectOne(SEARCH), [], null);
+    await wider;
+  });
+
+  it('leaves featured items out when they fail, and tries again next search', async () => {
+    const { store, http } = setup();
+    const first = store.start(DEFAULT_FILTERS);
+    http
+      .expectOne(FEATURED)
+      .flush(null, { status: 503, statusText: 'Service Unavailable' });
+    answer(http.expectOne(SEARCH), ['a'], null);
+    await first;
+    await tick();
+    expect(store.featured()).toEqual([]);
+    expect(store.status()).toBe('ready');
+
+    const again = store.search();
+    http.expectOne(FEATURED);
+    answer(http.expectOne(SEARCH), ['a'], null);
+    await again;
   });
 
   it('reports a failed search', async () => {

@@ -34,6 +34,7 @@ import type { MapPoint } from '../../shared/map/map-layers';
 import { MapView, type MapCamera } from '../../shared/map/map-view';
 import { filtersFromQuery, filtersToQuery } from './explore-query';
 import { ExploreFilters } from './explore-filters';
+import { FeaturedCarousel } from './featured-carousel';
 import { ExploreStore } from './explore.store';
 import { ResultRow } from '../../shared/catalog/result-row';
 import { SearchBar } from './search-bar';
@@ -62,6 +63,7 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
     NavIcon,
     SearchBar,
     ExploreFilters,
+    FeaturedCarousel,
     ResultRow,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -91,6 +93,9 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
 
         <div class="results" #scroller (scroll)="saveScroll()">
           <div class="column">
+            @if (!store.filters().q && store.featured().length > 0) {
+              <bb-featured-carousel [items]="store.featured()" />
+            }
             @switch (store.status()) {
               @case ('loading') {
                 <ul class="skeleton" [attr.aria-label]="t('explore.loading')">
