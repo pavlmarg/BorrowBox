@@ -127,14 +127,14 @@ export function coverOf(item: OwnItemResponse): string | null {
                   }
                   <div class="actions">
                     <a
-                      class="action"
+                      class="action bb-text-action"
                       [routerLink]="['/my-items', item.id, 'edit']"
                       >{{ t('item.edit') }}</a
                     >
                     @switch (item.status) {
                       @case ('DRAFT') {
                         <button
-                          class="action"
+                          class="action bb-text-action"
                           type="button"
                           [disabled]="busy(item) || missing(item).length > 0"
                           (click)="run(item, 'publish')"
@@ -143,11 +143,13 @@ export function coverOf(item: OwnItemResponse): string | null {
                         </button>
                       }
                       @case ('ACTIVE') {
-                        <a class="action" [routerLink]="['/items', item.id]">{{
-                          t('myItems.view')
-                        }}</a>
+                        <a
+                          class="action bb-text-action"
+                          [routerLink]="['/items', item.id]"
+                          >{{ t('myItems.view') }}</a
+                        >
                         <button
-                          class="action"
+                          class="action bb-text-action"
                           type="button"
                           [disabled]="busy(item)"
                           (click)="run(item, 'pause')"
@@ -157,7 +159,7 @@ export function coverOf(item: OwnItemResponse): string | null {
                       }
                       @case ('PAUSED') {
                         <button
-                          class="action"
+                          class="action bb-text-action"
                           type="button"
                           [disabled]="busy(item)"
                           (click)="run(item, 'unpause')"
@@ -283,27 +285,14 @@ export function coverOf(item: OwnItemResponse): string | null {
       gap: 28px;
       margin-top: 8px;
     }
-    /* Only the words are links. On hover they thicken (a text shadow, so the
-       width doesn't jump) and an underline draws from left to right. */
+    /* Only the words are links (the hover is .bb-text-action's). */
     .action {
-      background: linear-gradient(currentColor, currentColor) 0 100% / 0 2px
-        no-repeat;
+      background-color: transparent;
       border: 0;
       color: var(--bb-sky-700);
       cursor: pointer;
       font: var(--mat-sys-title-medium);
       padding: 0 0 3px;
-      text-decoration: none;
-      transition:
-        background-size 350ms var(--bb-ease),
-        text-shadow 350ms var(--bb-ease);
-    }
-    .action:hover:not([disabled]),
-    .action:focus-visible {
-      background-size: 100% 2px;
-      text-shadow:
-        0 0 0.6px currentColor,
-        0 0 0.6px currentColor;
     }
     .action:focus-visible {
       outline: 3px solid var(--bb-sky-300);

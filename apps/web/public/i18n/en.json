@@ -262,7 +262,10 @@
     "similar": "Similar nearby",
     "previousPhoto": "Previous photo",
     "nextPhoto": "Next photo",
-    "photoCount": "{{n}} / {{total}}"
+    "photoCount": "{{n}} / {{total}}",
+    "enlargePhoto": "Enlarge photo",
+    "closePhoto": "Close",
+    "zoomHint": "Click or pinch to zoom, drag to look around, ← → for the other photos."
   },
   "listing": {
     "backToItems": "My items",

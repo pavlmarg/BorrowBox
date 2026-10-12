@@ -46,7 +46,7 @@ import { ItemStore } from './item.store';
     <div class="page" *transloco="let t">
       <button type="button" class="back" (click)="back()">
         <span class="chevron" aria-hidden="true"></span>
-        {{ t('item.back') }}
+        <span class="bb-text-action">{{ t('item.back') }}</span>
       </button>
 
       @switch (store.status()) {
@@ -78,9 +78,11 @@ import { ItemStore } from './item.store';
             @if (isOwner()) {
               <p class="owner-note">
                 {{ t('item.yours') }}
-                <a [routerLink]="['/my-items', item.id, 'edit']">{{
-                  t('item.edit')
-                }}</a>
+                <a
+                  class="bb-text-action"
+                  [routerLink]="['/my-items', item.id, 'edit']"
+                  >{{ t('item.edit') }}</a
+                >
               </p>
             }
 
@@ -194,11 +196,8 @@ import { ItemStore } from './item.store';
       display: inline-flex;
       font: var(--mat-sys-label-large);
       gap: 8px;
-      margin: 0 0 16px -8px;
-      padding: 8px;
-    }
-    .back:hover {
-      background: var(--bb-sky-100);
+      margin: 0 0 16px;
+      padding: 8px 0;
     }
     .chevron {
       border-bottom: 2px solid currentColor;

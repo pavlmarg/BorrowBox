@@ -2,17 +2,21 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  inject,
   input,
   signal,
   viewChild,
 } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { TranslocoDirective } from '@jsverse/transloco';
 import type { PublicPhotoResponse } from '../../api/models';
+import { PhotoViewer, type PhotoViewerData } from './photo-viewer';
 
 /**
  * An item's photos: swipe (scroll-snap, no library) on phones, arrows and
- * thumbnails on bigger screens. Photos are decorative next to the title,
- * so they carry the title as alt text only on the first one.
+ * thumbnails on bigger screens; clicking one opens it full screen to zoom
+ * into (PhotoViewer). Photos are decorative next to the title, so they
+ * carry the title as alt text only on the first one.
  */
 @Component({
   selector: 'bb-item-gallery',
@@ -22,16 +26,22 @@ import type { PublicPhotoResponse } from '../../api/models';
     <div class="gallery" *transloco="let t">
       <div class="track" #track (scroll)="onScroll()">
         @for (photo of photos(); track photo.id; let i = $index) {
-          <img
+          <button
+            type="button"
             class="slide"
-            [src]="photo.urls.medium"
-            [attr.srcset]="
-              photo.urls.medium + ' 800w, ' + photo.urls.large + ' 1600w'
-            "
-            sizes="(min-width: 960px) 560px, 100vw"
-            [alt]="i === 0 ? title() : ''"
-            [attr.loading]="i === 0 ? 'eager' : 'lazy'"
-          />
+            [attr.aria-label]="t('item.enlargePhoto')"
+            (click)="open(i)"
+          >
+            <img
+              [src]="photo.urls.medium"
+              [attr.srcset]="
+                photo.urls.medium + ' 800w, ' + photo.urls.large + ' 1600w'
+              "
+              sizes="(min-width: 960px) 560px, 100vw"
+              [alt]="i === 0 ? title() : ''"
+              [attr.loading]="i === 0 ? 'eager' : 'lazy'"
+            />
+          </button>
         } @empty {
           <div class="slide empty"></div>
         }
@@ -92,11 +102,25 @@ import type { PublicPhotoResponse } from '../../api/models';
       scrollbar-width: none;
     }
     .slide {
+      background: none;
+      border: 0;
+      cursor: zoom-in;
       flex: none;
       height: 100%;
-      object-fit: cover;
+      padding: 0;
       scroll-snap-align: start;
       width: 100%;
+    }
+    .slide img {
+      display: block;
+      height: 100%;
+      object-fit: cover;
+      transition: transform var(--bb-medium) var(--bb-ease);
+      width: 100%;
+    }
+    .slide:focus-visible {
+      outline: 3px solid var(--bb-sky-300);
+      outline-offset: -3px;
     }
     .arrow {
       align-items: center;
@@ -188,6 +212,29 @@ export class ItemGallery {
 
   protected readonly index = signal(0);
   private readonly track = viewChild<ElementRef<HTMLElement>>('track');
+  private readonly dialog = inject(MatDialog);
+
+  /** Photo `i` full screen; the gallery follows to the last one seen. */
+  protected open(i: number): void {
+    const data: PhotoViewerData = {
+      photos: this.photos(),
+      index: i,
+      title: this.title(),
+    };
+    const ref = this.dialog.open(PhotoViewer, {
+      data,
+      panelClass: 'bb-photo-viewer-panel',
+      backdropClass: 'bb-photo-viewer-backdrop',
+      width: '100vw',
+      height: '100dvh',
+      maxWidth: '100vw',
+      maxHeight: '100dvh',
+    });
+    ref.afterClosed().subscribe(() => {
+      const seen = ref.componentInstance?.shownIndex();
+      if (seen !== undefined) this.go(seen);
+    });
+  }
 
   protected onScroll(): void {
     const el = this.track()?.nativeElement;

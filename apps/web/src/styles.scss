@@ -291,6 +291,38 @@ bb-app-shell,
   background: rgb(16 58 99 / 0.32);
 }
 
+// Text actions (My items' Edit / View / Pause, the item page's Back and
+// Edit): only the words. On hover they thicken (a text shadow, so the width
+// doesn't jump) and an underline draws from left to right. Put the class on
+// the words; a hovered parent counts too (e.g. a chevron + label button).
+.bb-text-action {
+  background: linear-gradient(currentColor, currentColor) 0 100% / 0 2px
+    no-repeat;
+  padding-bottom: 3px;
+  text-decoration: none;
+  transition:
+    background-size 350ms var(--bb-ease),
+    text-shadow 350ms var(--bb-ease);
+}
+.bb-text-action:not([disabled]):hover,
+.bb-text-action:focus-visible,
+:not([disabled]):hover > .bb-text-action,
+:focus-visible > .bb-text-action {
+  background-size: 100% 2px;
+  text-shadow:
+    0 0 0.6px currentColor,
+    0 0 0.6px currentColor;
+}
+
+// The full-screen photo viewer (features/item/photo-viewer).
+.bb-photo-viewer-panel {
+  --mat-dialog-container-shape: 0;
+  --mat-dialog-container-color: #0b1220;
+}
+.bb-photo-viewer-backdrop {
+  background: rgb(11 18 32 / 0.92);
+}
+
 // Explore's price filter holds a form: wider than Material's 280 px menus.
 .mat-mdc-menu-panel.bb-price-menu {
   max-width: none;
