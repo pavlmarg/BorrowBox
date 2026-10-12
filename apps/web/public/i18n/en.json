@@ -214,6 +214,32 @@
       "next": "Next",
       "pause": "Pause automatic scrolling",
       "play": "Resume automatic scrolling"
+    },
+    "rails": {
+      "categories": "Browse by category"
+    },
+    "lend": {
+      "title": "Lend your things",
+      "text": "Earn a little from things you rarely use. Listing one takes a few minutes.",
+      "cta": "List an item"
+    },
+    "how": {
+      "title": "How BorrowBox works",
+      "find": {
+        "title": "Find it nearby",
+        "text": "Search what your neighbours lend and see roughly where it is."
+      },
+      "pay": {
+        "title": "Pay safely",
+        "text": "Pay through BorrowBox. The deposit comes back after the return."
+      },
+      "handoff": {
+        "title": "Hand over with a QR code",
+        "text": "Scan a code at pickup and at return, so you both confirm."
+      },
+      "show": "Show step {{n}}",
+      "pause": "Pause the animation",
+      "play": "Play the animation"
     }
   },
   "item": {

@@ -70,7 +70,7 @@ import { ExploreStore } from './explore.store';
         }}
         <span class="chevron" aria-hidden="true"></span>
       </button>
-      <mat-menu #categoryMenu="matMenu">
+      <mat-menu #categoryMenu="matMenu" class="bb-drop">
         <button mat-menu-item type="button" (click)="setCategory(null)">
           <span class="option" [class.chosen]="f().category === null">{{
             t('explore.allCategories')
@@ -99,7 +99,7 @@ import { ExploreStore } from './explore.store';
         {{ t('explore.radiusKm', { km: f().radiusKm }) }}
         <span class="chevron" aria-hidden="true"></span>
       </button>
-      <mat-menu #radiusMenu="matMenu">
+      <mat-menu #radiusMenu="matMenu" class="bb-drop">
         @for (km of radii; track km) {
           <button mat-menu-item type="button" (click)="setRadius(km)">
             <span class="option" [class.chosen]="f().radiusKm === km">{{
@@ -126,7 +126,7 @@ import { ExploreStore } from './explore.store';
         }
         <span class="chevron" aria-hidden="true"></span>
       </button>
-      <mat-menu #priceMenu="matMenu" class="bb-price-menu">
+      <mat-menu #priceMenu="matMenu" class="bb-price-menu bb-drop">
         <!-- Clicks and keys inside must not close the menu. -->
         <form
           class="price-panel"

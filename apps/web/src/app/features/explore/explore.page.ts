@@ -33,14 +33,18 @@ import {
 import type { MapPoint } from '../../shared/map/map-layers';
 import { MapView, type MapCamera } from '../../shared/map/map-view';
 import { filtersFromQuery, filtersToQuery } from './explore-query';
+import { CategoryRail } from './category-rail';
 import { ExploreFilters } from './explore-filters';
 import { FeaturedCarousel } from './featured-carousel';
 import { ExploreStore } from './explore.store';
 import { ResultRow } from '../../shared/catalog/result-row';
+import { LendRail } from './lend-rail';
 import { SearchBar } from './search-bar';
 
-/** Same breakpoint as the app shell's sidebar. */
+/** Same breakpoint as the app shell's top-bar navigation. */
 const WIDE = '(min-width: 960px)';
+/** Room beside the column for the category and lending rails. */
+const RAILS = '(min-width: 1400px)';
 /** "Search this area" appears once the map moved this share of the radius. */
 const AREA_MOVE_SHARE = 0.2;
 /** …or once it zoomed in or out by this much. */
@@ -65,11 +69,20 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
     ExploreFilters,
     FeaturedCarousel,
     ResultRow,
+    CategoryRail,
+    LendRail,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="explore" *transloco="let t" [class.wide]="wide()">
-      <section class="list-pane" [attr.aria-label]="t('explore.results')">
+      <section
+        class="list-pane"
+        [class.with-rails]="rails()"
+        [attr.aria-label]="t('explore.results')"
+      >
+        @if (rails()) {
+          <bb-category-rail class="rail left" />
+        }
         <div class="head">
           <h1 class="visually-hidden">{{ t('nav.explore') }}</h1>
           <div class="search-row">
@@ -160,6 +173,9 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
             }
           </div>
         </div>
+        @if (rails()) {
+          <bb-lend-rail class="rail right" />
+        }
       </section>
 
       <section
@@ -272,6 +288,45 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
     .column {
       /* Room for the floating Map/List button. */
       padding-bottom: 88px;
+    }
+    /* Wide screens: a rail on each side of the column, from the top bar
+       down. They don't scroll: everything in them fits. */
+    .list-pane.with-rails {
+      box-sizing: border-box;
+      column-gap: 40px;
+      display: grid;
+      /* The rails keep at least 220 px; the column gives way first. */
+      grid-template-columns: minmax(220px, 1fr) minmax(0, 1000px) minmax(
+          220px,
+          1fr
+        );
+      grid-template-rows: auto minmax(0, 1fr);
+      padding: 0 32px;
+    }
+    .with-rails .head {
+      grid-column: 2;
+      grid-row: 1;
+    }
+    .with-rails .results {
+      grid-column: 2;
+      grid-row: 2;
+    }
+    .rail {
+      box-sizing: border-box;
+      grid-row: 1 / -1;
+      max-width: 280px;
+      min-height: 0;
+      overflow: hidden;
+      padding-top: 24px;
+      width: 100%;
+    }
+    .rail.left {
+      grid-column: 1;
+      justify-self: end;
+    }
+    .rail.right {
+      grid-column: 3;
+      justify-self: start;
     }
 
     .message {
@@ -426,6 +481,10 @@ export class ExplorePage {
   protected readonly wide = toSignal(
     this.breakpoints.observe(WIDE).pipe(map((s) => s.matches)),
     { initialValue: this.breakpoints.isMatched(WIDE) },
+  );
+  protected readonly rails = toSignal(
+    this.breakpoints.observe(RAILS).pipe(map((s) => s.matches)),
+    { initialValue: this.breakpoints.isMatched(RAILS) },
   );
   /** Phones: whether the map is showing over the list. */
   protected readonly mapOpen = signal(false);

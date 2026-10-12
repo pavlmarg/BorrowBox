@@ -198,6 +198,40 @@ bb-app-shell,
   max-width: none;
 }
 
+// Explore's filter menus unroll downwards from their button and roll back
+// up when closing. Material's own animations still run (it waits for them
+// to know when the menu opened or closed): the enter one instantly, the
+// exit one alongside ours, which must end within its 200 ms fallback.
+.mat-mdc-menu-panel.bb-drop {
+  animation:
+    _mat-menu-enter 1ms,
+    bb-drop-down 260ms var(--bb-ease);
+}
+.mat-mdc-menu-panel.bb-drop.mat-menu-panel-exit-animation {
+  animation:
+    _mat-menu-exit 180ms ease-in forwards,
+    bb-drag-up 180ms ease-in forwards;
+}
+@keyframes bb-drop-down {
+  from {
+    clip-path: inset(0 0 100% 0);
+    transform: translateY(-6px);
+  }
+  to {
+    clip-path: inset(0 0 -20px 0);
+    transform: none;
+  }
+}
+@keyframes bb-drag-up {
+  from {
+    clip-path: inset(0 0 -20px 0);
+  }
+  to {
+    clip-path: inset(0 0 100% 0);
+    transform: translateY(-6px);
+  }
+}
+
 // The main content sits straight on the page background: no white panels.
 // (Dialogs keep their surface; they're in the overlay, not the shell.)
 bb-app-shell {
