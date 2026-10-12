@@ -461,6 +461,11 @@ export class PublicPhotoResponse {
 export class PublicItemSummaryResponse {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty() title!: string;
+  @ApiProperty({
+    description:
+      'The description’s start, up to 200 characters, ending in “…” when cut',
+  })
+  descriptionExcerpt!: string;
   @ApiProperty({ enum: ITEM_CATEGORIES, enumName: 'ItemCategory' })
   category!: ItemCategory;
   @ApiProperty({ type: ItemPricingBody }) pricing!: ItemPricingBody;

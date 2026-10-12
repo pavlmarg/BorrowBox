@@ -32,6 +32,8 @@ import {
   SEARCH_QUERY_MAX_LENGTH,
   SIMILAR_ITEMS_MAX,
   FEATURED_ITEMS_MAX,
+  DESCRIPTION_EXCERPT_MAX_LENGTH,
+  ITEM_DESCRIPTION_MAX_LENGTH,
   SIMILAR_ITEMS_RADIUS_KM,
   SUGGEST_LIMIT,
   SUGGEST_MIN_LENGTH,
@@ -84,6 +86,9 @@ describe('catalog limits', () => {
     expect(SUGGEST_LIMIT).toBeGreaterThan(0);
     expect(SIMILAR_ITEMS_MAX).toBeGreaterThan(0);
     expect(FEATURED_ITEMS_MAX).toBeGreaterThan(0);
+    expect(DESCRIPTION_EXCERPT_MAX_LENGTH).toBeLessThan(
+      ITEM_DESCRIPTION_MAX_LENGTH,
+    );
     expect(SEARCH_RADIUS_KM).toContain(SIMILAR_ITEMS_RADIUS_KM);
     expect([...SEARCH_RADIUS_KM]).toEqual(
       [...SEARCH_RADIUS_KM].sort((a, b) => a - b),

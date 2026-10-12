@@ -2549,6 +2549,10 @@
           "title": {
             "type": "string"
           },
+          "descriptionExcerpt": {
+            "type": "string",
+            "description": "The description’s start, up to 200 characters, ending in “…” when cut"
+          },
           "category": {
             "allOf": [
               {
@@ -2588,6 +2592,7 @@
         "required": [
           "id",
           "title",
+          "descriptionExcerpt",
           "category",
           "pricing",
           "depositCents",

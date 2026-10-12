@@ -64,6 +64,9 @@ export const SUGGEST_LIMIT = 5;
 export const SIMILAR_ITEMS_MAX = 8;
 export const SIMILAR_ITEMS_RADIUS_KM = 10;
 
+/** Search results carry the description's start, at most this many characters. */
+export const DESCRIPTION_EXCERPT_MAX_LENGTH = 200;
+
 /** Featured items on Explore: at most this many. */
 export const FEATURED_ITEMS_MAX = 10;
 

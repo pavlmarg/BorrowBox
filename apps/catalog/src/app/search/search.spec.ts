@@ -755,6 +755,7 @@ describe('Search and public item pages (integration)', () => {
         'UNDER_1_KM',
       ]);
       expect(ids(await featured(centre, 1))).toEqual([older]);
+      expect(items[2].descriptionExcerpt).toBe('Two batteries');
     });
 
     it('returns at most 10, and an empty list where there is nothing', async () => {

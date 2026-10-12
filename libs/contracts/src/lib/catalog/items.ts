@@ -116,6 +116,11 @@ export type DistanceBand = (typeof DISTANCE_BANDS)[number];
 export interface PublicItemSummary {
   id: string;
   title: string;
+  /**
+   * The description's start: at most `DESCRIPTION_EXCERPT_MAX_LENGTH`
+   * characters, cut at a word and ending in "…" when shortened.
+   */
+  descriptionExcerpt: string;
   category: ItemCategory;
   pricing: ItemPricing;
   depositCents: number;

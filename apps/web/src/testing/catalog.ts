@@ -9,6 +9,7 @@ export function publicItem(
   return {
     id,
     title: `Item ${id}`,
+    descriptionExcerpt: 'Works well',
     category: 'tools',
     pricing: { free: false, dailyCents: 500 },
     depositCents: 0,

@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { DataSource } from 'typeorm';
 import {
+  DESCRIPTION_EXCERPT_MAX_LENGTH,
   FEATURED_ITEMS_MAX,
   SEARCH_PAGE_SIZE_DEFAULT,
   SIMILAR_ITEMS_MAX,
@@ -19,6 +20,7 @@ import { DATA_SOURCE } from '../database/database.module';
 import { photoUrls, toPricing } from '../items/items.repository';
 import { CatalogError } from '../rpc/rpc-errors';
 import { decodeCursor, distanceBand, encodeCursor } from './search-paging';
+import { excerpt } from './excerpt';
 import { typedWords } from './typed-words';
 import type {
   FeaturedItemsDto,
@@ -163,6 +165,10 @@ export class SearchService {
     return {
       id: row.id,
       title: row.title,
+      descriptionExcerpt: excerpt(
+        row.description,
+        DESCRIPTION_EXCERPT_MAX_LENGTH,
+      ),
       category: row.category,
       pricing: toPricing(row),
       depositCents: row.deposit_cents,
