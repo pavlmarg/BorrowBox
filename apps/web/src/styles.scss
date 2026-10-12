@@ -70,7 +70,8 @@ html {
   --bb-sky-300: #9dd1ff;
   --bb-sky-500: #4aa8f0;
   --bb-sky-700: #1f6fb2;
-  --bb-page-bg: var(--bb-sky-50);
+  // Almost white, with only a faint cool tint (was the pale sky-50).
+  --bb-page-bg: #fafbfc;
   --bb-card-bg: rgb(255 255 255 / 0.86);
   --bb-card-border: rgb(255 255 255 / 0.7);
   --bb-shadow-sm:
