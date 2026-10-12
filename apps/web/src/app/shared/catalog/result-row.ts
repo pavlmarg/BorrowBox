@@ -17,7 +17,7 @@ import { categoryColor } from './category-colors';
  * One search result (E7, E12); only its title links to the item: photo on the left; the category (in its
  * colour), title, the description's start, one rate and the distance band
  * on the right. No panel (E8): rows sit on the background,
- * separated by dividers, tinted when hovered or selected.
+ * separated by dividers, tinted when picked on the map.
  */
 @Component({
   selector: 'bb-result-row',
@@ -89,8 +89,9 @@ import { categoryColor } from './category-colors';
       padding: 12px 16px;
       transition: background-color var(--bb-fast) var(--bb-ease);
     }
-    .row:hover,
-    .row.selected {
+    /* Picked on the map. Hovering a row selects it too (for the map), but
+       the row itself stays as it is: only its title reacts. */
+    .row.selected:not(:hover):not(:focus-within) {
       background: var(--bb-sky-100);
     }
     .photo {
@@ -120,18 +121,17 @@ import { categoryColor } from './category-colors';
       color: inherit;
       display: -webkit-box;
       font: var(--mat-sys-title-medium);
+      font-size: 18px;
+      line-height: 24px;
       overflow: hidden;
       text-decoration: underline;
-      text-decoration-color: rgb(16 58 99 / 0.35);
+      text-decoration-color: currentColor;
       text-decoration-thickness: 1px;
       text-underline-offset: 3px;
-      transition:
-        color var(--bb-fast) var(--bb-ease),
-        text-decoration-color var(--bb-fast) var(--bb-ease);
+      transition: color var(--bb-fast) var(--bb-ease);
     }
     .title:hover {
       color: var(--cat);
-      text-decoration-color: currentColor;
       text-decoration-thickness: 2px;
     }
     .title:focus-visible {

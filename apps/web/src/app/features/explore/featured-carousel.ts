@@ -240,18 +240,18 @@ const GAP_PX = 12;
       -webkit-line-clamp: 2;
       display: -webkit-box;
       font: var(--mat-sys-title-small);
+      font-size: 16px;
+      line-height: 22px;
       overflow: hidden;
       text-decoration: underline;
-      text-decoration-color: rgb(16 58 99 / 0.35);
+      text-decoration-color: currentColor;
       text-decoration-thickness: 1px;
       text-underline-offset: 3px;
-      transition:
-        color var(--bb-fast) var(--bb-ease),
-        text-decoration-color var(--bb-fast) var(--bb-ease);
+      transition: color var(--bb-fast) var(--bb-ease);
     }
-    .card:hover .title {
+    .card:hover .title,
+    .card:focus-visible .title {
       color: var(--cat);
-      text-decoration-color: currentColor;
       text-decoration-thickness: 2px;
     }
     .price {
