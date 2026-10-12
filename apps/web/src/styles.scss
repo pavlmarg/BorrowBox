@@ -449,8 +449,10 @@ body {
 }
 
 // Plain links follow the brand colour and underline smoothly on hover.
-// Text actions draw their own underline (.bb-text-action).
-a:not(.mat-mdc-button-base):not(.bb-text-action) {
+// Text actions draw their own underline (.bb-text-action). One :not() with
+// both, so this stays as weak as a single class: components' own link
+// styles (e.g. the top bar's) must still win.
+a:not(.mat-mdc-button-base, .bb-text-action) {
   color: var(--bb-sky-700);
   text-decoration: underline;
   text-decoration-color: transparent;
