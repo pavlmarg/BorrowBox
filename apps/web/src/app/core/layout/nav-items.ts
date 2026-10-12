@@ -8,7 +8,7 @@ export interface NavItem {
   readonly route?: string;
   /** Hidden from signed-out visitors (E3). */
   readonly requiresAuth?: boolean;
-  /** Desktop: in the avatar's menu instead of the top bar. */
+  /** Reached through the avatar, not listed in the bar or drawer. */
   readonly accountMenu?: boolean;
 }
 
@@ -27,7 +27,7 @@ export const MAIN_NAV: readonly NavItem[] = [
   },
 ];
 
-/** Pinned to the bottom of the drawer; in the avatar's menu on desktop. */
+/** Pinned to the bottom of the drawer (phones); on desktop, from the profile. */
 export const FOOTER_NAV: readonly NavItem[] = [
   { key: 'settings', icon: 'settings', route: '/settings', requiresAuth: true },
 ];

@@ -8,7 +8,6 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
-import { MatMenuModule } from '@angular/material/menu';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import {
   NavigationEnd,
@@ -32,8 +31,8 @@ const WIDE = '(min-width: 960px)';
 
 /**
  * Layout for the app's pages: a top bar over the full width. On desktop it
- * holds the navigation, with the account pages in a menu under the avatar;
- * on phones its ☰ button opens the navigation as a drawer.
+ * holds the navigation, the avatar (to the profile) and Sign out; on phones
+ * its ☰ button opens the navigation as a drawer.
  */
 @Component({
   selector: 'bb-app-shell',
@@ -43,7 +42,6 @@ const WIDE = '(min-width: 960px)';
     RouterLinkActive,
     TranslocoDirective,
     MatSidenavModule,
-    MatMenuModule,
     MatButtonModule,
     LanguageToggle,
     NavIcon,
@@ -192,41 +190,24 @@ const WIDE = '(min-width: 960px)';
             <bb-language-toggle (changed)="accountLanguage.set($event)" />
           }
           @if (signedIn()) {
-            @if (!wide()) {
-              <a
-                class="account"
-                routerLink="/profile"
-                [attr.aria-label]="t('nav.profile')"
-              >
-                <bb-avatar [size]="32" />
-              </a>
-            } @else {
+            <!-- The avatar is the way to the profile (and from there to the
+                 settings). Desktop: Sign out beside it; phones: in the drawer. -->
+            <a
+              class="account"
+              routerLink="/profile"
+              [attr.aria-label]="t('nav.profile')"
+            >
+              <bb-avatar [size]="32" />
+            </a>
+            @if (wide()) {
               <button
+                mat-stroked-button
                 type="button"
-                class="account"
-                [matMenuTriggerFor]="accountMenu"
-                [attr.aria-label]="t('nav.account')"
+                class="bar-button sign-out"
+                (click)="logout()"
               >
-                <bb-avatar [size]="32" />
-                <bb-nav-icon name="chevron-down" class="caret" />
+                {{ t('nav.logout') }}
               </button>
-              <mat-menu #accountMenu="matMenu" xPosition="before">
-                @for (item of accountNav; track item.key) {
-                  <a
-                    mat-menu-item
-                    [routerLink]="item.route"
-                    routerLinkActive="active"
-                    ariaCurrentWhenActive="page"
-                  >
-                    <bb-nav-icon [name]="item.icon" class="menu-icon" />
-                    <span>{{ t('nav.' + item.key) }}</span>
-                  </a>
-                }
-                <button mat-menu-item type="button" (click)="logout()">
-                  <bb-nav-icon name="logout" class="menu-icon" />
-                  <span>{{ t('nav.logout') }}</span>
-                </button>
-              </mat-menu>
             }
           } @else {
             <a
@@ -465,38 +446,41 @@ const WIDE = '(min-width: 960px)';
     .bar-link .badge {
       margin-left: 2px;
     }
+    /* The avatar: no box or background on hover. */
     .account {
-      align-items: center;
-      background: none;
-      border: 0;
-      border-radius: var(--bb-button-radius);
-      cursor: pointer;
+      border-radius: 50%;
       display: inline-flex;
-      gap: 2px;
       margin-left: 8px;
-      padding: 4px;
-      transition: background-color var(--bb-fast) var(--bb-ease);
-    }
-    .account:hover {
-      background: var(--bb-sky-100);
     }
     .account:focus-visible {
       outline: 3px solid var(--bb-sky-300);
-    }
-    .caret {
-      color: var(--mat-sys-on-surface-variant);
-      height: 18px;
-      width: 18px;
-    }
-    .menu-icon {
-      display: inline-flex;
-      height: 20px;
-      margin-right: 12px;
-      vertical-align: -5px;
-      width: 20px;
+      outline-offset: 2px;
     }
     .bar-button {
       margin-left: 8px;
+    }
+    /* A compact box: thin outline, slightly rounded. */
+    .sign-out {
+      --mat-button-outlined-outline-color: rgb(16 58 99 / 0.3);
+      --mat-button-outlined-outline-width: 1px;
+      --mat-button-outlined-container-shape: 8px;
+      --mat-button-outlined-container-height: 34px;
+      --mat-button-outlined-horizontal-padding: 12px;
+      /* No tint or lift on hover: only the words turn red. */
+      --mat-button-outlined-hover-state-layer-opacity: 0;
+      --mat-button-outlined-focus-state-layer-opacity: 0;
+      --mat-button-outlined-pressed-state-layer-opacity: 0;
+      /* Never squeezed by the bar: the label stays inside its box. */
+      flex: none;
+      min-width: 0;
+      white-space: nowrap;
+    }
+    .sign-out:not([disabled]):hover,
+    .sign-out:not([disabled]):active {
+      --mat-button-outlined-label-text-color: var(--mat-sys-error);
+      /* styles.scss gives outlined buttons a lift and shadow on hover. */
+      box-shadow: none;
+      transform: none;
     }
     /* Phones: two compact buttons beside the name. */
     .topbar:not(.wide) .bar-button {
@@ -538,15 +522,11 @@ export class AppShell {
   protected readonly footerNav = FOOTER_NAV;
   /**
    * The bar's links (desktop) and the drawer's (phones). Profile is left
-   * out: it's under the avatar, in the menu or as the phone bar's link.
+   * out: the avatar leads there.
    */
   protected readonly barNav = computed(() =>
     this.mainNav().filter((item) => !item.accountMenu),
   );
-  protected readonly accountNav = [
-    ...MAIN_NAV.filter((item) => item.accountMenu),
-    ...FOOTER_NAV,
-  ];
 
   private readonly navigationEnd = toSignal(
     this.router.events.pipe(filter((e) => e instanceof NavigationEnd)),

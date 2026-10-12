@@ -124,8 +124,8 @@ describe('AppShell', () => {
   });
 
   describe('on desktop', () => {
-    it('puts the navigation in the top bar and the account pages under the avatar', async () => {
-      const { el, fixture } = await render(true, '/explore', true);
+    it('puts the navigation in the top bar, with the avatar and Sign out', async () => {
+      const { el } = await render(true, '/explore', true);
       const bar = el.querySelector('header.topbar') as HTMLElement;
       const barTexts = [...bar.querySelectorAll('.bar-link')].map((a) =>
         a.textContent?.replace(/\s+/g, ' ').trim(),
@@ -140,18 +140,21 @@ describe('AppShell', () => {
         'nav.explore',
       );
 
-      (bar.querySelector('button.account') as HTMLButtonElement).click();
-      await fixture.whenStable();
-      const menu = [
-        ...document.querySelectorAll('.mat-mdc-menu-panel [mat-menu-item]'),
-      ].map((i) => i.textContent?.trim());
-      expect(menu).toEqual(['nav.profile', 'nav.settings', 'nav.logout']);
+      // The avatar leads to the profile; Sign out sits beside it.
+      expect(bar.querySelector('a.account')?.getAttribute('href')).toBe(
+        '/profile',
+      );
+      const signOut = [...bar.querySelectorAll('button')].find(
+        (b) => b.textContent?.trim() === 'nav.logout',
+      );
+      expect(signOut).toBeDefined();
+      expect(bar.textContent).not.toContain('nav.settings');
     });
 
     it('offers sign-in and sign-up in the bar to visitors', async () => {
       const { el } = await render(false, '/explore?q=drill', true);
       const bar = el.querySelector('header.topbar') as HTMLElement;
-      expect(bar.querySelector('button.account')).toBeNull();
+      expect(bar.querySelector('.account')).toBeNull();
       const login = bar.querySelector('a[href^="/auth/login"]');
       expect(login?.getAttribute('href')).toBe(
         '/auth/login?returnUrl=%2Fexplore%3Fq%3Ddrill',
