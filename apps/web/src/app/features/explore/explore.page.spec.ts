@@ -56,11 +56,15 @@ describe('ExplorePage', () => {
     const rows = el.querySelectorAll('bb-result-row');
     expect(rows.length).toBe(2);
     expect(rows[0].textContent).toContain('Drill');
-    // Only the title is a link.
-    const links = rows[0].querySelectorAll('a');
-    expect(links.length).toBe(1);
-    expect(links[0].classList).toContain('title');
-    expect(links[0].getAttribute('href')).toBe('/items/a');
+    // The title and the photo link to the item; only the title is
+    // reachable by keyboard and screen readers.
+    const title = rows[0].querySelector('a.title');
+    const photo = rows[0].querySelector('a.photo');
+    expect(title?.getAttribute('href')).toBe('/items/a');
+    expect(photo?.getAttribute('href')).toBe('/items/a');
+    expect(photo?.getAttribute('tabindex')).toBe('-1');
+    expect(photo?.getAttribute('aria-hidden')).toBe('true');
+    expect(rows[0].querySelectorAll('a')).toHaveLength(2);
     // Its category in the category's colour, and the description's start.
     expect(rows[0].textContent).toContain('catalog.categories.tools');
     expect(rows[0].textContent).toContain('Works well');

@@ -201,9 +201,6 @@ export const STEP_EVERY_MS = 4000;
       padding: 0;
       width: 28px;
     }
-    .pause:hover {
-      background: var(--bb-sky-100);
-    }
     .pause bb-nav-icon {
       height: 16px;
       width: 16px;

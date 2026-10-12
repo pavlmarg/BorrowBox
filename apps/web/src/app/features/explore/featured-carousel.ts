@@ -174,11 +174,7 @@ const GAP_PX = 12;
       height: 32px;
       justify-content: center;
       padding: 0;
-      transition: background-color var(--bb-fast) var(--bb-ease);
       width: 32px;
-    }
-    .pause:hover {
-      background: var(--bb-sky-100);
     }
     .pause bb-nav-icon {
       height: 18px;

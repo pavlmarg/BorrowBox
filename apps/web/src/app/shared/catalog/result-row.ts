@@ -34,7 +34,14 @@ import { categoryColor } from './category-colors';
       (focusin)="hovered.emit(item().id)"
       (focusout)="hovered.emit(null)"
     >
-      <span class="photo">
+      <!-- A second way to the item for the pointer; keyboard and screen
+           readers use the title. -->
+      <a
+        class="photo"
+        [routerLink]="['/items', item().id]"
+        tabindex="-1"
+        aria-hidden="true"
+      >
         @if (item().coverPhoto; as cover) {
           <img
             [src]="cover.small"
@@ -44,7 +51,7 @@ import { categoryColor } from './category-colors';
             alt=""
           />
         }
-      </span>
+      </a>
       <span class="text">
         <span class="category">{{
           t('catalog.categories.' + item().category)
@@ -96,6 +103,7 @@ import { categoryColor } from './category-colors';
     }
     .photo {
       background: var(--bb-sky-100);
+      display: block;
       flex: none;
       height: 120px;
       overflow: hidden;
@@ -106,6 +114,12 @@ import { categoryColor } from './category-colors';
       height: 100%;
       object-fit: cover;
       width: 100%;
+    }
+    img {
+      transition: transform var(--bb-medium) var(--bb-ease);
+    }
+    .photo:hover img {
+      transform: scale(1.04);
     }
     .text {
       display: flex;
@@ -130,7 +144,9 @@ import { categoryColor } from './category-colors';
       text-underline-offset: 3px;
       transition: color var(--bb-fast) var(--bb-ease);
     }
-    .title:hover {
+    /* Pointing at the photo lights up the title too, like a carousel card. */
+    .title:hover,
+    .row:has(.photo:hover) .title {
       color: var(--cat);
       text-decoration-thickness: 2px;
     }

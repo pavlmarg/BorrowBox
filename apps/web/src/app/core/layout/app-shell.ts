@@ -323,9 +323,9 @@ const WIDE = '(min-width: 960px)';
         transform var(--bb-fast) var(--bb-ease);
       width: 100%;
     }
+    /* Hover: only the words turn blue, not the whole row. */
     a.link:hover,
     button.link:hover {
-      background: var(--bb-sky-50);
       color: var(--bb-sky-700);
     }
     a.link:hover bb-nav-icon,
@@ -451,7 +451,6 @@ const WIDE = '(min-width: 960px)';
       width: 20px;
     }
     a.bar-link:hover {
-      background: var(--bb-sky-50);
       color: var(--bb-sky-700);
     }
     .bar-link:focus-visible {
