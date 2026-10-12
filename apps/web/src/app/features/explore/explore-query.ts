@@ -11,7 +11,7 @@ import {
   type PriceUnit,
   type SearchRadiusKm,
 } from '@borrowbox/contracts';
-import type { SearchItemsBody } from '../../api/models';
+import type { CategoryCountsBody, SearchItemsBody } from '../../api/models';
 
 /** What the searcher chose, apart from the point (which never leaves memory). */
 export interface ExploreFilters {
@@ -87,6 +87,14 @@ export function sameFilters(a: ExploreFilters, b: ExploreFilters): boolean {
 }
 
 /** The search request; the price limit is only sent with its unit. */
+/** The search's filters apart from the category, for the category counts. */
+export function countsBody(
+  f: ExploreFilters,
+  near: GeoPoint,
+): CategoryCountsBody {
+  return searchBody({ ...f, category: null }, near);
+}
+
 export function searchBody(
   f: ExploreFilters,
   near: GeoPoint,

@@ -7,9 +7,14 @@ import {
   withProps,
   withState,
 } from '@ngrx/signals';
-import type { GeoPoint, SearchRadiusKm } from '@borrowbox/contracts';
+import type {
+  GeoPoint,
+  ItemCategory,
+  SearchRadiusKm,
+} from '@borrowbox/contracts';
 import { Api } from '../../api/api';
 import {
+  publicItemsControllerCategoryCounts,
   publicItemsControllerFeatured,
   publicItemsControllerSearch,
 } from '../../api/functions';
@@ -18,6 +23,7 @@ import { errorCode, type KnownErrorCode } from '../../core/api-errors';
 import { DEFAULT_CENTER } from '../../shared/map/geo';
 import {
   DEFAULT_FILTERS,
+  countsBody,
   sameFilters,
   searchBody,
   type ExploreFilters,
@@ -40,6 +46,11 @@ interface ExploreState {
   scrollTop: number;
   /** The carousel above the results: by area and radius only, never filters. */
   featured: PublicItemSummaryResponse[];
+  /**
+   * Results each category would give with the other filters; null until
+   * loaded (or when loading failed, so nothing shows a wrong number).
+   */
+  categoryCounts: Partial<Record<ItemCategory, number>> | null;
 }
 
 const initialState: ExploreState = {
@@ -53,6 +64,7 @@ const initialState: ExploreState = {
   selectedId: null,
   scrollTop: 0,
   featured: [],
+  categoryCounts: null,
 };
 
 /**
@@ -63,14 +75,25 @@ const initialState: ExploreState = {
 export const ExploreStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
-  withComputed(({ items, nextCursor, status }) => ({
+  withComputed(({ items, nextCursor, status, categoryCounts }) => ({
+    /** Every category together, for "All categories". */
+    totalCount: computed(() => {
+      const counts = categoryCounts();
+      return counts === null
+        ? null
+        : Object.values(counts).reduce((sum, n) => sum + n, 0);
+    }),
     hasMore: computed(() => nextCursor() !== null),
     isEmpty: computed(() => status() === 'ready' && items().length === 0),
   })),
   withProps(() => ({
     _api: inject(Api),
     /** Bumped by every new search; answers to older ones are ignored. */
-    _meta: { seq: 0, featuredFor: null as string | null },
+    _meta: {
+      seq: 0,
+      featuredFor: null as string | null,
+      countsFor: null as string | null,
+    },
   })),
   withMethods((store) => {
     /**
@@ -98,8 +121,36 @@ export const ExploreStore = signalStore(
       }
     };
 
+    /**
+     * The category counts, unless already loaded for these filters (picking
+     * a category doesn't change them). Best effort, like the carousel.
+     */
+    const loadCounts = async (): Promise<void> => {
+      const body = countsBody(store.filters(), store.center());
+      const key = JSON.stringify(body);
+      if (key === store._meta.countsFor) return;
+      store._meta.countsFor = key;
+      patchState(store, { categoryCounts: null });
+      try {
+        const { counts } = await store._api.invoke(
+          publicItemsControllerCategoryCounts,
+          { body },
+        );
+        if (key === store._meta.countsFor) {
+          patchState(store, {
+            categoryCounts: Object.fromEntries(
+              counts.map((c) => [c.category, c.count]),
+            ),
+          });
+        }
+      } catch {
+        if (key === store._meta.countsFor) store._meta.countsFor = null;
+      }
+    };
+
     const search = async (): Promise<void> => {
       void loadFeatured();
+      void loadCounts();
       const seq = ++store._meta.seq;
       patchState(store, {
         status: 'loading',

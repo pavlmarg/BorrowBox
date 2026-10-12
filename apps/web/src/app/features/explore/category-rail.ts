@@ -5,8 +5,9 @@ import { categoryColor } from '../../shared/catalog/category-colors';
 import { ExploreStore } from './explore.store';
 
 /**
- * Explore's left rail on wide screens: every category in its colour, a
- * quicker way to set the Category filter (the same filter, kept in sync).
+ * Explore's left rail on wide screens: every category in its colour, with
+ * how many results it gives, a quicker way to set the Category filter (the
+ * same filter, kept in sync).
  */
 @Component({
   selector: 'bb-category-rail',
@@ -25,7 +26,10 @@ import { ExploreStore } from './explore.store';
             (click)="choose(null)"
           >
             <span class="swatch all"></span>
-            {{ t('explore.allCategories') }}
+            <span class="name">{{ t('explore.allCategories') }}</span>
+            @if (store.totalCount() !== null) {
+              <span class="count">{{ store.totalCount() }}</span>
+            }
           </button>
         </li>
         @for (c of categories; track c) {
@@ -39,7 +43,10 @@ import { ExploreStore } from './explore.store';
               (click)="choose(c)"
             >
               <span class="swatch"></span>
-              {{ t('catalog.categories.' + c) }}
+              <span class="name">{{ t('catalog.categories.' + c) }}</span>
+              @if (store.categoryCounts(); as counts) {
+                <span class="count">{{ counts[c] ?? 0 }}</span>
+              }
             </button>
           </li>
         }
@@ -79,8 +86,7 @@ import { ExploreStore } from './explore.store';
       font-size: 15px;
       gap: 10px;
       line-height: 20px;
-      /* Shorter rows on shorter screens, so the whole list always fits. */
-      padding: clamp(2px, 0.55vh, 7px) 10px;
+      padding: 7px 10px;
       text-align: left;
       transition:
         background-color var(--bb-fast) var(--bb-ease),
@@ -98,6 +104,17 @@ import { ExploreStore } from './explore.store';
       background: color-mix(in srgb, var(--cat) 7%, white);
       color: var(--cat);
       font-weight: 600;
+    }
+    .name {
+      flex: 1;
+    }
+    .count {
+      color: var(--mat-sys-on-surface-variant);
+      font: var(--mat-sys-label-medium);
+      font-variant-numeric: tabular-nums;
+    }
+    .chosen .count {
+      color: inherit;
     }
     .swatch {
       background: var(--cat);

@@ -55,12 +55,24 @@ import { HowItWorks } from './how-it-works';
     .cta {
       --mat-button-filled-container-color: #fff;
       --mat-button-filled-label-text-color: var(--bb-sky-700);
+      --mat-button-filled-hover-state-layer-opacity: 0;
+      --mat-button-filled-focus-state-layer-opacity: 0;
+      transition:
+        background-color 500ms var(--bb-ease),
+        box-shadow 500ms var(--bb-ease),
+        transform 500ms var(--bb-ease);
       height: auto;
       line-height: 20px;
       min-height: 40px;
       padding-bottom: 10px;
       padding-top: 10px;
       white-space: normal;
+    }
+    /* A slow, soft hover: pale blue, lifting a little. */
+    .cta:hover {
+      background-color: var(--bb-sky-100);
+      box-shadow: 0 6px 16px rgb(0 0 0 / 0.18);
+      transform: translateY(-2px);
     }
     .cta:focus-visible {
       outline: 3px solid #fff;

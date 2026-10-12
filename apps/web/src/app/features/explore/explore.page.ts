@@ -77,6 +77,8 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
     <div class="explore" *transloco="let t" [class.wide]="wide()">
       <section
         class="list-pane"
+        #scroller
+        (scroll)="saveScroll()"
         [class.with-rails]="rails()"
         [attr.aria-label]="t('explore.results')"
       >
@@ -104,7 +106,7 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
           <bb-explore-filters />
         </div>
 
-        <div class="results" #scroller (scroll)="saveScroll()">
+        <div class="results">
           <div class="column">
             @if (!store.filters().q && store.featured().length > 0) {
               <bb-featured-carousel [items]="store.featured()" />
@@ -236,13 +238,20 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
     }
 
     /* The list: the whole area, its content in a centred column. */
+    /* The whole pane scrolls as one page; the search head stays on top. */
     .list-pane {
+      box-sizing: border-box;
       display: flex;
       flex-direction: column;
       height: 100%;
+      overflow-y: auto;
     }
     .head {
+      background: var(--bb-page-bg);
       border-bottom: 1px solid rgb(16 58 99 / 0.08);
+      position: sticky;
+      top: 0;
+      z-index: 2;
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -281,16 +290,14 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
       width: 18px;
     }
     .results {
-      flex: 1;
-      min-height: 0;
-      overflow-y: auto;
+      flex: none;
     }
     .column {
       /* Room for the floating Map/List button. */
       padding-bottom: 88px;
     }
-    /* Wide screens: a rail on each side of the column, from the top bar
-       down. They don't scroll: everything in them fits. */
+    /* Wide screens: a rail on each side of the column, the page's whole
+       length; they scroll away with the results. */
     .list-pane.with-rails {
       box-sizing: border-box;
       column-gap: 40px;
@@ -300,7 +307,7 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
           220px,
           1fr
         );
-      grid-template-rows: auto minmax(0, 1fr);
+      grid-template-rows: auto 1fr;
       padding: 0 32px;
     }
     .with-rails .head {
@@ -315,9 +322,7 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
       box-sizing: border-box;
       grid-row: 1 / -1;
       max-width: 280px;
-      min-height: 0;
-      overflow: hidden;
-      padding-top: 24px;
+      padding: 24px 0 48px;
       width: 100%;
     }
     .rail.left {

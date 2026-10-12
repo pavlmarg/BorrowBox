@@ -70,17 +70,33 @@ import { ExploreStore } from './explore.store';
         }}
         <span class="chevron" aria-hidden="true"></span>
       </button>
-      <mat-menu #categoryMenu="matMenu" class="bb-drop">
-        <button mat-menu-item type="button" (click)="setCategory(null)">
-          <span class="option" [class.chosen]="f().category === null">{{
-            t('explore.allCategories')
-          }}</span>
+      <mat-menu #categoryMenu="matMenu" class="bb-drop bb-scroll-menu">
+        <button
+          mat-menu-item
+          type="button"
+          [class.chosen-item]="f().category === null"
+          (click)="setCategory(null)"
+        >
+          <span class="option counted" [class.chosen]="f().category === null"
+            >{{ t('explore.allCategories') }}
+            @if (store.totalCount() !== null) {
+              <span class="count">{{ store.totalCount() }}</span>
+            }
+          </span>
         </button>
         @for (c of categories; track c) {
-          <button mat-menu-item type="button" (click)="setCategory(c)">
-            <span class="option" [class.chosen]="f().category === c">{{
-              t('catalog.categories.' + c)
-            }}</span>
+          <button
+            mat-menu-item
+            type="button"
+            [class.chosen-item]="f().category === c"
+            (click)="setCategory(c)"
+          >
+            <span class="option counted" [class.chosen]="f().category === c"
+              >{{ t('catalog.categories.' + c) }}
+              @if (store.categoryCounts(); as counts) {
+                <span class="count">{{ counts[c] ?? 0 }}</span>
+              }
+            </span>
           </button>
         }
       </mat-menu>
@@ -101,7 +117,12 @@ import { ExploreStore } from './explore.store';
       </button>
       <mat-menu #radiusMenu="matMenu" class="bb-drop">
         @for (km of radii; track km) {
-          <button mat-menu-item type="button" (click)="setRadius(km)">
+          <button
+            mat-menu-item
+            type="button"
+            [class.chosen-item]="f().radiusKm === km"
+            (click)="setRadius(km)"
+          >
             <span class="option" [class.chosen]="f().radiusKm === km">{{
               t('explore.radiusKm', { km })
             }}</span>
@@ -202,34 +223,45 @@ import { ExploreStore } from './explore.store';
       padding: 2px 16px;
       scrollbar-width: none;
     }
+    /* Round pills on purpose (asked for), unlike the app's square buttons. */
     .filter,
     .clear-all {
       align-items: center;
-      border-radius: var(--bb-button-radius);
+      border-radius: 999px;
       cursor: pointer;
       display: inline-flex;
       flex: none;
       font: var(--mat-sys-label-large);
       gap: 8px;
-      height: 36px;
-      padding: 0 12px;
+      height: 38px;
+      padding: 0 16px;
       white-space: nowrap;
     }
+    /* Solid brand blue like the Map button; a filter that is set is
+       darker, with a white ring inside. */
     .filter {
-      background: var(--mat-sys-surface);
-      border: 1px solid rgb(16 58 99 / 0.22);
-      color: var(--mat-sys-on-surface);
+      background: var(--mat-sys-primary);
+      border: 0;
+      box-shadow: var(--bb-shadow-sm);
+      color: var(--mat-sys-on-primary);
+      font-weight: 600;
       transition:
-        background-color var(--bb-fast) var(--bb-ease),
-        border-color var(--bb-fast) var(--bb-ease);
+        background-color 400ms var(--bb-ease),
+        box-shadow 400ms var(--bb-ease);
     }
-    .filter:hover {
-      border-color: var(--bb-sky-700);
+    .filter:hover,
+    .filter[aria-expanded='true'] {
+      background: color-mix(in srgb, var(--mat-sys-primary) 82%, black);
     }
     .filter.active {
-      background: var(--bb-sky-100);
-      border-color: var(--bb-sky-700);
-      color: var(--bb-sky-700);
+      background: color-mix(in srgb, var(--mat-sys-primary) 70%, black);
+      box-shadow:
+        inset 0 0 0 2px rgb(255 255 255 / 0.85),
+        var(--bb-shadow-sm);
+    }
+    .filter.active:hover,
+    .filter.active[aria-expanded='true'] {
+      background: color-mix(in srgb, var(--mat-sys-primary) 60%, black);
     }
     .filter:disabled {
       cursor: default;
@@ -246,7 +278,15 @@ import { ExploreStore } from './explore.store';
       height: 6px;
       margin-top: -3px;
       transform: rotate(45deg);
+      transition:
+        transform var(--bb-medium) var(--bb-ease),
+        margin var(--bb-medium) var(--bb-ease);
       width: 6px;
+    }
+    /* Points up while its menu is open. */
+    .filter[aria-expanded='true'] .chevron {
+      margin-top: 3px;
+      transform: rotate(225deg);
     }
     .clear-all {
       background: none;
@@ -259,8 +299,20 @@ import { ExploreStore } from './explore.store';
       width: 16px;
     }
     .option.chosen {
-      color: var(--bb-sky-700);
       font-weight: 700;
+    }
+    /* The name, and how many results it gives on the right. */
+    .option.counted {
+      align-items: center;
+      display: flex;
+      gap: 16px;
+      justify-content: space-between;
+      min-width: 200px;
+    }
+    .count {
+      font: var(--mat-sys-label-medium);
+      font-variant-numeric: tabular-nums;
+      opacity: 0.75;
     }
     .price-panel {
       box-sizing: border-box;
@@ -281,7 +333,7 @@ import { ExploreStore } from './explore.store';
   `,
 })
 export class ExploreFilters {
-  private readonly store = inject(ExploreStore);
+  protected readonly store = inject(ExploreStore);
   protected readonly f = this.store.filters;
   private readonly priceTrigger = viewChild<MatMenuTrigger>('priceTrigger');
 

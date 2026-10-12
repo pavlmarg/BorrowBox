@@ -22,6 +22,7 @@ function setup() {
 
 const SEARCH = { method: 'POST', url: '/api/items/search' };
 const FEATURED = { method: 'POST', url: '/api/items/featured' };
+const COUNTS = { method: 'POST', url: '/api/items/category-counts' };
 const answer = (req: TestRequest, ids: string[], nextCursor: string | null) =>
   req.flush({ items: ids.map((id) => publicItem(id)), nextCursor });
 
@@ -127,6 +128,7 @@ describe('ExploreStore', () => {
     await done;
     expect(store.filters().radiusKm).toBe(2);
     http.expectOne(FEATURED);
+    http.expectOne(COUNTS);
     http.verify();
   });
 
@@ -173,6 +175,39 @@ describe('ExploreStore', () => {
     http.expectOne(FEATURED);
     answer(http.expectOne(SEARCH), ['a'], null);
     await again;
+  });
+
+  it('counts results per category once per filters, whatever the category', async () => {
+    const { store, http } = setup();
+    const first = store.start({ ...DEFAULT_FILTERS, q: 'drill' });
+    const req = http.expectOne(COUNTS);
+    expect(req.request.body).toEqual({
+      near: { lat: 37.9838, lng: 23.7275 },
+      radiusKm: 5,
+      q: 'drill',
+    });
+    req.flush({
+      counts: [
+        { category: 'tools', count: 3 },
+        { category: 'garden', count: 1 },
+      ],
+    });
+    answer(http.expectOne(SEARCH), [], null);
+    await first;
+    await tick();
+    expect(store.categoryCounts()).toEqual({ tools: 3, garden: 1 });
+    expect(store.totalCount()).toBe(4);
+
+    const garden = store.setFilters({ category: 'garden' });
+    answer(http.expectOne(SEARCH), [], null);
+    await garden;
+    http.expectNone(COUNTS);
+
+    const free = store.setFilters({ freeOnly: true });
+    expect(store.categoryCounts()).toBeNull();
+    expect(http.expectOne(COUNTS).request.body.freeOnly).toBe(true);
+    answer(http.expectOne(SEARCH), [], null);
+    await free;
   });
 
   it('reports a failed search', async () => {

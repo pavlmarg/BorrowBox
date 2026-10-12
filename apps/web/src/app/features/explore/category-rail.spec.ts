@@ -4,7 +4,16 @@ import { TestBed } from '@angular/core/testing';
 import { provideTransloco } from '@jsverse/transloco';
 import { ITEM_CATEGORIES } from '@borrowbox/contracts';
 import { CategoryRail } from './category-rail';
+import { patchState } from '@ngrx/signals';
+import { unprotected } from '@ngrx/signals/testing';
 import { ExploreStore } from './explore.store';
+
+function patchCounts(
+  store: InstanceType<typeof ExploreStore>,
+  categoryCounts: Record<string, number>,
+) {
+  patchState(unprotected(store), { categoryCounts });
+}
 
 async function render() {
   TestBed.configureTestingModule({
@@ -32,6 +41,19 @@ describe('CategoryRail', () => {
       b.textContent?.includes('catalog.categories.tools'),
     ) as HTMLButtonElement;
     expect(tools.style.getPropertyValue('--cat')).toBe('#c2410c');
+  });
+
+  it('shows how many results each category gives', async () => {
+    const { fixture, store, buttons } = await render();
+    patchCounts(store, { tools: 3, garden: 1 });
+    await fixture.whenStable();
+    const text = (key: string) =>
+      buttons()
+        .find((b) => b.textContent?.includes(key))
+        ?.querySelector('.count')?.textContent;
+    expect(text('explore.allCategories')).toBe('4');
+    expect(text('catalog.categories.tools')).toBe('3');
+    expect(text('catalog.categories.kids')).toBe('0');
   });
 
   it('sets the Category filter, and "All" clears it', async () => {

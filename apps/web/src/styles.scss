@@ -202,23 +202,52 @@ bb-app-shell,
 // up when closing. Material's own animations still run (it waits for them
 // to know when the menu opened or closed): the enter one instantly, the
 // exit one alongside ours, which must end within its 200 ms fallback.
+// The filter menus in colour: pale blue, blue text, the chosen entry in
+// solid blue.
+.mat-mdc-menu-panel.bb-drop {
+  --mat-menu-container-color: var(--bb-sky-100);
+  --mat-menu-item-label-text-color: var(--bb-sky-700);
+  --mat-menu-item-hover-state-layer-color: var(--bb-sky-200);
+  --mat-menu-item-focus-state-layer-color: var(--bb-sky-200);
+  border: 1px solid var(--bb-sky-200);
+
+  .mat-mdc-menu-item {
+    transition: background-color var(--bb-medium) var(--bb-ease);
+  }
+  .mat-mdc-menu-item.chosen-item,
+  .mat-mdc-menu-item.chosen-item:hover {
+    background: var(--mat-sys-primary);
+    color: var(--mat-sys-on-primary);
+  }
+}
+
+.mat-mdc-menu-panel.bb-scroll-menu {
+  // About 7⅓ rows: the cut-off row shows that the rest scrolls.
+  max-height: 360px;
+  overscroll-behavior: contain;
+}
 .mat-mdc-menu-panel.bb-drop {
   animation:
     _mat-menu-enter 1ms,
-    bb-drop-down 260ms var(--bb-ease);
+    bb-drop-down 340ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .mat-mdc-menu-panel.bb-drop.mat-menu-panel-exit-animation {
   animation:
-    _mat-menu-exit 180ms ease-in forwards,
-    bb-drag-up 180ms ease-in forwards;
+    _mat-menu-exit 190ms ease-in forwards,
+    bb-drag-up 190ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 @keyframes bb-drop-down {
   from {
     clip-path: inset(0 0 100% 0);
-    transform: translateY(-6px);
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  40% {
+    opacity: 1;
   }
   to {
     clip-path: inset(0 0 -20px 0);
+    opacity: 1;
     transform: none;
   }
 }
@@ -228,7 +257,7 @@ bb-app-shell,
   }
   to {
     clip-path: inset(0 0 100% 0);
-    transform: translateY(-6px);
+    transform: translateY(-8px);
   }
 }
 
