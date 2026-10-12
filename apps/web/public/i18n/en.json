@@ -323,7 +323,9 @@
     "done": "Done",
     "published": "Your item is published.",
     "leaveUnsaved": "You have unsaved changes. Leave this page?",
-    "photoNeeded": "Add at least one photo to continue: items are listed with a photo."
+    "photoNeeded": "Add at least one photo to continue: items are listed with a photo.",
+    "dropPhotos": "Drag photos here",
+    "dropRelease": "Drop them to upload"
   },
   "myItems": {
     "count": "{{count}} of {{max}} items",

@@ -22,6 +22,8 @@ export type NavIconName =
   | 'chevron-right'
   | 'chevron-down'
   | 'trash'
+  | 'camera'
+  | 'upload'
   | 'pause'
   | 'play';
 
@@ -111,6 +113,18 @@ export type NavIconName =
         }
         @case ('chevron-right') {
           <path d="m9.5 6 6 6-6 6" />
+        }
+        @case ('camera') {
+          <path
+            d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.2l1.5-2.2h5.6L16.3 7h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5v-9Z"
+          />
+          <circle cx="12" cy="12.8" r="3.4" />
+        }
+        @case ('upload') {
+          <path d="M12 15.5V4.5M7.5 9 12 4.5 16.5 9" />
+          <path
+            d="M4.5 15v3a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-3"
+          />
         }
         @case ('trash') {
           <!-- The body, then the lid a little above it. -->
