@@ -7,7 +7,7 @@ import {
   type Locale,
 } from '@borrowbox/contracts';
 import { addToOutbox } from '@borrowbox/outbox';
-import { DATA_SOURCE } from '../database/database.module';
+import { DATA_SOURCE } from '@borrowbox/service-kit';
 import { IdentityError } from '../rpc/rpc-errors';
 import type { LoginDto, LogoutDto, RefreshDto, RegisterDto } from './auth.dto';
 import { PasswordHasher } from './password-hasher';

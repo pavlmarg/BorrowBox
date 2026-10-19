@@ -1,7 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { IdentityRpc, type AuthSession } from '@borrowbox/contracts';
-import { CorrelationIdPipe } from '../rpc/correlation-id.pipe';
+import { CorrelationIdPipe } from '@borrowbox/service-kit';
 import { GoogleAuthService } from './google-auth.service';
 import { GoogleExchangeDto } from './google.dto';
 
