@@ -1,0 +1,19 @@
+{
+  "name": "service-kit",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/service-kit/src",
+  "projectType": "library",
+  "tags": ["scope:node"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/service-kit",
+        "main": "libs/service-kit/src/index.ts",
+        "tsConfig": "libs/service-kit/tsconfig.lib.json",
+        "assets": ["libs/service-kit/*.md"]
+      }
+    }
+  }
+}
