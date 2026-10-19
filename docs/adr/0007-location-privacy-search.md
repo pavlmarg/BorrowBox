@@ -1,6 +1,6 @@
 # ADR-0007: Location privacy: fixed fuzz offset and search on the public point
 
-**Status:** Accepted. Supersedes parts of [ADR-0004](0004-location-fuzzing.md): the offset rules and where search runs. The offset rule is amended by [ADR-0011](0011-one-offset-per-place.md): a lender's items in one place share one offset.
+**Status:** Accepted. Supersedes parts of [ADR-0004](0004-location-fuzzing.md): the offset rules and where search runs. The offset rule is amended by [ADR-0011](0011-one-offset-per-place.md): a lender's items in one place share one offset. Its reveal to `PAID` renters is superseded by [ADR-0015](0015-booking-model.md): the exact point is never revealed to renters.
 
 ## Context
 ADR-0004 stores a private exact point (`location`) and a public fuzzed point (`location_public`) per item. Two parts of it needed revisiting before Catalog is built:
@@ -18,7 +18,7 @@ ADR-0004 stores a private exact point (`location`) and a public fuzzed point (`l
 - **The searcher's position is not kept.** The coordinates a searcher sends are used for that query only. They are never stored or logged.
 - **Unchanged from ADR-0004:**
   - the exact point stays private (only the owner sees it)
-  - it is revealed only to a renter with a `PAID` booking, until the booking completes (Phase 3+)
+  - it is revealed only to a renter with a `PAID` booking, until the booking completes (Phase 3+) *(superseded by [ADR-0015](0015-booking-model.md): never revealed to renters)*
   - the UI shows a circle, not a pin *(Explore's map: amended by [ADR-0014](0014-price-tags-on-explore-map.md))*
   - every photo is stripped of EXIF/GPS data
 
@@ -27,4 +27,4 @@ ADR-0004 stores a private exact point (`location`) and a public fuzzed point (`l
 - Results near the edge of a radius are off by up to 300 m: an item just inside the radius may be missing, or one just outside included. That's acceptable for neighbourhood borrowing.
 - The fixed radius steps and distance bands make the search UI simpler, and leave no fine-grained numbers to probe.
 - Catalog needs the offset columns and a unit-tested fuzz function (distance always within 150–300 m, a small move keeps the offset).
-- The exact point is just a dropped pin, not a street address ([ADR-0008](0008-maps-pin-drop.md)). What a `PAID` renter receives in Phase 3 (the exact point, plus any pickup notes from the lender) is decided then.
+- The exact point is just a dropped pin, not a street address ([ADR-0008](0008-maps-pin-drop.md)). What a `PAID` renter receives in Phase 3 (the exact point, plus any pickup notes from the lender) is decided then. *(Decided in [ADR-0015](0015-booking-model.md): nothing; the two people arrange where to meet.)*

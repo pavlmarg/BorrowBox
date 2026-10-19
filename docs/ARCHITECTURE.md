@@ -68,12 +68,12 @@ flowchart TB
 | Service | Owns | Publishes | Consumes |
 |---|---|---|---|
 | **Gateway** | nothing (stateless) | – | Redis pub/sub (fan-out to sockets) |
-| **Identity** | users, credentials, refresh tokens, verification status | `user.registered`, `user.profile_updated`, `user.verified`, `user.deletion_requested` | `payment.account_ready` |
+| **Identity** | users, credentials, refresh tokens, email tokens, verification status; sends its own account-security emails | `user.registered`, `user.profile_updated`, `user.verified`, `user.deletion_requested` | `payment.account_ready` |
 | **Catalog** | items, categories, photos, location | `item.created`, `item.updated`, `item.deleted` | `user.deletion_requested`, `review.created` (item rating) |
-| **Bookings** | bookings, availability, handoffs, condition photos | `booking.requested`, `.accepted`, `.paid`, `.declined`, `.expired`, `.cancelled`, `.picked_up`, `.returned`, `.completed`, `.disputed` | `item.*`, `payment.captured`, `payment.failed`, `user.deletion_requested` |
+| **Bookings** | bookings, availability, handoffs, condition photos | `booking.requested`, `.accepted`, `.confirmed`, `.paid`, `.declined`, `.expired`, `.cancelled`, `.picked_up`, `.returned`, `.completed`, `.disputed` | `item.*`, `payment.captured`, `payment.failed`, `user.deletion_requested` |
 | **Payments** | Stripe accounts, payments, transfers, refunds, `stripe_events` | `payment.account_ready`, `payment.captured`, `payment.failed`, `payment.settled` | `booking.accepted`, `.cancelled`, `.completed`, `.disputed`, `dispute.resolved` |
 | **Messaging** | conversations, messages | `message.sent` | `payment.captured` (unlock chat), `user.deletion_requested` |
-| **Notifications** | preferences, push subscriptions, in-app inbox | – | nearly every event above |
+| **Notifications** | recipients (from `user.*` events); later preferences, push subscriptions, in-app inbox | – | nearly every event above |
 | **Reviews / Trust** | reviews, trust scores | `review.created` | `booking.completed`, `user.verified`, `booking.disputed` |
 
 **Media** is a shared library, not a service. It issues presigned upload URLs into a private uploads bucket, and runs a BullMQ worker (inside the owning service) that strips all metadata with `sharp` and writes resized versions to a separate public-read bucket. Only processed photos are served. Stripping EXIF matters because photo GPS data would leak home locations. See [ADR-0009](adr/0009-photo-pipeline.md).
@@ -145,7 +145,7 @@ flowchart TB
   - `location_public` is the exact point moved by one random offset (150–300 m, random direction), stored per item. A pin moved by less than 300 m keeps the same offset.
   - A lender's items in one place (exact points within 300 m) share one offset, so averaging their public points reveals nothing ([ADR-0011](adr/0011-one-offset-per-place.md)).
   - Public responses and **all searches** use only `location_public`. The search radius is one of 1, 2, 5, 10, 25 or 50 km, and distances are shown as bands.
-  - The exact point is visible to its owner, and later to a renter with a `PAID` booking until it completes.
+  - The exact point is visible to its owner only, never to renters: once a booking goes ahead, the two people arrange where to meet ([ADR-0015](adr/0015-booking-model.md)).
 - **Setting the location:** lenders drop a pin on the map or use their device location; no address is geocoded ([ADR-0008](adr/0008-maps-pin-drop.md)).
 - **Pricing:** a rate card per item: any of hourly, daily, weekly and monthly rates (each €0.10–€1,000), or free, plus a separate deposit. Bookings computes what a booking costs ([ADR-0010](adr/0010-flexible-pricing.md)).
 - **Item lifecycle:** `DRAFT` → `ACTIVE` (publishing needs a location and a processed photo) ⇄ `PAUSED`; any of them → `DELETED`, a tombstone without location or description. `item.created` / `item.updated` carry a snapshot without location or description; `item.updated` is only sent when the snapshot changes.
@@ -154,11 +154,13 @@ flowchart TB
 - **Deleted accounts:** access tokens stay valid for up to 15 minutes, so once Catalog has processed `user.deletion_requested`, it refuses that account's write commands.
 
 ### Bookings
+- **Periods and prices** ([ADR-0015](adr/0015-booking-model.md)): whole hours `[start, end)` as a `tstzrange`, shown in Europe/Athens time; at least 1 hour, starting 1 hour to 180 days ahead. The rent is the cheapest combination of the item's rates that covers the period (a day is 24 h, a week 7 days, a month 30 days), fixed with the deposit when the booking is requested.
 - Double-booking is prevented at the DB level:
   ```sql
   EXCLUDE USING gist (item_id WITH =, period WITH &&)
-  WHERE (status IN ('ACCEPTED','PAID','PICKED_UP'))
+  WHERE (status IN ('ACCEPTED','CONFIRMED','PAID','PICKED_UP'))
   ```
+- Accepting a request declines the item's other requests that overlap it, in the same transaction.
 - Owns the booking state machine (§4) and the QR handoff protocol (§5).
 - Timeouts (acceptance expiry, payment expiry, claim window) are BullMQ delayed jobs, and each one re-checks the state before acting.
 
@@ -169,19 +171,29 @@ See §6.
 - One conversation per booking, unlocked once payment succeeds. Before that, fixed quick questions are allowed, which prevents taking deals off-platform before trust exists.
 - Messages are persisted in Postgres and published to Redis. The gateway pushes them to connected sockets, and Notifications sends a push or email if the recipient is offline.
 
+### Notifications
+See [ADR-0016](adr/0016-notifications-and-email.md).
+- Its own service, consuming events. It knows recipients (email, name, language `el`/`en`) from `user.*` events, and forgets them on `user.deletion_requested`.
+- Email over SMTP with `nodemailer` (Mailpit locally), from plain TypeScript templates in Greek and English. Phase 3 sends email only; preferences, an in-app inbox and Web Push come later.
+- **Account-security emails** (email verification, password reset, password change) are sent by Identity itself, so their tokens never travel in events. Identity stores only a hash of each token; a reset link lasts 10 minutes, a verification link 24 hours, each works once, and a new one cancels the older ones. Both senders share `libs/mailer`.
+
 ## 4. Booking lifecycle
 
 ```mermaid
 stateDiagram-v2
     [*] --> REQUESTED
-    REQUESTED --> ACCEPTED: lender accepts
-    REQUESTED --> DECLINED: lender declines
-    REQUESTED --> EXPIRED: 24h no answer
+    REQUESTED --> ACCEPTED: lender accepts (something to pay)
+    REQUESTED --> CONFIRMED: lender accepts (nothing to pay)
+    REQUESTED --> DECLINED: lender declines, or overlaps an accepted booking
+    REQUESTED --> EXPIRED: 24h no answer, or the start passes
+    REQUESTED --> CANCELLED: renter withdraws
     ACCEPTED --> PAID: payment.captured
     ACCEPTED --> EXPIRED: payment timeout
-    ACCEPTED --> CANCELLED
+    ACCEPTED --> CANCELLED: either side, before the start
+    CONFIRMED --> CANCELLED: either side, before the start
     PAID --> CANCELLED: cancellation policy refund
     PAID --> PICKED_UP: pickup QR scan
+    CONFIRMED --> PICKED_UP: pickup QR scan
     PICKED_UP --> RETURNED: return QR scan
     RETURNED --> COMPLETED: 48h claim window passes
     RETURNED --> DISPUTED: lender files damage claim
@@ -209,7 +221,7 @@ sequenceDiagram
     R->>S: pay (SCA / 3DS)
     S->>P: webhook payment_intent.succeeded
     P-->>B: payment.captured
-    B-->>N: booking.paid → exact address + chat unlocked
+    B-->>N: booking.paid → "arrange where to meet" + chat unlocked
     L->>R: shows pickup QR
     R->>B: scan → booking.picked_up
     R->>L: shows return QR
@@ -305,6 +317,8 @@ libs/
   outbox/              outbox entity, relay, idempotent consumer helper
   messaging/           RabbitMQ setup, retry/DLQ topology
   media/               presigned uploads, image worker
+  service-kit/         a service's config, database, events, RPC errors, startup, test harness
+  mailer/              SMTP transport + email layout (Identity, Notifications)
   observability/       logger, OpenTelemetry bootstrap
   testing/             Testcontainers helpers, factories
 infra/

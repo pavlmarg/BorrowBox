@@ -1,6 +1,6 @@
 # ADR-0004: Fuzz public item locations
 
-**Status:** Accepted, partially superseded by [ADR-0007](0007-location-privacy-search.md): the offset rules and searching on the exact point are replaced there. The rest still applies.
+**Status:** Accepted, partially superseded by [ADR-0007](0007-location-privacy-search.md): the offset rules and searching on the exact point are replaced there. Revealing the exact address to a renter is superseded by [ADR-0015](0015-booking-model.md): renters never get it. The rest still applies.
 
 ## Context
 Items are listed from people's homes. Showing exact coordinates would expose home addresses to anyone, which is a safety risk and a GDPR concern.

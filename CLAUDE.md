@@ -16,6 +16,8 @@ ADRs — read the relevant one before touching that area:
 - Item pricing (rate card, free items) and its effects on Bookings/Payments → `docs/adr/0010-flexible-pricing.md`, then `0012-free-items-match-price-limits.md` (search price filter)
 - Gateway → service calls (NestJS TCP) → `docs/adr/0005-gateway-service-transport-tcp.md`
 - UI kit (Angular Material) → `docs/adr/0006-ui-kit-angular-material.md`
+- Booking periods, prices, states, where to meet → `docs/adr/0015-booking-model.md`
+- Notifications, email, account-security emails and tokens → `docs/adr/0016-notifications-and-email.md`
 
 ---
 
@@ -54,6 +56,7 @@ ADRs — read the relevant one before touching that area:
 - `@borrowbox/auth` — `createAccessTokenSigner` (Identity only), `createAccessTokenVerifier`, `AuthModule`, `JwtAuthGuard`, `@CurrentUser()`. Keys: `node tools/gen-jwt-keys.mjs`.
 - `@borrowbox/auth` also provides `RpcJwtAuthGuard` for services; `@CurrentUser()` works for HTTP and RPC.
 - `@borrowbox/contracts` also holds RPC contracts (`<Service>Rpc`, `<Service>RpcContract`, `RpcRequest`, `RpcErrorBody`) and shared input rules (`isValidPassword`, length limits) used by the PWA, the gateway and services.
+- `@borrowbox/service-kit` — a service's plumbing: `BaseServiceConfig`, `DatabaseModule.forRoot(MIGRATIONS)`, `EventsModule`, `ServiceError` + `RpcErrorFilter`, `runService()`; `@borrowbox/service-kit/testing` has `startServiceHarness()` for service harnesses.
 - `@borrowbox/testing` — `startPostgres()` (real per-service roles), `startRabbitMq()`, `startRedis()`. Spec files only (lint-enforced).
 
 ## Non-negotiable invariants
@@ -84,7 +87,8 @@ ADRs — read the relevant one before touching that area:
 - Use Stripe **test mode** only. Never hard-code keys; never log full Stripe payloads containing personal data.
 
 ### Privacy & security (GDPR)
-- Public endpoints return `location_public` only — never `location`. Exact address only for a renter with a `PAID` booking, until completion.
+- Endpoints return `location_public` only — never `location`, except to the item's owner. Renters never get the exact point, whatever the booking state; they arrange where to meet (ADR-0015).
+- Account-security tokens (email verification, password reset) never leave Identity: no events, outbox rows or logs (ADR-0016).
 - Every uploaded photo goes through the media worker (EXIF/GPS stripped) before it's served.
 - Never log passwords, tokens, full addresses, or payment details.
 - Service error messages (`RpcErrorBody.message`) are passed through the gateway to the browser: never put personal data, input values or internals in them.
