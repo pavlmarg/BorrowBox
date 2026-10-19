@@ -29,6 +29,15 @@ jobs:
 
       - run: npm ci
 
+      # Nx's local task cache: unchanged projects replay their lint/test/build results.
+      # Keyed per commit, restoring the newest cache from this branch or main.
+      - uses: actions/cache@v6
+        with:
+          path: .nx/cache
+          key: nx-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            nx-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+
       # Sets NX_BASE / NX_HEAD so `nx affected` compares against the last green main.
       - uses: nrwl/nx-set-shas@v5
 
@@ -40,6 +49,15 @@ jobs:
         run: |
           npx nx run web:api-client --skip-nx-cache
           git diff --exit-code -- apps/web/src/app/api
+
+      # Pull the Testcontainers images in parallel up front instead of one by one as
+      # test files start. Tags come from libs/testing (the single source) and Ryuk's
+      # from the installed testcontainers package.
+      - name: Pre-pull Testcontainers images
+        run: |
+          images=$(grep -oE "'[^']+:[^']+'" libs/testing/src/lib/images.ts | tr -d "'")
+          ryuk=$(grep -rohE 'testcontainers/ryuk:[0-9.]+' node_modules/testcontainers/build | head -n 1)
+          printf '%s\n' $images $ryuk | xargs -P 6 -n 1 docker pull --quiet
 
       # Integration tests use Testcontainers; the Ubuntu runner provides Docker.
       - run: npx nx affected -t lint test build --parallel=3
