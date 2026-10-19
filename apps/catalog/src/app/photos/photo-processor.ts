@@ -13,7 +13,7 @@ import {
   processImage,
   type ProcessedImage,
 } from '@borrowbox/media';
-import { DATA_SOURCE } from '../database/database.module';
+import { DATA_SOURCE } from '@borrowbox/service-kit';
 import { PhotoQueue } from './photo-queue';
 import { PhotoStorage } from './photo-storage';
 import {

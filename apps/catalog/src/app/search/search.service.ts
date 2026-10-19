@@ -17,7 +17,7 @@ import {
   type SuggestItemsResponse,
 } from '@borrowbox/contracts';
 import type { CatalogConfig } from '../config';
-import { DATA_SOURCE } from '../database/database.module';
+import { DATA_SOURCE } from '@borrowbox/service-kit';
 import { photoUrls, toPricing } from '../items/items.repository';
 import { CatalogError } from '../rpc/rpc-errors';
 import { decodeCursor, distanceBand, encodeCursor } from './search-paging';

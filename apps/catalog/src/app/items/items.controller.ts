@@ -6,7 +6,7 @@ import {
   type CatalogDataExport,
   type OwnItem,
 } from '@borrowbox/contracts';
-import { CorrelationIdPipe } from '../rpc/correlation-id.pipe';
+import { CorrelationIdPipe } from '@borrowbox/service-kit';
 import {
   CreateItemDto,
   ItemRefDto,

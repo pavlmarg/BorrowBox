@@ -16,7 +16,8 @@ import {
   RATE_MIN_CENTS,
 } from '@borrowbox/contracts';
 import { startPostgres, type TestPostgres } from '@borrowbox/testing';
-import { createCatalogDataSource, runMigrations } from './database.module';
+import { runMigrations } from '@borrowbox/service-kit';
+import { createCatalogDataSource } from './database.module';
 
 /**
  * The rules Catalog's tables enforce themselves (migration

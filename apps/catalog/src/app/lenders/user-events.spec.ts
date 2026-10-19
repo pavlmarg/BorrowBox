@@ -19,7 +19,7 @@ import {
   startCatalog,
   type CatalogHarness,
 } from '../../testing/catalog-harness';
-import { EventsModule } from '../events/events.module';
+import { EventsModule } from '@borrowbox/service-kit';
 import { USER_EVENTS_QUEUE, UserEventsConsumer } from './user-events.consumer';
 
 const silent: MessagingLogger = {

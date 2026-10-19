@@ -9,7 +9,7 @@ import {
   type PhotoView,
 } from '@borrowbox/contracts';
 import type { CatalogConfig } from '../config';
-import { DATA_SOURCE } from '../database/database.module';
+import { DATA_SOURCE } from '@borrowbox/service-kit';
 import {
   lockOwnItem,
   toPhotoView,

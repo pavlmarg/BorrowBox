@@ -1,31 +1,26 @@
-import { join } from 'node:path';
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_PIPE } from '@nestjs/core';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 import { AuthModule, pemFromEnv } from '@borrowbox/auth';
+import {
+  EventsModule,
+  RpcErrorFilter,
+  rpcValidationPipe,
+  serviceConfigModule,
+} from '@borrowbox/service-kit';
 import { validateConfig, type CatalogConfig } from './config';
-import { DatabaseModule } from './database/database.module';
-import { EventsModule } from './events/events.module';
+import { CatalogDatabaseModule } from './database/database.module';
 import { ItemsModule } from './items/items.module';
 import { LendersModule } from './lenders/lenders.module';
 import { PhotosModule } from './photos/photos.module';
 import { SearchModule } from './search/search.module';
-import { CatalogRpcExceptionFilter, rpcValidationPipe } from './rpc/rpc-errors';
 
-/** Dev reads `apps/catalog/.env` (gitignored); elsewhere env comes from the environment. */
-export const configModule = ConfigModule.forRoot({
-  isGlobal: true,
-  envFilePath: join(process.cwd(), 'apps/catalog/.env'),
-  // Tests set their own env; a developer's local .env must not leak in.
-  ignoreEnvFile: process.env['NODE_ENV'] === 'test',
-  validate: validateConfig,
-  cache: true,
-});
+export const configModule = serviceConfigModule('catalog', validateConfig);
 
 @Module({
   imports: [
     configModule,
-    DatabaseModule,
+    CatalogDatabaseModule,
     EventsModule,
     AuthModule.forRoot({
       inject: [ConfigService],
@@ -44,11 +39,11 @@ export const configModule = ConfigModule.forRoot({
   ],
   providers: [
     { provide: APP_PIPE, useValue: rpcValidationPipe },
-    { provide: APP_FILTER, useClass: CatalogRpcExceptionFilter },
+    { provide: APP_FILTER, useClass: RpcErrorFilter },
   ],
 })
 export class AppModule {}
 
 /** `node main.js migrate`: only config + database, no broker or TCP listener. */
-@Module({ imports: [configModule, DatabaseModule] })
+@Module({ imports: [configModule, CatalogDatabaseModule] })
 export class MigrateModule {}

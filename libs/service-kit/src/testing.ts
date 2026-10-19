@@ -49,9 +49,9 @@ export async function freePort(): Promise<number> {
 }
 
 /** Maps each RPC pattern to its response type, like `CatalogRpcContract`. */
-export type RpcContractMap = Record<string, { response: unknown }>;
+export type RpcContractMap<C> = { [P in keyof C]: { response: unknown } };
 
-export interface ServiceHarness<C extends RpcContractMap> {
+export interface ServiceHarness<C extends RpcContractMap<C>> {
   app: INestMicroservice;
   dataSource: DataSource;
   /** Resolves with the response, rejects with the `RpcErrorBody`. */
@@ -68,7 +68,9 @@ export interface ServiceHarness<C extends RpcContractMap> {
  * gateway does, through a ClientProxy. `env` must include the service's
  * host/port keys set to `127.0.0.1` and `port`.
  */
-export async function startServiceHarness<C extends RpcContractMap>(options: {
+export async function startServiceHarness<
+  C extends RpcContractMap<C>,
+>(options: {
   port: number;
   env: Record<string, string>;
   /**
