@@ -16,7 +16,7 @@ Phase 3 builds Bookings. Several things were open before any code could be writt
 
 ### Periods
 - A booking covers **whole hours**: `[start, end)` stored as a `tstzrange`. The PWA shows and picks times in **Europe/Athens** time; the service stores UTC instants.
-- It lasts at least **1 hour**, starts at least **1 hour from now**, and starts at most **180 days ahead**. The item's own minimum and maximum rental length (Catalog, Phase 3) narrow this further. A global maximum length is set together with the booking commands.
+- It lasts at least **1 hour**, starts at least **1 hour from now**, and starts at most **180 days ahead**. It lasts at most **90 days** (`BOOKING_MAX_HOURS`, set with Catalog's rental limits). The item's own minimum and maximum rental length (Catalog, Phase 3) narrow this further.
 
 ### Price
 - Units: an hour, a **day = 24 hours**, a **week = 7 days**, a **month = 30 days**. Calendar months and daylight-saving changes don't change a price.

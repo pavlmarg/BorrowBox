@@ -48,8 +48,8 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
 *   [x] **Phase 1 – Identity & Gateway:** register / login / refresh, Google sign-in, profile, GDPR export & deletion, Angular auth screens
     *   Follow-ups:
         *   ~~Publish a `user.profile_updated` event for Notifications' read model (Phase 3).~~ Done in Phase 2 (Catalog needs lender names).
-        *   Change / set password in the profile (also for Google-only accounts that want email + password sign-in), confirmed by an email link (Phase 3, needs Notifications).
-        *   Email verification and password reset (Phase 3, needs Notifications). Unverified accounts can sign in and browse, but listing, booking and messaging require a verified email. (Until verification exists, Phase 2 lets unverified accounts list items; Phase 3 enforces the rule.)
+        *   ~~Change / set password in the profile (also for Google-only accounts that want email + password sign-in), confirmed by an email link (Phase 3, needs Notifications).~~ Done in Phase 3: Identity sends its own security emails (ADR-0016); Google-only accounts set a password through a reset link. The PWA's pages come with Phase 3's web step.
+        *   ~~Email verification and password reset (Phase 3, needs Notifications). Unverified accounts can sign in and browse, but listing, booking and messaging require a verified email. (Until verification exists, Phase 2 lets unverified accounts list items; Phase 3 enforces the rule.)~~ Done in Phase 3 for listing: publishing needs a verified email (items already published stay). Booking and messaging enforce it when they're built.
         *   Terms of Service / Privacy Policy pages, and recorded acceptance at sign-up — including the first Google sign-in that creates an account (GDPR).
         *   Upgrade to NestJS 12 once `@nx/nest` supports it.
 *   [x] **Phase 2 – Catalog:** item CRUD, photo upload, geo search + map, fuzzed locations, and the PWA's Explore, item page, listing wizard and My items
