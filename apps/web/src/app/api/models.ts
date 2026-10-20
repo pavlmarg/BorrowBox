@@ -7,6 +7,7 @@ export type { CatalogDataExportResponse } from './models/catalog-data-export-res
 export type { CategoryCountResponse } from './models/category-count-response';
 export type { CategoryCountsBody } from './models/category-counts-body';
 export type { CategoryCountsResponse } from './models/category-counts-response';
+export type { ChangePasswordBody } from './models/change-password-body';
 export type { CreateItemBody } from './models/create-item-body';
 export type { CreatePhotoUploadBody } from './models/create-photo-upload-body';
 export type { DataExportResponse } from './models/data-export-response';
@@ -42,6 +43,8 @@ export type { PublicItemSummaryResponse } from './models/public-item-summary-res
 export type { PublicPhotoResponse } from './models/public-photo-response';
 export type { RegisterBody } from './models/register-body';
 export type { ReorderPhotosBody } from './models/reorder-photos-body';
+export type { RequestPasswordResetBody } from './models/request-password-reset-body';
+export type { ResetPasswordBody } from './models/reset-password-body';
 export type { SearchItemsBody } from './models/search-items-body';
 export type { SearchItemsResponse } from './models/search-items-response';
 export type { SearchRadiusKm } from './models/search-radius-km';
@@ -52,3 +55,4 @@ export type { SuggestItemsResponse } from './models/suggest-items-response';
 export type { UpdateItemBody } from './models/update-item-body';
 export type { UpdateProfileBody } from './models/update-profile-body';
 export type { UserProfileResponse } from './models/user-profile-response';
+export type { VerifyEmailBody } from './models/verify-email-body';

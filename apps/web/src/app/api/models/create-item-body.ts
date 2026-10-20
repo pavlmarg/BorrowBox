@@ -12,6 +12,16 @@ export interface CreateItemBody {
    * A new random UUID chosen by the client once per item: sending the same create again returns the same item.
    */
   itemId: string;
+
+  /**
+   * Longest booking in hours; null or omitted = no limit beyond the platform’s 90 days.
+   */
+  maxRentalHours?: number | null;
+
+  /**
+   * Shortest booking in hours; null or omitted = no limit. Not above `maxRentalHours`.
+   */
+  minRentalHours?: number | null;
   pricing: ItemPricingBody;
   title: string;
 }

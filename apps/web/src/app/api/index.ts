@@ -13,6 +13,7 @@ export type { CatalogDataExportResponse } from './models/catalog-data-export-res
 export type { CategoryCountResponse } from './models/category-count-response';
 export type { CategoryCountsBody } from './models/category-counts-body';
 export type { CategoryCountsResponse } from './models/category-counts-response';
+export type { ChangePasswordBody } from './models/change-password-body';
 export type { CreateItemBody } from './models/create-item-body';
 export type { CreatePhotoUploadBody } from './models/create-photo-upload-body';
 export type { DataExportResponse } from './models/data-export-response';
@@ -48,6 +49,8 @@ export type { PublicItemSummaryResponse } from './models/public-item-summary-res
 export type { PublicPhotoResponse } from './models/public-photo-response';
 export type { RegisterBody } from './models/register-body';
 export type { ReorderPhotosBody } from './models/reorder-photos-body';
+export type { RequestPasswordResetBody } from './models/request-password-reset-body';
+export type { ResetPasswordBody } from './models/reset-password-body';
 export type { SearchItemsBody } from './models/search-items-body';
 export type { SearchItemsResponse } from './models/search-items-response';
 export type { SearchRadiusKm } from './models/search-radius-km';
@@ -58,6 +61,7 @@ export type { SuggestItemsResponse } from './models/suggest-items-response';
 export type { UpdateItemBody } from './models/update-item-body';
 export type { UpdateProfileBody } from './models/update-profile-body';
 export type { UserProfileResponse } from './models/user-profile-response';
+export type { VerifyEmailBody } from './models/verify-email-body';
 
 export type { AuthControllerRegister$Params as AuthControllerRegister$Params } from './fn/auth/auth-controller-register';
 export { authControllerRegister as authControllerRegister } from './fn/auth/auth-controller-register';
@@ -67,6 +71,12 @@ export type { AuthControllerRefresh$Params as AuthControllerRefresh$Params } fro
 export { authControllerRefresh as authControllerRefresh } from './fn/auth/auth-controller-refresh';
 export type { AuthControllerLogout$Params as AuthControllerLogout$Params } from './fn/auth/auth-controller-logout';
 export { authControllerLogout as authControllerLogout } from './fn/auth/auth-controller-logout';
+export type { AuthControllerVerifyEmail$Params as AuthControllerVerifyEmail$Params } from './fn/auth/auth-controller-verify-email';
+export { authControllerVerifyEmail as authControllerVerifyEmail } from './fn/auth/auth-controller-verify-email';
+export type { AuthControllerRequestPasswordReset$Params as AuthControllerRequestPasswordReset$Params } from './fn/auth/auth-controller-request-password-reset';
+export { authControllerRequestPasswordReset as authControllerRequestPasswordReset } from './fn/auth/auth-controller-request-password-reset';
+export type { AuthControllerResetPassword$Params as AuthControllerResetPassword$Params } from './fn/auth/auth-controller-reset-password';
+export { authControllerResetPassword as authControllerResetPassword } from './fn/auth/auth-controller-reset-password';
 export type { AuthControllerGoogleStart$Params as AuthControllerGoogleStart$Params } from './fn/auth/auth-controller-google-start';
 export { authControllerGoogleStart as authControllerGoogleStart } from './fn/auth/auth-controller-google-start';
 export type { MeControllerGet$Params as MeControllerGet$Params } from './fn/me/me-controller-get';
@@ -75,6 +85,10 @@ export type { MeControllerDelete$Params as MeControllerDelete$Params } from './f
 export { meControllerDelete as meControllerDelete } from './fn/me/me-controller-delete';
 export type { MeControllerUpdate$Params as MeControllerUpdate$Params } from './fn/me/me-controller-update';
 export { meControllerUpdate as meControllerUpdate } from './fn/me/me-controller-update';
+export type { MeControllerSendVerificationEmail$Params as MeControllerSendVerificationEmail$Params } from './fn/me/me-controller-send-verification-email';
+export { meControllerSendVerificationEmail as meControllerSendVerificationEmail } from './fn/me/me-controller-send-verification-email';
+export type { MeControllerChangePassword$Params as MeControllerChangePassword$Params } from './fn/me/me-controller-change-password';
+export { meControllerChangePassword as meControllerChangePassword } from './fn/me/me-controller-change-password';
 export type { MeControllerExport$Params as MeControllerExport$Params } from './fn/me/me-controller-export';
 export { meControllerExport as meControllerExport } from './fn/me/me-controller-export';
 export type { MyItemsControllerList$Params as MyItemsControllerList$Params } from './fn/my-items/my-items-controller-list';

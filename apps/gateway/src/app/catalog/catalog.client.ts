@@ -19,6 +19,8 @@ const STATUS: Record<CatalogErrorCode, HttpStatus> = {
   INVALID_STATE: HttpStatus.CONFLICT,
   ITEM_LIMIT_REACHED: HttpStatus.CONFLICT,
   PHOTO_LIMIT_REACHED: HttpStatus.CONFLICT,
+  // Publishing needs a verified email: the lender must act, not retry.
+  EMAIL_NOT_VERIFIED: HttpStatus.FORBIDDEN,
   INTERNAL: HttpStatus.INTERNAL_SERVER_ERROR,
 };
 

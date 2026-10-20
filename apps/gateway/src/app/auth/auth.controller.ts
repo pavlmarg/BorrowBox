@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  ApiAcceptedResponse,
   ApiCookieAuth,
   ApiExcludeEndpoint,
   ApiNoContentResponse,
@@ -29,6 +30,9 @@ import {
   AuthResponse,
   LoginBody,
   RegisterBody,
+  RequestPasswordResetBody,
+  ResetPasswordBody,
+  VerifyEmailBody,
 } from '../api.dto';
 import type { GatewayConfig } from '../config';
 import {
@@ -197,6 +201,70 @@ export class AuthController {
         { correlationId },
       );
     }
+  }
+
+  @Post('verify-email')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @AuthRateLimit()
+  @ApiOperation({
+    summary: 'Confirm an email address with the token from its link',
+    description:
+      'No sign-in needed: the token is the proof. Each link works once, for 24 hours.',
+  })
+  @ApiNoContentResponse()
+  @ApiResponse({
+    status: 400,
+    type: ApiErrorResponse,
+    description: 'TOKEN_INVALID, TOKEN_EXPIRED',
+  })
+  async verifyEmail(
+    @Body() body: VerifyEmailBody,
+    @CorrelationId() correlationId: string,
+  ): Promise<void> {
+    await this.identity.call(IdentityRpc.verifyEmail, body, { correlationId });
+  }
+
+  @Post('password-reset')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @AuthRateLimit()
+  @ApiOperation({
+    summary: 'Email a link to choose a new password',
+    description:
+      'Always 202, whether or not the email has an account. At most one link per account per minute; a new link replaces older ones.',
+  })
+  @ApiAcceptedResponse()
+  async requestPasswordReset(
+    @Body() body: RequestPasswordResetBody,
+    @CorrelationId() correlationId: string,
+  ): Promise<void> {
+    await this.identity.call(IdentityRpc.requestPasswordReset, body, {
+      correlationId,
+    });
+  }
+
+  @Post('password-reset/confirm')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @AuthRateLimit()
+  @ApiOperation({
+    summary: 'Choose a new password with the token from a reset link',
+    description:
+      'Signs out every session (and clears this browser’s cookie) and marks the email verified. Each link works once, for 10 minutes.',
+  })
+  @ApiNoContentResponse()
+  @ApiResponse({
+    status: 400,
+    type: ApiErrorResponse,
+    description: 'VALIDATION_FAILED, TOKEN_INVALID, TOKEN_EXPIRED',
+  })
+  async resetPassword(
+    @Body() body: ResetPasswordBody,
+    @CorrelationId() correlationId: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    await this.identity.call(IdentityRpc.resetPassword, body, {
+      correlationId,
+    });
+    clearRefreshCookie(res);
   }
 
   /** Browser navigation (not XHR): redirects to Google's consent screen. */

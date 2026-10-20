@@ -7,6 +7,16 @@ export interface UpdateItemBody {
   category?: ItemCategory;
   depositCents?: number;
   description?: string;
+
+  /**
+   * Longest booking in hours; null clears it.
+   */
+  maxRentalHours?: number | null;
+
+  /**
+   * Shortest booking in hours; null clears it.
+   */
+  minRentalHours?: number | null;
   pricing?: ItemPricingBody;
   title?: string;
 }

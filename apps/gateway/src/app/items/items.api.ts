@@ -20,6 +20,8 @@ import {
   registerDecorator,
 } from 'class-validator';
 import {
+  BOOKING_MAX_HOURS,
+  BOOKING_MIN_HOURS,
   DEPOSIT_MAX_CENTS,
   DEPOSIT_MIN_CENTS,
   DISTANCE_BANDS,
@@ -186,6 +188,31 @@ export class CreateItemBody implements CreateItemRequest {
   @Min(DEPOSIT_MIN_CENTS)
   @Max(DEPOSIT_MAX_CENTS)
   depositCents!: number;
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    minimum: BOOKING_MIN_HOURS,
+    maximum: BOOKING_MAX_HOURS,
+    description: 'Shortest booking in hours; null or omitted = no limit. Not above `maxRentalHours`.',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(BOOKING_MIN_HOURS)
+  @Max(BOOKING_MAX_HOURS)
+  minRentalHours?: number | null;
+
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    minimum: BOOKING_MIN_HOURS,
+    maximum: BOOKING_MAX_HOURS,
+    description: 'Longest booking in hours; null or omitted = no limit beyond the platform’s 90 days.',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(BOOKING_MIN_HOURS)
+  @Max(BOOKING_MAX_HOURS)
+  maxRentalHours?: number | null;
 }
 
 /** Only the fields present change. */
@@ -225,6 +252,31 @@ export class UpdateItemBody {
   @Min(DEPOSIT_MIN_CENTS)
   @Max(DEPOSIT_MAX_CENTS)
   depositCents?: number;
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    minimum: BOOKING_MIN_HOURS,
+    maximum: BOOKING_MAX_HOURS,
+    description: 'Shortest booking in hours; null clears it.',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(BOOKING_MIN_HOURS)
+  @Max(BOOKING_MAX_HOURS)
+  minRentalHours?: number | null;
+
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    minimum: BOOKING_MIN_HOURS,
+    maximum: BOOKING_MAX_HOURS,
+    description: 'Longest booking in hours; null clears it.',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(BOOKING_MIN_HOURS)
+  @Max(BOOKING_MAX_HOURS)
+  maxRentalHours?: number | null;
 }
 
 export class SetItemLocationBody {
@@ -468,6 +520,18 @@ export class OwnItemResponse {
   @ApiProperty({ type: ItemPricingBody }) pricing!: ItemPricingBody;
   @ApiProperty() depositCents!: number;
   @ApiProperty({
+    type: Number,
+    nullable: true,
+    description: 'Shortest booking in hours, or null for no limit',
+  })
+  minRentalHours!: number | null;
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    description: 'Longest booking in hours, or null for no limit beyond the platform’s',
+  })
+  maxRentalHours!: number | null;
+  @ApiProperty({
     type: GeoPointResponse,
     nullable: true,
     description: 'The exact pin; only ever sent to the owner',
@@ -538,6 +602,18 @@ export class PublicItemDetailResponse {
   category!: ItemCategory;
   @ApiProperty({ type: ItemPricingBody }) pricing!: ItemPricingBody;
   @ApiProperty() depositCents!: number;
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    description: 'Shortest booking in hours, or null for no limit',
+  })
+  minRentalHours!: number | null;
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    description: 'Longest booking in hours, or null for no limit beyond the platform’s',
+  })
+  maxRentalHours!: number | null;
   @ApiProperty({ type: [PublicPhotoResponse] }) photos!: PublicPhotoResponse[];
   @ApiProperty({ type: LenderSummaryResponse }) lender!: LenderSummaryResponse;
   @ApiProperty({ type: GeoPointResponse })
@@ -608,5 +684,12 @@ export class CatalogDataExportResponse {
   @ApiProperty({ format: 'date-time' }) exportedAt!: string;
   @ApiProperty({ type: LenderProfileResponse, nullable: true })
   lenderProfile!: LenderProfileResponse | null;
+  @ApiProperty({
+    format: 'date-time',
+    nullable: true,
+    type: String,
+    description: 'When Catalog learned the email was verified, or null',
+  })
+  emailVerifiedAt!: string | null;
   @ApiProperty({ type: [OwnItemResponse] }) items!: OwnItemResponse[];
 }

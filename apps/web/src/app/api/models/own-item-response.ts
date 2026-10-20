@@ -24,6 +24,16 @@ export interface OwnItemResponse {
    */
   location: (GeoPointResponse & {
 }) | null;
+
+  /**
+   * Longest booking in hours, or null for no limit beyond the platform’s
+   */
+  maxRentalHours: number | null;
+
+  /**
+   * Shortest booking in hours, or null for no limit
+   */
+  minRentalHours: number | null;
   photos: Array<PhotoViewResponse>;
   pricing: ItemPricingBody;
   publishedAt: string | null;

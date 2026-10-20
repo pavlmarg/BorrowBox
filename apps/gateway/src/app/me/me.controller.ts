@@ -7,10 +7,12 @@ import {
   HttpCode,
   HttpStatus,
   Patch,
+  Post,
   Res,
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiAcceptedResponse,
   ApiBearerAuth,
   ApiNoContentResponse,
   ApiOkResponse,
@@ -23,6 +25,7 @@ import { JwtAuthGuard } from '@borrowbox/auth';
 import { CatalogRpc, IdentityRpc } from '@borrowbox/contracts';
 import {
   ApiErrorResponse,
+  ChangePasswordBody,
   DataExportResponse,
   DeleteAccountBody,
   UpdateProfileBody,
@@ -81,6 +84,62 @@ export class MeController {
     @CorrelationId() correlationId: string,
   ): Promise<UserProfileResponse> {
     return this.identity.call(IdentityRpc.updateMe, body, {
+      accessToken,
+      correlationId,
+    });
+  }
+
+  @Post('verification-email')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @AuthRateLimit()
+  @ApiOperation({
+    summary: 'Email me a new verification link',
+    description:
+      'Does nothing if the email is already verified, or within a minute of the last link. A new link replaces older ones.',
+  })
+  @ApiAcceptedResponse()
+  async sendVerificationEmail(
+    @AccessToken() accessToken: string,
+    @CorrelationId() correlationId: string,
+  ): Promise<void> {
+    await this.identity.call(
+      IdentityRpc.sendVerificationEmail,
+      {},
+      { accessToken, correlationId },
+    );
+  }
+
+  @Post('password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  // Checks the password, so it gets the same limit as login.
+  @AuthRateLimit()
+  @ApiOperation({
+    summary: 'Change my password',
+    description:
+      'Signs out my other sessions; this one stays. Accounts without a password ask for a reset link instead (`POST /auth/password-reset`).',
+  })
+  @ApiNoContentResponse()
+  @ApiResponse({
+    status: 400,
+    type: ApiErrorResponse,
+    description: 'VALIDATION_FAILED',
+  })
+  @ApiResponse({
+    status: 401,
+    type: ApiErrorResponse,
+    description: 'INVALID_CREDENTIALS (wrong current password)',
+  })
+  @ApiResponse({
+    status: 409,
+    type: ApiErrorResponse,
+    description: 'PASSWORD_NOT_SET',
+  })
+  async changePassword(
+    @Body() body: ChangePasswordBody,
+    @AccessToken() accessToken: string,
+    @CorrelationId() correlationId: string,
+  ): Promise<void> {
+    await this.identity.call(IdentityRpc.changePassword, body, {
       accessToken,
       correlationId,
     });
