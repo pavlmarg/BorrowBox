@@ -79,7 +79,7 @@ describe('Identity AppModule (integration)', () => {
     }
     // Idempotent: nothing left to run.
     expect(await identity.dataSource.showMigrations()).toBe(false);
-    expect(MIGRATIONS).toHaveLength(3);
+    expect(MIGRATIONS).toHaveLength(4);
   });
 
   it('enforces case-insensitive unique emails and the display-name rule', async () => {
