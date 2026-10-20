@@ -54,7 +54,7 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
         *   Upgrade to NestJS 12 once `@nx/nest` supports it.
 *   [x] **Phase 2 – Catalog:** item CRUD, photo upload, geo search + map, fuzzed locations, and the PWA's Explore, item page, listing wizard and My items
     *   Follow-ups:
-        *   Identity and Catalog share copied service boilerplate (config, database, events, RPC errors, test harness). Move it into a shared lib when Bookings, the third service, arrives (Phase 3).
+        *   ~~Identity and Catalog share copied service boilerplate (config, database, events, RPC errors, test harness). Move it into a shared lib when Bookings, the third service, arrives (Phase 3).~~ Done in Phase 3 (`libs/service-kit`).
         *   A managed Postgres in production needs `CREATE EXTENSION postgis` run by an admin; locally the PostGIS image does it (Phase 7).
         *   ~~Search as you type sends a request per pause in typing: give `catalog.items.suggest`'s gateway endpoint its own, higher rate limit (step 11).~~ Done in step 11 (300 per minute).
         *   Greek word forms: Postgres' Greek stemmer gives some forms of a word different stems (e.g. "μπαταρίας" vs "μπαταρία"), so typing one full form can miss the other. Partial words match both. Revisit if users notice (e.g. a Greek dictionary or `pg_trgm`).
@@ -67,7 +67,7 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
         *   Profile photos: "Change photo" is a placeholder and avatars are a silhouette. Uploading one reuses the photo pipeline (ADR-0009) and must be covered by export and deletion (GDPR).
         *   Item titles and descriptions are searched in the language they were written in. If cross-language search matters, first add a hint in the listing wizard ("add the English name too"); machine translation would mean a new data processor (GDPR) and an ADR.
         *   Price tags on Explore's map (ADR-0014): revisit if users take them for exact addresses.
-        *   CI speed-up: cache `.nx/cache` and pre-pull the Testcontainers images in GitHub Actions.
+        *   ~~CI speed-up: cache `.nx/cache` and pre-pull the Testcontainers images in GitHub Actions.~~ Done in Phase 3.
 *   [ ] **Phase 3 – Bookings:** availability, request / accept / decline, state machine, email notifications
 *   [ ] **Phase 4 – Payments:** Stripe Connect onboarding, checkout, webhooks, transfers & refunds (test mode)
 *   [ ] **Phase 5 – Handoff:** QR pickup/return protocol, condition photos, claim window
@@ -143,4 +143,5 @@ regenerate the spec and the PWA's typed client.
 **Shared libraries** (`libs/`):
 `contracts` (event envelope, versioned event types, RPC contracts, shared input rules), `auth` (Ed25519 access
 tokens, JWT guards), `messaging` (RabbitMQ bus with retry queues and DLQ), `outbox` (transactional outbox,
-relay, idempotent consumers on TypeORM) and `testing` (Testcontainers helpers).
+relay, idempotent consumers on TypeORM), `service-kit` (a service's config, database, events, RPC errors, startup and test
+harness) and `testing` (Testcontainers helpers).

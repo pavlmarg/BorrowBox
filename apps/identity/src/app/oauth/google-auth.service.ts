@@ -10,7 +10,7 @@ import {
 } from '@borrowbox/contracts';
 import { addToOutbox } from '@borrowbox/outbox';
 import { SessionService } from '../auth/session.service';
-import { DATA_SOURCE } from '../database/database.module';
+import { DATA_SOURCE } from '@borrowbox/service-kit';
 import { IdentityError } from '../rpc/rpc-errors';
 import {
   GoogleOidcClient,

@@ -19,7 +19,7 @@ import {
 } from '@borrowbox/contracts';
 import { addToOutbox } from '@borrowbox/outbox';
 import type { CatalogConfig } from '../config';
-import { DATA_SOURCE } from '../database/database.module';
+import { DATA_SOURCE } from '@borrowbox/service-kit';
 import {
   findLenderProfile,
   isLenderDeleted,

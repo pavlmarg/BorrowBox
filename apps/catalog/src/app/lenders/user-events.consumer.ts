@@ -13,8 +13,8 @@ import {
 } from '@borrowbox/contracts';
 import type { EventBus } from '@borrowbox/messaging';
 import { handleOnce } from '@borrowbox/outbox';
-import { DATA_SOURCE } from '../database/database.module';
-import { EVENT_BUS } from '../events/events.module';
+import { DATA_SOURCE } from '@borrowbox/service-kit';
+import { EVENT_BUS } from '@borrowbox/service-kit';
 import { eraseItemsOfLender } from '../items/item-erasure';
 import { PhotoQueue } from '../photos/photo-queue';
 import { markLenderDeleted, saveLenderName } from './lenders.repository';

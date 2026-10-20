@@ -6,7 +6,7 @@ import {
   type IdentityDataExport,
   type UserProfile,
 } from '@borrowbox/contracts';
-import { CorrelationIdPipe } from '../rpc/correlation-id.pipe';
+import { CorrelationIdPipe } from '@borrowbox/service-kit';
 import { DeleteAccountDto, UpdateProfileDto } from './me.dto';
 import { MeService } from './me.service';
 

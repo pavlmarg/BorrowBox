@@ -1,33 +1,25 @@
-import { join } from 'node:path';
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_PIPE } from '@nestjs/core';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 import { AuthModule, pemFromEnv } from '@borrowbox/auth';
+import {
+  EventsModule,
+  RpcErrorFilter,
+  rpcValidationPipe,
+  serviceConfigModule,
+} from '@borrowbox/service-kit';
 import { PasswordAuthModule } from './auth/password-auth.module';
 import { validateConfig, type IdentityConfig } from './config';
-import { DatabaseModule } from './database/database.module';
-import { EventsModule } from './events/events.module';
+import { IdentityDatabaseModule } from './database/database.module';
 import { MeModule } from './users/me.module';
 import { GoogleAuthModule } from './oauth/google-auth.module';
-import {
-  IdentityRpcExceptionFilter,
-  rpcValidationPipe,
-} from './rpc/rpc-errors';
 
-/** Dev reads `apps/identity/.env` (gitignored); elsewhere env comes from the environment. */
-export const configModule = ConfigModule.forRoot({
-  isGlobal: true,
-  envFilePath: join(process.cwd(), 'apps/identity/.env'),
-  // Tests set their own env; a developer's local .env must not leak in.
-  ignoreEnvFile: process.env['NODE_ENV'] === 'test',
-  validate: validateConfig,
-  cache: true,
-});
+export const configModule = serviceConfigModule('identity', validateConfig);
 
 @Module({
   imports: [
     configModule,
-    DatabaseModule,
+    IdentityDatabaseModule,
     EventsModule,
     AuthModule.forRoot({
       inject: [ConfigService],
@@ -45,11 +37,11 @@ export const configModule = ConfigModule.forRoot({
   ],
   providers: [
     { provide: APP_PIPE, useValue: rpcValidationPipe },
-    { provide: APP_FILTER, useClass: IdentityRpcExceptionFilter },
+    { provide: APP_FILTER, useClass: RpcErrorFilter },
   ],
 })
 export class AppModule {}
 
 /** `node main.js migrate`: only config + database, no broker or TCP listener. */
-@Module({ imports: [configModule, DatabaseModule] })
+@Module({ imports: [configModule, IdentityDatabaseModule] })
 export class MigrateModule {}

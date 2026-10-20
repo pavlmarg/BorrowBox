@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { DataSource } from 'typeorm';
-import { DATA_SOURCE } from '../database/database.module';
+import { DATA_SOURCE } from '@borrowbox/service-kit';
 import { PhotoQueue } from './photo-queue';
 import { PhotoStorage } from './photo-storage';
 import {

@@ -10,15 +10,15 @@ import { ConfigService } from '@nestjs/config';
 import type { DataSource } from 'typeorm';
 import { EventBus, type MessagingLogger } from '@borrowbox/messaging';
 import { OutboxRelay, pruneProcessedEvents } from '@borrowbox/outbox';
-import type { CatalogConfig } from '../config';
-import { DATA_SOURCE } from '../database/database.module';
+import type { BaseServiceConfig } from './config';
+import { DATA_SOURCE } from './database';
 
 export const EVENT_BUS = Symbol('EVENT_BUS');
-const PRUNE_INTERVAL_MS = 60 * 60 * 1000;
 export const OUTBOX_RELAY = Symbol('OUTBOX_RELAY');
+const PRUNE_INTERVAL_MS = 60 * 60 * 1000;
 
 /** Adapts Nest's Logger to the structured logger the libs expect. Never log payloads. */
-function nestLogger(context: string): MessagingLogger {
+export function nestLogger(context: string): MessagingLogger {
   const logger = new Logger(context);
   const fmt = (msg: string, obj: Record<string, unknown>) =>
     `${msg} ${JSON.stringify(obj)}`;
@@ -30,8 +30,9 @@ function nestLogger(context: string): MessagingLogger {
 }
 
 /**
- * Publishes Catalog's outbox to RabbitMQ. Business code never publishes
- * directly: it calls `addToOutbox(tx, envelope)` inside its transaction.
+ * Publishes the service's outbox to RabbitMQ and provides `EVENT_BUS` for
+ * consumers. Business code never publishes directly: it calls
+ * `addToOutbox(tx, envelope)` inside its transaction. Needs `DatabaseModule`.
  */
 @Global()
 @Module({
@@ -39,7 +40,7 @@ function nestLogger(context: string): MessagingLogger {
     {
       provide: EVENT_BUS,
       inject: [ConfigService],
-      useFactory: (config: ConfigService<CatalogConfig, true>) =>
+      useFactory: (config: ConfigService<BaseServiceConfig, true>) =>
         EventBus.connect({
           url: config.get('RABBITMQ_URL', { infer: true }),
           logger: nestLogger('EventBus'),

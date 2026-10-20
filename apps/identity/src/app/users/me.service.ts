@@ -13,7 +13,7 @@ import {
 } from '@borrowbox/contracts';
 import { addToOutbox } from '@borrowbox/outbox';
 import { PasswordHasher } from '../auth/password-hasher';
-import { DATA_SOURCE } from '../database/database.module';
+import { DATA_SOURCE } from '@borrowbox/service-kit';
 import { IdentityError } from '../rpc/rpc-errors';
 import type { DeleteAccountDto, UpdateProfileDto } from './me.dto';
 import { findProfile, loadProfile } from './user-profile';
