@@ -2,6 +2,7 @@
  * Input rules shared by the PWA (forms), the gateway (HTTP DTOs) and Catalog
  * (RPC DTOs), so all three agree. Money is integer euro cents.
  */
+import { BOOKING_MAX_HOURS, BOOKING_MIN_HOURS } from '../bookings/periods';
 import { PRICE_FIELD, PRICE_UNITS, type ItemPricing } from './items';
 
 export const ITEM_TITLE_MIN_LENGTH = 3;
@@ -106,5 +107,23 @@ export function isValidPricing(pricing: ItemPricing): boolean {
   return (
     rates.length > 0 &&
     rates.every((rate) => isCentsInRange(rate, RATE_MIN_CENTS, RATE_MAX_CENTS))
+  );
+}
+
+/**
+ * An item's rental limits: each null (no limit) or whole hours within
+ * [BOOKING_MIN_HOURS, BOOKING_MAX_HOURS], and the minimum not above the maximum.
+ */
+export function isValidRentalLimits(
+  minHours: number | null,
+  maxHours: number | null,
+): boolean {
+  const ok = (h: number | null) =>
+    h === null ||
+    (Number.isInteger(h) && h >= BOOKING_MIN_HOURS && h <= BOOKING_MAX_HOURS);
+  return (
+    ok(minHours) &&
+    ok(maxHours) &&
+    (minHours === null || maxHours === null || minHours <= maxHours)
   );
 }

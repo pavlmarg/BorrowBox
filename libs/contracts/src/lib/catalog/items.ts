@@ -91,6 +91,9 @@ export interface OwnItem {
   category: ItemCategory;
   pricing: ItemPricing;
   depositCents: number;
+  /** Shortest and longest booking, in hours; null = no limit beyond the platform's (ADR-0015). */
+  minRentalHours: number | null;
+  maxRentalHours: number | null;
   /** Exact point, or null until set. Only ever sent to the owner. */
   location: GeoPoint | null;
   /** What everyone else sees (ADR-0007), or null until a location is set. */
@@ -138,6 +141,8 @@ export interface PublicItemDetail {
   category: ItemCategory;
   pricing: ItemPricing;
   depositCents: number;
+  minRentalHours: number | null;
+  maxRentalHours: number | null;
   /** `READY` photos in display order. */
   photos: PublicPhoto[];
   lender: LenderSummary;

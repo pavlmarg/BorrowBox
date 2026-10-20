@@ -9,3 +9,4 @@ export * from './lib/catalog/items';
 export * from './lib/catalog/validation';
 export * from './lib/catalog/events';
 export * from './lib/catalog/rpc';
+export * from './lib/bookings/periods';

@@ -40,7 +40,9 @@ import {
   charLength,
   isCentsInRange,
   isValidPricing,
+  isValidRentalLimits,
 } from './validation';
+import { BOOKING_MAX_HOURS } from '../bookings/periods';
 
 // --- Compile-time leak guard (ADR-0007) ----------------------------------------
 // Public shapes must have no field that could carry the exact location. If
@@ -179,4 +181,25 @@ describe('CatalogRpc patterns', () => {
     const typed: CatalogRpcPattern[] = patterns;
     expect(typed).toHaveLength(20);
   });
+});
+
+describe('isValidRentalLimits', () => {
+  it.each([
+    [null, null],
+    [1, null],
+    [null, BOOKING_MAX_HOURS],
+    [24, 24],
+    [3, 168],
+  ])('accepts min %p, max %p', (min, max) =>
+    expect(isValidRentalLimits(min, max)).toBe(true),
+  );
+
+  it.each([
+    [0, null],
+    [null, BOOKING_MAX_HOURS + 1],
+    [1.5, null],
+    [48, 24],
+  ])('rejects min %p, max %p', (min, max) =>
+    expect(isValidRentalLimits(min, max)).toBe(false),
+  );
 });
