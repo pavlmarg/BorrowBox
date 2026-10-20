@@ -120,6 +120,8 @@ export interface CatalogDataExport {
    * on their items), or null if Catalog hasn't received it.
    */
   lenderProfile: { displayName: string; updatedAt: string } | null;
+  /** When Catalog learned the email was verified (publishing needs it), or null. */
+  emailVerifiedAt: string | null;
   items: OwnItem[];
 }
 

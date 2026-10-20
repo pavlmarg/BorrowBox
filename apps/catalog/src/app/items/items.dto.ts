@@ -14,6 +14,8 @@ import {
   type ValidationOptions,
 } from 'class-validator';
 import {
+  BOOKING_MAX_HOURS,
+  BOOKING_MIN_HOURS,
   DEPOSIT_MAX_CENTS,
   DEPOSIT_MIN_CENTS,
   ITEM_CATEGORIES,
@@ -122,9 +124,21 @@ export class CreateItemDto implements CreateItemRequest {
   @Min(DEPOSIT_MIN_CENTS)
   @Max(DEPOSIT_MAX_CENTS)
   depositCents!: number;
+  /** Hours; null (or omitted) = no limit. The pair is checked in ItemsService. */
+  @IsOptional()
+  @IsInt()
+  @Min(BOOKING_MIN_HOURS)
+  @Max(BOOKING_MAX_HOURS)
+  minRentalHours?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(BOOKING_MIN_HOURS)
+  @Max(BOOKING_MAX_HOURS)
+  maxRentalHours?: number | null;
 }
 
-/** Only the fields present change. */
+/** Only the fields present change; null clears a rental limit. */
 export class UpdateItemDto implements UpdateItemRequest {
   @IsUUID()
   itemId!: string;
@@ -153,6 +167,18 @@ export class UpdateItemDto implements UpdateItemRequest {
   @Min(DEPOSIT_MIN_CENTS)
   @Max(DEPOSIT_MAX_CENTS)
   depositCents?: number;
+  /** Hours; null (or omitted) = no limit. The pair is checked in ItemsService. */
+  @IsOptional()
+  @IsInt()
+  @Min(BOOKING_MIN_HOURS)
+  @Max(BOOKING_MAX_HOURS)
+  minRentalHours?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(BOOKING_MIN_HOURS)
+  @Max(BOOKING_MAX_HOURS)
+  maxRentalHours?: number | null;
 }
 
 export class GeoPointDto implements GeoPoint {

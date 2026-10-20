@@ -11,6 +11,7 @@ import {
   ItemUpdatedV1,
   PRICE_FIELD,
   PRICE_UNITS,
+  isValidRentalLimits,
   type GeoPoint,
   type ItemPricing,
   type ItemStatus,
@@ -22,6 +23,7 @@ import type { CatalogConfig } from '../config';
 import { DATA_SOURCE } from '@borrowbox/service-kit';
 import {
   findLenderProfile,
+  findLenderVerifiedAt,
   isLenderDeleted,
   lockLenderItems,
 } from '../lenders/lenders.repository';
@@ -55,6 +57,11 @@ import { NEW_PLACE_MIN_MOVE_M, offsetForPin } from './location-fuzz';
 const NOT_FOUND = () => new CatalogError('NOT_FOUND', 'Item not found');
 const ID_TAKEN = () =>
   new CatalogError('VALIDATION_FAILED', 'Invalid fields: itemId');
+const BAD_RENTAL_LIMITS = () =>
+  new CatalogError(
+    'VALIDATION_FAILED',
+    'Invalid fields: minRentalHours, maxRentalHours',
+  );
 
 /**
  * The lender's own items (ADR-0007, ADR-0010). Every command runs in one
@@ -116,7 +123,10 @@ export class ItemsService {
         category: dto.category,
         pricing: normalisePricing(dto.pricing),
         depositCents: dto.depositCents,
+        minRentalHours: dto.minRentalHours ?? null,
+        maxRentalHours: dto.maxRentalHours ?? null,
       };
+      assertRentalLimits(fields);
       // Another lender may have taken the id since the check above.
       if (!(await insertItem(tx, dto.itemId, user.userId, fields))) {
         throw ID_TAKEN();
@@ -148,7 +158,17 @@ export class ItemsService {
         category: dto.category ?? current.category,
         pricing: dto.pricing ? normalisePricing(dto.pricing) : current.pricing,
         depositCents: dto.depositCents ?? current.depositCents,
+        // null clears a limit; omitted keeps it.
+        minRentalHours:
+          dto.minRentalHours === undefined
+            ? current.minRentalHours
+            : dto.minRentalHours,
+        maxRentalHours:
+          dto.maxRentalHours === undefined
+            ? current.maxRentalHours
+            : dto.maxRentalHours,
       };
+      assertRentalLimits(next);
       if (sameJson(next, current)) return this.view(tx, before);
 
       await updateItemFields(tx, before.id, next);
@@ -195,7 +215,7 @@ export class ItemsService {
     });
   }
 
-  /** DRAFT → ACTIVE. Needs a location and a processed photo. */
+  /** DRAFT → ACTIVE. Needs a verified email, a location and a processed photo. */
   publish(
     user: AuthUser,
     itemId: string,
@@ -301,6 +321,8 @@ export class ItemsService {
             updatedAt: profile.updatedAt.toISOString(),
           }
         : null,
+      emailVerifiedAt:
+        (await findLenderVerifiedAt(tx, user.userId))?.toISOString() ?? null,
       items: rows.map((row) =>
         toOwnItem(row, photos.get(row.id) ?? [], this.photosBaseUrl),
       ),
@@ -322,7 +344,10 @@ export class ItemsService {
       if (row.status !== rule.from) {
         throw new CatalogError('INVALID_STATE', rule.wrongState);
       }
-      if (rule.to === 'ACTIVE') await this.assertPublishable(tx, row);
+      if (rule.to === 'ACTIVE') {
+        await this.assertVerified(tx, user);
+        await this.assertPublishable(tx, row);
+      }
 
       await setItemStatus(tx, row.id, rule.to);
       const after = await this.mustFind(tx, row.id, user);
@@ -344,6 +369,22 @@ export class ItemsService {
       throw new CatalogError(
         'NOT_PUBLISHABLE',
         'An item needs a location and a photo before it can be published',
+      );
+    }
+  }
+
+  /**
+   * Only lenders with a verified email may show items (ADR-0016), as Catalog
+   * knows from `user.email_verified`. Items already shown stay shown.
+   */
+  private async assertVerified(
+    tx: EntityManager,
+    user: AuthUser,
+  ): Promise<void> {
+    if ((await findLenderVerifiedAt(tx, user.userId)) === null) {
+      throw new CatalogError(
+        'EMAIL_NOT_VERIFIED',
+        'Confirm your email address before publishing items',
       );
     }
   }
@@ -396,6 +437,13 @@ function normalisePricing(input: ItemPricing): ItemPricing {
     if (input[field] !== undefined) pricing[field] = input[field];
   }
   return pricing;
+}
+
+/** Each limit within booking lengths, and the shortest not above the longest. */
+function assertRentalLimits(fields: ItemFields): void {
+  if (!isValidRentalLimits(fields.minRentalHours, fields.maxRentalHours)) {
+    throw BAD_RENTAL_LIMITS();
+  }
 }
 
 /** Both sides are built field by field in the same order, so JSON compares them. */

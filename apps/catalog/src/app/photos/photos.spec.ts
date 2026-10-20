@@ -484,6 +484,10 @@ describe('Photo pipeline (integration)', () => {
     });
     const only = await upload(userId, item.id, await phonePhoto());
     await confirmAndProcess(userId, item.id, only);
+    await catalog.dataSource.query(
+      `INSERT INTO verified_lenders (user_id, verified_at) VALUES ($1, now())`,
+      [userId],
+    );
     await as(userId, CatalogRpc.publish, { itemId: item.id });
 
     expect(

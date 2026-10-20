@@ -38,6 +38,12 @@ export class UserNamePayload {
   displayName!: string;
 }
 
+/** `user.email_verified.v1`. */
+export class UserVerifiedPayload {
+  @IsUUID()
+  userId!: string;
+}
+
 /** `user.deletion_requested.v1`. */
 export class UserDeletionPayload {
   @IsUUID()
