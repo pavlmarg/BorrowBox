@@ -4,6 +4,7 @@ export const RABBITMQ_IMAGE = 'rabbitmq:4.3-management-alpine';
 export const REDIS_IMAGE = 'redis:8.10-alpine';
 export const SEAWEEDFS_IMAGE = 'chrislusf/seaweedfs:4.48';
 export const AWS_CLI_IMAGE = 'amazon/aws-cli:2.31.13';
+export const MAILPIT_IMAGE = 'axllent/mailpit:v1.31';
 
 // Generous: several test files may boot containers in parallel (CI runners, laptops).
 export const STARTUP_TIMEOUT_MS = 120_000;
