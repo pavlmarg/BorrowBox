@@ -65,6 +65,7 @@ describe('Identity AppModule (integration)', () => {
       );
       expect(rows).toEqual(
         [
+          'email_tokens',
           'migrations',
           'oauth_identities',
           'outbox',
@@ -78,7 +79,7 @@ describe('Identity AppModule (integration)', () => {
     }
     // Idempotent: nothing left to run.
     expect(await identity.dataSource.showMigrations()).toBe(false);
-    expect(MIGRATIONS).toHaveLength(2);
+    expect(MIGRATIONS).toHaveLength(3);
   });
 
   it('enforces case-insensitive unique emails and the display-name rule', async () => {

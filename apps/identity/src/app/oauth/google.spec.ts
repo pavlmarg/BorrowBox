@@ -76,6 +76,13 @@ describe('Identity Google sign-in (integration)', () => {
           AND envelope->'payload'->>'userId' = $1`,
       [userId],
     );
+  const verifiedEvents = (userId: string) =>
+    identity.dataSource.query(
+      `SELECT envelope FROM outbox
+        WHERE routing_key = 'user.email_verified.v1'
+          AND envelope->'payload'->>'userId' = $1`,
+      [userId],
+    );
 
   it('creates a verified, password-less account on first sign-in', async () => {
     const user = googleUser();
@@ -106,6 +113,12 @@ describe('Identity Google sign-in (integration)', () => {
         displayName: user.name,
         locale: 'el',
       },
+    });
+    const verified = await verifiedEvents(session.user.id);
+    expect(verified).toHaveLength(1);
+    expect(verified[0].envelope).toMatchObject({
+      correlationId: 'google-flow-1',
+      payload: { userId: session.user.id },
     });
   });
 
@@ -187,6 +200,14 @@ describe('Identity Google sign-in (integration)', () => {
           refreshToken: session.refreshToken,
         }),
       ).resolves.toBeDefined();
+      // Google's proof is the account's first: other services learn of it.
+      expect(await verifiedEvents(attacker.user.id)).toHaveLength(1);
+      // Email links issued before (e.g. the attacker's verification link) are gone.
+      const [{ links }] = await identity.dataSource.query(
+        `SELECT count(*)::int AS links FROM email_tokens WHERE user_id = $1`,
+        [attacker.user.id],
+      );
+      expect(links).toBe(0);
     });
 
     it('keeps the password and sessions of an already verified account', async () => {

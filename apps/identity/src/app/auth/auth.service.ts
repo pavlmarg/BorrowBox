@@ -8,6 +8,8 @@ import {
 } from '@borrowbox/contracts';
 import { addToOutbox } from '@borrowbox/outbox';
 import { DATA_SOURCE } from '@borrowbox/service-kit';
+import { AccountMailer } from '../email/account-mailer';
+import { issueEmailToken } from '../email/email-tokens';
 import { IdentityError } from '../rpc/rpc-errors';
 import type { LoginDto, LogoutDto, RefreshDto, RegisterDto } from './auth.dto';
 import { PasswordHasher } from './password-hasher';
@@ -38,17 +40,22 @@ export class AuthService {
     @Inject(DATA_SOURCE) private readonly dataSource: DataSource,
     private readonly hasher: PasswordHasher,
     private readonly sessions: SessionService,
+    private readonly mailer: AccountMailer,
   ) {}
 
-  /** Creates the account and its `user.registered` event in one transaction, then signs in. */
+  /**
+   * Creates the account and its `user.registered` event in one transaction,
+   * then signs in. The verification email goes out after the commit.
+   */
   async register(
     dto: RegisterDto,
     correlationId: string,
   ): Promise<AuthSession> {
     const passwordHash = await this.hasher.hash(dto.password);
     const locale: Locale = dto.locale ?? 'el';
+    let created: { session: AuthSession; verifyToken: string | null };
     try {
-      return await this.dataSource.transaction(async (tx) => {
+      created = await this.dataSource.transaction(async (tx) => {
         const [user]: Array<{ id: string }> = await tx.query(
           `INSERT INTO users (email, password_hash, display_name, locale)
            VALUES ($1, $2, $3, $4) RETURNING id`,
@@ -67,7 +74,10 @@ export class AuthService {
             { correlationId },
           ),
         );
-        return this.sessions.start(tx, user.id);
+        return {
+          session: await this.sessions.start(tx, user.id),
+          verifyToken: await issueEmailToken(tx, user.id, 'VERIFY_EMAIL'),
+        };
       });
     } catch (err) {
       if (isUniqueViolation(err, 'users_email_lower_key')) {
@@ -75,6 +85,15 @@ export class AuthService {
       }
       throw err;
     }
+
+    const { session, verifyToken } = created;
+    if (verifyToken) {
+      const to = { email: dto.email, name: dto.displayName, locale };
+      this.mailer.later('a verification email', () =>
+        this.mailer.sendVerification(to, verifyToken),
+      );
+    }
+    return session;
   }
 
   /**

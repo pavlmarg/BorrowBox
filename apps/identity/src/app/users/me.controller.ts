@@ -7,6 +7,7 @@ import {
   type UserProfile,
 } from '@borrowbox/contracts';
 import { CorrelationIdPipe } from '@borrowbox/service-kit';
+import { ChangePasswordDto } from '../email/email-links.dto';
 import { DeleteAccountDto, UpdateProfileDto } from './me.dto';
 import { MeService } from './me.service';
 
@@ -28,6 +29,19 @@ export class MeController {
     @Payload('correlationId', CorrelationIdPipe) correlationId: string,
   ): Promise<UserProfile> {
     return this.me.update(user, dto, correlationId);
+  }
+
+  @MessagePattern(IdentityRpc.sendVerificationEmail)
+  sendVerificationEmail(@CurrentUser() user: AuthUser): Promise<void> {
+    return this.me.sendVerificationEmail(user);
+  }
+
+  @MessagePattern(IdentityRpc.changePassword)
+  changePassword(
+    @CurrentUser() user: AuthUser,
+    @Payload('data') dto: ChangePasswordDto,
+  ): Promise<void> {
+    return this.me.changePassword(user, dto);
   }
 
   @MessagePattern(IdentityRpc.exportMe)

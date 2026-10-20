@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import {
+  IsBoolean,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -50,6 +51,49 @@ export class IdentityConfig extends BaseServiceConfig {
     message: 'GOOGLE_CLIENT_SECRET is required with GOOGLE_CLIENT_ID',
   })
   GOOGLE_CLIENT_SECRET?: string;
+
+  /**
+   * SMTP for account-security emails (ADR-0016): Mailpit in dev. Empty
+   * disables sending (each email is skipped with a warning), e.g. in tests.
+   */
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  SMTP_HOST?: string;
+
+  @Transform(({ value }) => (value === undefined ? value : Number(value)))
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  SMTP_PORT = 1025;
+
+  /** TLS from the start (port 465); otherwise STARTTLS when the server offers it. */
+  @Transform(({ value }) =>
+    value === undefined ? value : value === true || value === 'true',
+  )
+  @IsBoolean()
+  SMTP_SECURE = false;
+
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsOptional()
+  @IsString()
+  SMTP_USER?: string;
+
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsOptional()
+  @IsString()
+  SMTP_PASSWORD?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  MAIL_FROM = 'BorrowBox <no-reply@borrowbox.localhost>';
+
+  /** The PWA's origin, for links in emails. No trailing slash. */
+  @Matches(/^https?:\/\/[^/]+$/, {
+    message: 'WEB_BASE_URL must be an origin like https://borrowbox.gr',
+  })
+  WEB_BASE_URL = 'http://localhost:4200';
 }
 
 /** For `ConfigModule.forRoot({ validate })`. Error messages name variables, never values. */

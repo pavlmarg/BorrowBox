@@ -14,6 +14,9 @@ import {
 import { addToOutbox } from '@borrowbox/outbox';
 import { PasswordHasher } from '../auth/password-hasher';
 import { DATA_SOURCE } from '@borrowbox/service-kit';
+import { AccountMailer, findRecipient } from '../email/account-mailer';
+import type { ChangePasswordDto } from '../email/email-links.dto';
+import { issueEmailToken } from '../email/email-tokens';
 import { IdentityError } from '../rpc/rpc-errors';
 import type { DeleteAccountDto, UpdateProfileDto } from './me.dto';
 import { findProfile, loadProfile } from './user-profile';
@@ -33,6 +36,7 @@ export class MeService {
   constructor(
     @Inject(DATA_SOURCE) private readonly dataSource: DataSource,
     private readonly hasher: PasswordHasher,
+    private readonly mailer: AccountMailer,
   ) {}
 
   async get(auth: AuthUser): Promise<UserProfile> {
@@ -83,6 +87,78 @@ export class MeService {
       }
       return loadProfile(tx, auth.userId);
     });
+  }
+
+  /**
+   * A new verification link (replacing older ones). Nothing is sent for an
+   * already verified email, or within the cooldown after the last link.
+   */
+  async sendVerificationEmail(auth: AuthUser): Promise<void> {
+    const found = await this.dataSource.transaction(async (tx) => {
+      await assertLiveSession(tx, auth);
+      const [user]: Array<{ verified: boolean }> = await tx.query(
+        `SELECT email_verified_at IS NOT NULL AS verified FROM users
+          WHERE id = $1 AND deleted_at IS NULL`,
+        [auth.userId],
+      );
+      if (!user) throw UNAUTHENTICATED();
+      if (user.verified) return null;
+      const token = await issueEmailToken(tx, auth.userId, 'VERIFY_EMAIL');
+      const to = await findRecipient(tx, auth.userId);
+      return token && to ? { token, to } : null;
+    });
+    if (found) {
+      this.mailer.later('a verification email', () =>
+        this.mailer.sendVerification(found.to, found.token),
+      );
+    }
+  }
+
+  /**
+   * Needs the current password (accounts without one use a reset link).
+   * Signs out every other session, keeps this one, and sends a notice.
+   */
+  async changePassword(auth: AuthUser, dto: ChangePasswordDto): Promise<void> {
+    await assertLiveSession(this.dataSource.manager, auth);
+    const [user]: Array<{ password_hash: string | null }> =
+      await this.dataSource.query(
+        `SELECT password_hash FROM users WHERE id = $1 AND deleted_at IS NULL`,
+        [auth.userId],
+      );
+    if (!user) throw UNAUTHENTICATED();
+    if (user.password_hash === null) {
+      throw new IdentityError(
+        'PASSWORD_NOT_SET',
+        'This account has no password yet',
+      );
+    }
+    if (!(await this.hasher.verify(user.password_hash, dto.currentPassword))) {
+      throw new IdentityError('INVALID_CREDENTIALS', 'Wrong password');
+    }
+
+    const passwordHash = await this.hasher.hash(dto.newPassword);
+    const to = await this.dataSource.transaction(async (tx) => {
+      const locked: unknown[] = await tx.query(
+        `SELECT id FROM users WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`,
+        [auth.userId],
+      );
+      if (locked.length === 0) throw UNAUTHENTICATED(); // deleted meanwhile
+      await tx.query(
+        `UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1`,
+        [auth.userId, passwordHash],
+      );
+      await tx.query(
+        `UPDATE refresh_tokens SET revoked_at = now()
+          WHERE user_id = $1 AND family_id <> $2 AND revoked_at IS NULL`,
+        [auth.userId, auth.sessionId],
+      );
+      return findRecipient(tx, auth.userId);
+    });
+    if (to) {
+      this.mailer.later('a password-changed notice', () =>
+        this.mailer.sendPasswordChanged(to),
+      );
+    }
   }
 
   /** Everything Identity holds about the user, minus secrets (hashes, tokens). */
@@ -172,6 +248,9 @@ export class MeService {
         auth.userId,
       ]);
       await tx.query(`DELETE FROM refresh_tokens WHERE user_id = $1`, [
+        auth.userId,
+      ]);
+      await tx.query(`DELETE FROM email_tokens WHERE user_id = $1`, [
         auth.userId,
       ]);
       await redactUserEvents(tx, auth.userId);
