@@ -4,6 +4,8 @@ import type { Locale } from './rpc';
 /**
  * A new account exists (email + password or first Google sign-in).
  * Carries `email` because Notifications keeps it in its own read model.
+ * `identity:republish-registered` may send it again for an existing account,
+ * so consumers treat it as "this account's details", never as news.
  */
 export interface UserRegisteredV1Payload {
   userId: string;

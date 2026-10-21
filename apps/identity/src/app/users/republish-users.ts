@@ -3,42 +3,66 @@ import {
   createEnvelope,
   UserEmailVerifiedV1,
   UserProfileUpdatedV1,
+  UserRegisteredV1,
   type Locale,
 } from '@borrowbox/contracts';
 import { addToOutbox } from '@borrowbox/outbox';
+
+interface LiveUser {
+  id: string;
+  email: string;
+  display_name: string;
+  locale: Locale;
+  email_verified_at: Date | null;
+}
 
 /**
  * `nx run identity:republish-users`: re-announces every live account to the
  * outbox, so a service that started after the accounts were made
  * (Bookings) can build its read model: `user.profile_updated` with the
  * current name and language, and `user.email_verified` for verified ones.
- * No email addresses: `user.registered` isn't re-sent, as it means a new
- * account. RabbitMQ only delivers to queues that exist, so run it once that
- * service is up. Safe to repeat: consumers keep the newest name and the
- * first verification.
+ * No email addresses. RabbitMQ only delivers to queues that exist, so run
+ * it once that service is up. Safe to repeat: consumers keep the newest name
+ * and the first verification.
  *
  * The running Identity's relay publishes the rows.
  */
-export async function republishUsers(dataSource: DataSource): Promise<string> {
+export function republishUsers(dataSource: DataSource): Promise<string> {
+  return republish(dataSource, false);
+}
+
+/**
+ * `nx run identity:republish-registered`: the same, but re-sends
+ * `user.registered`, which carries the email address, instead of
+ * `user.profile_updated`. For services that need to reach people
+ * (Notifications). No consumer treats `user.registered` as news (no welcome
+ * email), so re-sending it is safe.
+ */
+export function republishRegistered(dataSource: DataSource): Promise<string> {
+  return republish(dataSource, true);
+}
+
+async function republish(
+  dataSource: DataSource,
+  withEmail: boolean,
+): Promise<string> {
   return dataSource.transaction(async (tx) => {
-    const users: Array<{
-      id: string;
-      display_name: string;
-      locale: Locale;
-      email_verified_at: Date | null;
-    }> = await tx.query(
-      `SELECT id, display_name, locale, email_verified_at FROM users
+    const users: LiveUser[] = await tx.query(
+      `SELECT id, email, display_name, locale, email_verified_at FROM users
         WHERE deleted_at IS NULL ORDER BY created_at, id`,
     );
     let verified = 0;
     for (const user of users) {
+      const profile = {
+        userId: user.id,
+        displayName: user.display_name,
+        locale: user.locale,
+      };
       await addToOutbox(
         tx,
-        createEnvelope(UserProfileUpdatedV1, {
-          userId: user.id,
-          displayName: user.display_name,
-          locale: user.locale,
-        }),
+        withEmail
+          ? createEnvelope(UserRegisteredV1, { ...profile, email: user.email })
+          : createEnvelope(UserProfileUpdatedV1, profile),
       );
       if (user.email_verified_at) {
         verified++;
