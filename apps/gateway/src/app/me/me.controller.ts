@@ -22,7 +22,13 @@ import {
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '@borrowbox/auth';
-import { CatalogRpc, IdentityRpc } from '@borrowbox/contracts';
+import {
+  BookingsRpc,
+  CatalogRpc,
+  IdentityRpc,
+  MessagingRpc,
+  NotificationsRpc,
+} from '@borrowbox/contracts';
 import {
   ApiErrorResponse,
   ChangePasswordBody,
@@ -31,7 +37,9 @@ import {
   UpdateProfileBody,
   UserProfileResponse,
 } from '../api.dto';
+import { BookingsClient, MessagingClient } from '../bookings/bookings.client';
 import { CatalogClient } from '../catalog/catalog.client';
+import { NotificationsClient } from '../notifications/notifications.client';
 import { clearRefreshCookie } from '../http/cookies';
 import { AuthRateLimit } from '../http/rate-limits';
 import { AccessToken, CorrelationId } from '../http/request-context';
@@ -54,6 +62,9 @@ export class MeController {
   constructor(
     private readonly identity: IdentityClient,
     private readonly catalog: CatalogClient,
+    private readonly bookings: BookingsClient,
+    private readonly messaging: MessagingClient,
+    private readonly notifications: NotificationsClient,
   ) {}
 
   @Get()
@@ -164,11 +175,15 @@ export class MeController {
     // All or nothing (G4): if any service doesn't answer, the whole export
     // fails and can be retried, rather than silently missing data.
     const context = { accessToken, correlationId };
-    const [identity, catalog] = await Promise.all([
-      this.identity.call(IdentityRpc.exportMe, {}, context),
-      this.catalog.call(CatalogRpc.exportMe, {}, context),
-    ]);
-    return { identity, catalog };
+    const [identity, catalog, bookings, messaging, notifications] =
+      await Promise.all([
+        this.identity.call(IdentityRpc.exportMe, {}, context),
+        this.catalog.call(CatalogRpc.exportMe, {}, context),
+        this.bookings.call(BookingsRpc.exportMe, {}, context),
+        this.messaging.call(MessagingRpc.exportMe, {}, context),
+        this.notifications.call(NotificationsRpc.exportMe, {}, context),
+      ]);
+    return { identity, catalog, bookings, messaging, notifications };
   }
 
   @Delete()

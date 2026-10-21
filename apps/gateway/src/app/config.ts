@@ -118,12 +118,34 @@ export class GatewayConfig {
   @Max(65535)
   CATALOG_PORT = 4002;
 
+  /** Bookings' TCP endpoint (ADR-0005); it serves Messaging too (ADR-0017). */
+  @IsString()
+  @IsNotEmpty()
+  BOOKINGS_HOST = '127.0.0.1';
+
+  @toInt()
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  BOOKINGS_PORT = 4003;
+
+  /** Notifications' TCP endpoint (ADR-0005): only the data export. */
+  @IsString()
+  @IsNotEmpty()
+  NOTIFICATIONS_HOST = '127.0.0.1';
+
+  @toInt()
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  NOTIFICATIONS_PORT = 4004;
+
   @toInt()
   @IsInt()
   @Min(100)
   RPC_TIMEOUT_MS = 5000;
 
-  /** Rate-limit counters (shared across gateway instances). */
+  /** Rate-limit counters (shared across gateway instances) and chat fan-out. */
   @Matches(/^rediss?:\/\//, { message: 'REDIS_URL must be a redis:// URL' })
   REDIS_URL!: string;
 

@@ -12,6 +12,7 @@ import { parseOrigins, parseTrustProxy, type GatewayConfig } from './config';
 import { ApiExceptionFilter } from './http/api-exception.filter';
 import { REFRESH_COOKIE } from './http/cookies';
 import { correlationIdMiddleware } from './http/request-context';
+import { ChatIoAdapter } from './messaging/chat-io.adapter';
 
 export const GLOBAL_PREFIX = 'api';
 
@@ -30,8 +31,9 @@ export function configureApp(app: NestExpressApplication): void {
   app.use(helmet({ contentSecurityPolicy: docs ? false : undefined }));
   app.use(cookieParser(config.get('COOKIE_SECRET', { infer: true })));
   app.use(correlationIdMiddleware);
+  const origins = parseOrigins(config.get('CORS_ORIGINS', { infer: true }));
   app.enableCors({
-    origin: parseOrigins(config.get('CORS_ORIGINS', { infer: true })),
+    origin: origins,
     credentials: true,
     exposedHeaders: ['X-Request-Id'],
   });
@@ -45,6 +47,8 @@ export function configureApp(app: NestExpressApplication): void {
     }),
   );
   app.useGlobalFilters(new ApiExceptionFilter());
+  // Live chat on Socket.IO (`/socket.io`, namespace `/chat`, ADR-0017).
+  app.useWebSocketAdapter(new ChatIoAdapter(app, origins));
 
   if (docs) {
     SwaggerModule.setup(

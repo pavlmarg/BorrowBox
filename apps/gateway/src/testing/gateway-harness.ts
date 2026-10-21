@@ -23,6 +23,9 @@ export async function startGateway(options: {
   redisUrl: string;
   identityPort: number;
   catalogPort: number;
+  /** Fake Bookings (and Messaging); a closed port if omitted. */
+  bookingsPort?: number;
+  notificationsPort?: number;
   rpcTimeoutMs?: number;
 }): Promise<GatewayHarness> {
   const keys = generateKeyPairSync('ed25519', {
@@ -48,6 +51,10 @@ export async function startGateway(options: {
     IDENTITY_PORT: String(options.identityPort),
     CATALOG_HOST: '127.0.0.1',
     CATALOG_PORT: String(options.catalogPort),
+    BOOKINGS_HOST: '127.0.0.1',
+    BOOKINGS_PORT: String(options.bookingsPort ?? 1),
+    NOTIFICATIONS_HOST: '127.0.0.1',
+    NOTIFICATIONS_PORT: String(options.notificationsPort ?? 1),
     RPC_TIMEOUT_MS: String(options.rpcTimeoutMs ?? 1000),
     COOKIE_SECRET: 'test-cookie-secret-0123456789abcdef',
     JWT_PUBLIC_KEY: keys.publicKey,

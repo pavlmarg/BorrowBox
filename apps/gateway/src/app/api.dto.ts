@@ -21,7 +21,12 @@ import {
   type OAuthProvider,
 } from '@borrowbox/contracts';
 
+import { BookingsDataExportResponse } from './bookings/bookings.api';
 import { CatalogDataExportResponse } from './items/items.api';
+import {
+  MessagingDataExportResponse,
+  NotificationsDataExportResponse,
+} from './messaging/messaging.api';
 
 // HTTP DTOs: validated here, validated again by Identity (never trust the
 // edge alone), and the source of the OpenAPI spec the PWA client is generated from.
@@ -233,13 +238,22 @@ export class IdentityDataExportResponse {
   sessions!: ExportedSession[];
 }
 
-/** `GET /me/export`. Phase 7 adds the other services' sections. */
+/** `GET /me/export`: one section per service that holds personal data. */
 export class DataExportResponse {
   @ApiProperty({ type: IdentityDataExportResponse })
   identity!: IdentityDataExportResponse;
 
   @ApiProperty({ type: CatalogDataExportResponse })
   catalog!: CatalogDataExportResponse;
+
+  @ApiProperty({ type: BookingsDataExportResponse })
+  bookings!: BookingsDataExportResponse;
+
+  @ApiProperty({ type: MessagingDataExportResponse })
+  messaging!: MessagingDataExportResponse;
+
+  @ApiProperty({ type: NotificationsDataExportResponse })
+  notifications!: NotificationsDataExportResponse;
 }
 
 export class ApiErrorResponse {
