@@ -22,6 +22,8 @@ export interface AuthUser {
   tokenId: string;
   /** The sign-in session (`sid`, Identity's refresh-token family) the token was issued for. */
   sessionId: string;
+  /** When the token stops being valid (`exp`), e.g. to close a socket opened with it. */
+  expiresAt: Date;
 }
 
 export interface AccessTokenSubject {
@@ -114,6 +116,7 @@ export async function createAccessTokenVerifier(
           userId: payload.sub as string,
           tokenId: payload.jti as string,
           sessionId: payload['sid'],
+          expiresAt: new Date((payload.exp as number) * 1000),
         };
       } catch (err) {
         if (err instanceof InvalidAccessTokenError) throw err;

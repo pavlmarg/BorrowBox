@@ -20,6 +20,7 @@ import type { Namespace, Socket } from 'socket.io';
 import {
   ACCESS_TOKEN_VERIFIER,
   type AccessTokenVerifier,
+  type AuthUser,
 } from '@borrowbox/auth';
 import {
   CHAT_CHANNEL_PREFIX,
@@ -81,14 +82,14 @@ export class ChatGateway
     if (typeof token !== 'string' || token.length === 0) {
       return this.refuse(socket, 'UNAUTHENTICATED');
     }
-    let userId: string;
+    let user: AuthUser;
     try {
-      userId = (await this.verifier.verify(token)).userId;
+      user = await this.verifier.verify(token);
     } catch {
       return this.refuse(socket, 'UNAUTHENTICATED');
     }
     const { isBlocked } = await this.storage.increment(
-      `ws:${userId}`,
+      `ws:${user.userId}`,
       MINUTE,
       CONNECTIONS_PER_MINUTE,
       MINUTE,
@@ -98,9 +99,9 @@ export class ChatGateway
       return this.refuse(socket, 'RATE_LIMITED');
     }
 
-    await socket.join(roomOf(userId));
-    // The token is verified, so its own `exp` can be trusted.
-    const expiresInMs = expiryOf(token) - Date.now();
+    await socket.join(roomOf(user.userId));
+    // A socket stays open: close it when its token expires.
+    const expiresInMs = user.expiresAt.getTime() - Date.now();
     const timer = setTimeout(
       () => socket.disconnect(true),
       Math.max(0, expiresInMs),
@@ -150,12 +151,4 @@ export class ChatGateway
 
 function roomOf(userId: string): string {
   return `user:${userId}`;
-}
-
-/** The `exp` of an already verified JWT, in milliseconds. */
-function expiryOf(token: string): number {
-  const payload = JSON.parse(
-    Buffer.from(token.split('.')[1], 'base64url').toString('utf8'),
-  ) as { exp: number };
-  return payload.exp * 1000;
 }
