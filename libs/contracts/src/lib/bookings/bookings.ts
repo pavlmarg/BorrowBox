@@ -50,9 +50,7 @@ export const BOOKING_EXPIRE_REASONS = ['NO_ANSWER', 'STARTED'] as const;
 export type BookingExpireReason = (typeof BOOKING_EXPIRE_REASONS)[number];
 
 export type BookingCloseReason =
-  | BookingDeclineReason
-  | BookingCancelReason
-  | BookingExpireReason;
+  BookingDeclineReason | BookingCancelReason | BookingExpireReason;
 
 /** How many of each unit the rent pays for, e.g. 1 week + 2 days. */
 export type PriceUnits = Record<PriceUnit, number>;
