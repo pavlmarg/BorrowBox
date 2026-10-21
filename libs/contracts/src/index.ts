@@ -13,3 +13,7 @@ export * from './lib/bookings/periods';
 export * from './lib/bookings/bookings';
 export * from './lib/bookings/events';
 export * from './lib/bookings/rpc';
+export * from './lib/messaging/messaging';
+export * from './lib/messaging/events';
+export * from './lib/messaging/rpc';
+export * from './lib/notifications/rpc';
