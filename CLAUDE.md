@@ -18,6 +18,7 @@ ADRs — read the relevant one before touching that area:
 - UI kit (Angular Material) → `docs/adr/0006-ui-kit-angular-material.md`
 - Booking periods, prices, states, where to meet → `docs/adr/0015-booking-model.md`
 - Notifications, email, account-security emails and tokens → `docs/adr/0016-notifications-and-email.md`
+- Chat (conversations, masking, live delivery) → `docs/adr/0017-in-app-chat.md`; price offers in chat → `docs/adr/0018-price-offers.md`
 
 ---
 
@@ -43,7 +44,7 @@ ADRs — read the relevant one before touching that area:
 - Start infra: `docker compose -f infra/docker-compose.yml up -d --wait`
 - Affected checks: `npx nx affected -t lint test build` (Docker must be running: integration tests use Testcontainers)
 - Single project: `npx nx test <project>`, `npx nx serve <project>` (apps need `apps/<app>/.env`; see README "Running the apps")
-- Backfill a newly started service's read models: `npx nx run identity:republish-users`, `npx nx run catalog:republish-items` (safe to repeat)
+- Backfill a newly started service's read models: `npx nx run identity:republish-users` (or `republish-registered`, with emails, for Notifications), `npx nx run catalog:republish-items` (safe to repeat)
 - After changing gateway endpoints: `npx nx run gateway:openapi`, then `npx nx run web:api-client` (a test fails if `openapi.json` drifts)
 - Node ≥ 22.22.3 (`.nvmrc`); Angular 22 and Testcontainers need it
 - Formatting: `npx nx format:write` (Markdown is excluded on purpose)
@@ -58,7 +59,7 @@ ADRs — read the relevant one before touching that area:
 - `@borrowbox/auth` also provides `RpcJwtAuthGuard` for services; `@CurrentUser()` works for HTTP and RPC.
 - `@borrowbox/contracts` also holds RPC contracts (`<Service>Rpc`, `<Service>RpcContract`, `RpcRequest`, `RpcErrorBody`) and shared input rules (`isValidPassword`, length limits) used by the PWA, the gateway and services.
 - `@borrowbox/service-kit` — a service's plumbing: `BaseServiceConfig`, `DatabaseModule.forRoot(MIGRATIONS)`, `EventsModule`, `parsePayload()` (runtime check of incoming events), `ServiceError` + `RpcErrorFilter`, `runService()` (with one-off `tasks`); `@borrowbox/service-kit/testing` has `startServiceHarness()` for service harnesses.
-- `@borrowbox/mailer` — `createMailer(config)` (SMTP via nodemailer; disabled without a host) and `renderEmail()` (the shared, HTML-escaped layout). Identity now, Notifications later.
+- `@borrowbox/mailer` — `createMailer(config)` (SMTP via nodemailer; disabled without a host) and `renderEmail()` (the shared, HTML-escaped layout). Used by Identity and Notifications.
 - `@borrowbox/testing` — `startPostgres()` (real per-service roles), `startRabbitMq()`, `startRedis()`, `startMailpit()`. Spec files only (lint-enforced).
 
 ## Non-negotiable invariants

@@ -68,7 +68,7 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
         *   Item titles and descriptions are searched in the language they were written in. If cross-language search matters, first add a hint in the listing wizard ("add the English name too"); machine translation would mean a new data processor (GDPR) and an ADR.
         *   Price tags on Explore's map (ADR-0014): revisit if users take them for exact addresses.
         *   ~~CI speed-up: cache `.nx/cache` and pre-pull the Testcontainers images in GitHub Actions.~~ Done in Phase 3.
-*   [ ] **Phase 3 – Bookings:** availability, request / accept / decline, state machine, email notifications
+*   [ ] **Phase 3 – Bookings:** availability, request / accept / decline, state machine, email notifications, in-app chat with price offers
 *   [ ] **Phase 4 – Payments:** Stripe Connect onboarding, checkout, webhooks, transfers & refunds (test mode)
 *   [ ] **Phase 5 – Handoff:** QR pickup/return protocol, condition photos, claim window
 *   [ ] **Phase 6 – Trust & Social:** chat, reviews, trust score, ID verification
@@ -111,10 +111,11 @@ Ports can be changed in `infra/.env` if they clash with something already runnin
 cp apps/identity/.env.example apps/identity/.env
 cp apps/catalog/.env.example apps/catalog/.env
 cp apps/bookings/.env.example apps/bookings/.env
+cp apps/notifications/.env.example apps/notifications/.env
 cp apps/gateway/.env.example apps/gateway/.env
 
 # 2. Token signing keys: paste all three lines into apps/identity/.env, and
-#    only JWT_KEY_ID + JWT_PUBLIC_KEY into the catalog, bookings and gateway .env files.
+#    only JWT_KEY_ID + JWT_PUBLIC_KEY into the catalog, bookings, notifications and gateway .env files.
 node tools/gen-jwt-keys.mjs
 
 # 3. Set COOKIE_SECRET in apps/gateway/.env (32+ random characters):
@@ -127,7 +128,8 @@ cp apps/web/public/config.example.json apps/web/public/config.json
 # 5. Start them (one terminal each)
 npx nx serve identity   # TCP :4001, runs DB migrations in dev
 npx nx serve catalog    # TCP :4002, runs DB migrations in dev; needs Redis + SeaweedFS (photo pipeline)
-npx nx serve bookings   # TCP :4003, runs DB migrations in dev; needs Redis (expiry jobs)
+npx nx serve bookings   # TCP :4003, runs DB migrations in dev; needs Redis (expiry and chat jobs, live chat)
+npx nx serve notifications  # TCP :4004, runs DB migrations in dev; emails go to Mailpit (http://localhost:8025)
 npx nx serve gateway    # http://localhost:3000/api (Swagger UI at /api/docs)
 npx nx serve web        # http://localhost:4200 (proxies /api to the gateway)
 ```
@@ -138,12 +140,13 @@ files and `GOOGLE_CLIENT_SECRET` in Identity's only. Left empty, Google sign-in 
 
 Tests never read these `.env` files (`NODE_ENV=test`); they set their own environment.
 
-Catalog and Bookings learn names, verified emails and items from other services' events, and RabbitMQ only
+Catalog, Bookings and Notifications learn names, emails, verifications and items from other services' events, and RabbitMQ only
 delivers to queues that already exist. Once a service runs for the first time, with the others running too,
 re-announce what came before it (safe to repeat):
 
 ```sh
 npx nx run identity:republish-users   # names + verified emails (never email addresses)
+npx nx run identity:republish-registered  # the same with email addresses, for Notifications
 npx nx run catalog:republish-items    # every item not deleted, for Bookings
 ```
 
