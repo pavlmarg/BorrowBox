@@ -11,11 +11,15 @@ import {
   type BookingExpireReason,
   type CreateEnvelopeOptions,
   type EventEnvelope,
+  type SystemMessageCode,
 } from '@borrowbox/contracts';
 import { addToOutbox } from '@borrowbox/outbox';
+import type { ChatPushes } from '../messaging/chat-publisher';
+import { addBookingLine } from '../messaging/system-messages';
 import { assertTransition } from './booking-state';
 import {
   findBooking,
+  lockOverlappingRequests,
   setBookingStatus,
   toSnapshot,
   type BookingRow,
@@ -29,10 +33,21 @@ export type BookingMove =
   | { to: 'EXPIRED'; reason: BookingExpireReason }
   | { to: 'CANCELLED'; reason: BookingCancelReason };
 
+export type Cause = { correlationId: string } | { causedBy: EventEnvelope };
+
+const LINES: Record<BookingMove['to'], SystemMessageCode> = {
+  ACCEPTED: 'BOOKING_ACCEPTED',
+  CONFIRMED: 'BOOKING_CONFIRMED',
+  DECLINED: 'BOOKING_DECLINED',
+  EXPIRED: 'BOOKING_EXPIRED',
+  CANCELLED: 'BOOKING_CANCELLED',
+};
+
 /**
  * The only way a booking's status changes: checks the state machine, saves
- * the new status and writes its event to the outbox, all in the caller's
- * transaction. The caller holds the row lock.
+ * the new status, writes its event to the outbox and marks the moment in
+ * the conversation (ADR-0017), all in the caller's transaction. The caller
+ * holds the row lock.
  *
  * `cause` is the RPC's correlation id, or the event being handled.
  */
@@ -40,7 +55,8 @@ export async function moveBooking(
   tx: EntityManager,
   booking: BookingRow,
   move: BookingMove,
-  cause: { correlationId: string } | { causedBy: EventEnvelope } | null,
+  cause: Cause | null,
+  pushes: ChatPushes | null = null,
 ): Promise<BookingRow> {
   assertTransition(booking.status, move.to);
   const reason = 'reason' in move ? move.reason : null;
@@ -49,7 +65,47 @@ export async function moveBooking(
   const snapshot = toSnapshot(booking);
   const options: CreateEnvelopeOptions = cause ?? {};
   await addToOutbox(tx, envelopeFor(move, snapshot, options));
+  await addBookingLine(tx, booking, LINES[move.to], pushes);
   return (await findBooking(tx, booking.id)) as BookingRow;
+}
+
+/**
+ * Accepts a locked `REQUESTED` booking: `CONFIRMED` if there's nothing to
+ * pay, else `ACCEPTED`, and declines the item's other overlapping requests
+ * (ADR-0015). The caller holds the item's booking lock. A double booking
+ * fails on the exclusion constraint (23P01).
+ */
+export async function acceptBooking(
+  tx: EntityManager,
+  booking: BookingRow,
+  cause: Cause,
+  pushes: ChatPushes | null,
+): Promise<BookingRow> {
+  const free = booking.rent_cents + booking.deposit_cents === 0;
+  const accepted = await moveBooking(
+    tx,
+    booking,
+    { to: free ? 'CONFIRMED' : 'ACCEPTED' },
+    cause,
+    pushes,
+  );
+  const overlapping = await lockOverlappingRequests(
+    tx,
+    booking.item_id,
+    booking.start,
+    booking.end,
+    booking.id,
+  );
+  for (const id of overlapping) {
+    await moveBooking(
+      tx,
+      (await findBooking(tx, id)) as BookingRow,
+      { to: 'DECLINED', reason: 'OVERLAP' },
+      cause,
+      pushes,
+    );
+  }
+  return accepted;
 }
 
 function envelopeFor(
@@ -92,6 +148,7 @@ export async function cancelBookings(
   ids: string[],
   reason: 'ITEM_DELETED' | 'ACCOUNT_DELETED',
   cause: EventEnvelope,
+  pushes: ChatPushes | null,
 ): Promise<void> {
   for (const id of ids) {
     const booking = (await findBooking(tx, id)) as BookingRow;
@@ -99,9 +156,8 @@ export async function cancelBookings(
       tx,
       booking,
       { to: 'CANCELLED', reason },
-      {
-        causedBy: cause,
-      },
+      { causedBy: cause },
+      pushes,
     );
   }
 }

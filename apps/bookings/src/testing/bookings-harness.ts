@@ -12,6 +12,7 @@ import {
   UserEmailVerifiedV1,
   UserRegisteredV1,
   type BookingsRpcContract,
+  type MessagingRpcContract,
   type EventEnvelope,
   type ItemSnapshotV1,
 } from '@borrowbox/contracts';
@@ -25,7 +26,11 @@ import {
 import { ItemEventsConsumer } from '../app/read-models/item-events.consumer';
 import { UserEventsConsumer } from '../app/read-models/user-events.consumer';
 
-export interface BookingsHarness extends ServiceHarness<BookingsRpcContract> {
+/** Bookings serves Messaging's patterns too (ADR-0017). */
+export type BookingsServiceContract = BookingsRpcContract &
+  MessagingRpcContract;
+
+export interface BookingsHarness extends ServiceHarness<BookingsServiceContract> {
   keys: TestKeys;
   /** A valid access token for `userId`, signed as Identity would. */
   tokenFor(userId: string): Promise<string>;
@@ -50,7 +55,7 @@ export async function startBookings(urls: {
 }): Promise<BookingsHarness> {
   const keys = generateTestKeys();
   const port = await freePort();
-  const harness = await startServiceHarness<BookingsRpcContract>({
+  const harness = await startServiceHarness<BookingsServiceContract>({
     port,
     env: {
       DATABASE_URL: urls.databaseUrl,

@@ -12,6 +12,7 @@ import { BookingsModule } from './bookings/bookings.module';
 import { validateConfig, type BookingsConfig } from './config';
 import { BookingsDatabaseModule } from './database/database.module';
 import { ExpiryModule } from './expiry/expiry.module';
+import { MessagingModule } from './messaging/messaging.module';
 import { ReadModelsModule } from './read-models/read-models.module';
 
 export const configModule = serviceConfigModule('bookings', validateConfig);
@@ -31,6 +32,7 @@ export const configModule = serviceConfigModule('bookings', validateConfig);
         keyId: config.get('JWT_KEY_ID', { infer: true }),
       }),
     }),
+    MessagingModule,
     ExpiryModule,
     ReadModelsModule,
     BookingsModule,

@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { DataSource } from 'typeorm';
 import { DATA_SOURCE } from '@borrowbox/service-kit';
 import { moveBooking } from '../bookings/booking-transitions';
+import { ChatPublisher, ChatPushes } from '../messaging/chat-publisher';
 import { listDueExpiries, lockBooking } from '../bookings/bookings.repository';
 
 /** How many due bookings one sweep handles; the next sweep takes the rest. */
@@ -21,11 +22,15 @@ const SWEEP_BATCH = 500;
 export class BookingExpiry {
   private readonly logger = new Logger('BookingExpiry');
 
-  constructor(@Inject(DATA_SOURCE) private readonly dataSource: DataSource) {}
+  constructor(
+    @Inject(DATA_SOURCE) private readonly dataSource: DataSource,
+    private readonly chat: ChatPublisher,
+  ) {}
 
   /** @returns true if the booking expired now */
-  expire(bookingId: string, now = new Date()): Promise<boolean> {
-    return this.dataSource.transaction(async (tx) => {
+  async expire(bookingId: string, now = new Date()): Promise<boolean> {
+    const pushes = new ChatPushes();
+    const expired = await this.dataSource.transaction(async (tx) => {
       const booking = await lockBooking(tx, bookingId);
       if (!booking) return false;
       const started = booking.start.getTime() <= now.getTime();
@@ -40,6 +45,7 @@ export class BookingExpiry {
           booking,
           { to: 'EXPIRED', reason: started ? 'STARTED' : 'NO_ANSWER' },
           null,
+          pushes,
         );
         return true;
       }
@@ -49,11 +55,14 @@ export class BookingExpiry {
           booking,
           { to: 'EXPIRED', reason: 'STARTED' },
           null,
+          pushes,
         );
         return true;
       }
       return false;
     });
+    if (expired) await this.chat.flush(pushes);
+    return expired;
   }
 
   /** Expires everything due that a lost job left behind. Never throws. */
