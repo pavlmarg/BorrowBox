@@ -69,8 +69,8 @@ flowchart TB
 |---|---|---|---|
 | **Gateway** | nothing (stateless) | – | Redis pub/sub (fan-out to sockets) |
 | **Identity** | users, credentials, refresh tokens, email tokens, verification status; sends its own account-security emails | `user.registered`, `user.profile_updated`, `user.email_verified`, `user.verified` (ID check), `user.deletion_requested` | `payment.account_ready` |
-| **Catalog** | items, categories, photos, location | `item.created`, `item.updated`, `item.deleted` | `user.registered`, `.profile_updated` (lender names), `.email_verified` (to publish), `.deletion_requested`, `review.created` (item rating) |
-| **Bookings** | bookings, availability, handoffs, condition photos | `booking.requested`, `.accepted`, `.confirmed`, `.paid`, `.declined`, `.expired`, `.cancelled`, `.picked_up`, `.returned`, `.completed`, `.disputed` | `item.*`, `payment.captured`, `payment.failed`, `user.deletion_requested` |
+| **Catalog** | items, categories, photos, location | `item.created`, `item.updated`, `item.deleted` | `user.registered`, `.profile_updated` (lender names), `.email_verified` (to publish), `.deletion_requested`, `booking.accepted` / `.confirmed` (featured items), `review.created` (item rating) |
+| **Bookings** | bookings, availability, handoffs, condition photos | `booking.requested`, `.accepted`, `.confirmed`, `.paid`, `.declined`, `.expired`, `.cancelled`, `.picked_up`, `.returned`, `.completed`, `.disputed` | `item.*`, `user.registered`, `.profile_updated` (names), `.email_verified` (to book), `.deletion_requested`, `payment.captured`, `payment.failed` |
 | **Payments** | Stripe accounts, payments, transfers, refunds, `stripe_events` | `payment.account_ready`, `payment.captured`, `payment.failed`, `payment.settled` | `booking.accepted`, `.cancelled`, `.completed`, `.disputed`, `dispute.resolved` |
 | **Messaging** | conversations, messages | `message.sent` | `payment.captured` (unlock chat), `user.deletion_requested` |
 | **Notifications** | recipients (from `user.*` events); later preferences, push subscriptions, in-app inbox | – | nearly every event above |
@@ -150,7 +150,7 @@ flowchart TB
 - **Search** is public (no sign-in needed) and shows only `ACTIVE` items of known, non-deleted lenders. Results are nearest first by the public point, paged with an opaque cursor (the last item's distance and id). A maximum-price filter also matches free items ([ADR-0012](adr/0012-free-items-match-price-limits.md)). The searcher's point and text are never stored or logged.
 - **Search as you type:** the 5 nearest visible items whose words all start with (or share a Greek/English stem with) what has been typed, from 2 characters.
 - **Category counts:** how many results each category would give with the search's other filters, for Explore's category menu and rail. The search and the counts share one filter clause, so the numbers match.
-- **Featured items** on Explore: up to 10 visible items within the searcher's radius, whatever the other filters. Until Bookings exists (Phase 3) they are the most recently published; then they become the most often booked, which needs Catalog to count bookings per item from booking events.
+- **Featured items** on Explore: up to 10 visible items within the searcher's radius, whatever the other filters: the most often booked in the last 90 days, then the most recently published. Catalog counts `booking.accepted` and `booking.confirmed` per item (one row per booking, no people, pruned after 90 days); later cancellations still count.
 - **Similar items** on an item's page: up to 8 other lenders' items in the same category within 10 km of the item's public point, most shared title words first, then nearest. People are never searchable by name.
 - **Location privacy** ([ADR-0004](adr/0004-location-fuzzing.md), [ADR-0007](adr/0007-location-privacy-search.md)):
   - `location_public` is the exact point moved by one random offset (150–300 m, random direction), stored per item. A pin moved by less than 300 m keeps the same offset.
@@ -167,15 +167,21 @@ flowchart TB
 - **Deleted accounts:** access tokens stay valid for up to 15 minutes, so once Catalog has processed `user.deletion_requested`, it refuses that account's write commands.
 
 ### Bookings
-- **Periods and prices** ([ADR-0015](adr/0015-booking-model.md)): whole hours `[start, end)` as a `tstzrange`, shown in Europe/Athens time; at least 1 hour, starting 1 hour to 180 days ahead. The rent is the cheapest combination of the item's rates that covers the period (a day is 24 h, a week 7 days, a month 30 days), fixed with the deposit when the booking is requested.
-- Double-booking is prevented at the DB level:
+- **Periods and prices** ([ADR-0015](adr/0015-booking-model.md)): whole hours `[start, end)` as a `tstzrange`, shown in Europe/Athens time; 1 hour to 90 days long (and within the item's own limits), starting 1 hour to 180 days ahead. The rent is the cheapest combination of the item's rates that covers the period (a day is 24 h, a week 7 days, a month 30 days), fixed with the deposit and the rate card when the booking is requested.
+- Double-booking is prevented at the DB level (it needs the `btree_gist` extension, created by the infra init script):
   ```sql
   EXCLUDE USING gist (item_id WITH =, period WITH &&)
   WHERE (status IN ('ACCEPTED','CONFIRMED','PAID','PICKED_UP'))
   ```
-- Accepting a request declines the item's other requests that overlap it, in the same transaction.
-- Owns the booking state machine (§4) and the QR handoff protocol (§5).
-- Timeouts (acceptance expiry, payment expiry, claim window) are BullMQ delayed jobs, and each one re-checks the state before acting.
+- Owns the booking state machine (§4) and the QR handoff protocol (§5). Every status change goes through one function that checks the state machine and writes the event to the outbox.
+- **Read models:** items (Catalog's snapshots; the newest wins, deletion is final) and users (names and verified emails from Identity's events). Services started after the data existed are filled with `nx run catalog:republish-items` and `nx run identity:republish-users`, which re-announce the current state through the outbox.
+- **Requests:** a renter with a verified email asks for a period of an `ACTIVE` item that isn't their own. The client picks the booking's id, so a retried request returns the same booking. At most 10 open requests per renter, no second overlapping request for the same item, and a period someone already holds is refused (`SLOT_TAKEN`). Requests are serialised per renter, so parallel ones can't pass the limit.
+- **Answers:** the lender accepts (`CONFIRMED` when rent and deposit are 0, else `ACCEPTED`) or declines. Accepting declines the item's other overlapping requests in the same transaction (reason `OVERLAP`); accepts are serialised per item, and the constraint turns any race into `SLOT_TAKEN`. The renter withdraws a request; either side cancels an `ACCEPTED` or `CONFIRMED` booking before it starts.
+- **Expiry:** a request expires 24 hours after it was made or at its start, whichever is sooner; until Payments exists, an `ACCEPTED` booking still unpaid at its start expires too. Each is a BullMQ delayed job that re-checks the booking under its row lock, and a sweeper every 10 minutes catches lost jobs.
+- **Public queries:** a price quote for a period, and an item's held periods (start and end only, never who or which state), for the date picker.
+- **Events** (`booking.*.v1`) carry the booking (ids, item title, period, rent, deposit) and a reason where one applies, but no names, emails or locations.
+- **Items and accounts:** pausing an item only stops new requests. `item.deleted` and `user.deletion_requested` cancel the open bookings (`ITEM_DELETED`, `ACCOUNT_DELETED`, either side for an account). Finished bookings stay, without the deleted person's name; once the deletion is processed, the account's still-valid tokens can't write.
+- **GDPR:** the export has the stored name, the email verification and every booking on both sides.
 
 ### Payments
 See §6.
