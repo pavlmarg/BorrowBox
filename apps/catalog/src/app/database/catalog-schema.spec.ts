@@ -452,7 +452,8 @@ describe('Catalog schema (integration)', () => {
           `SELECT table_name FROM information_schema.tables
             WHERE table_schema = 'catalog'
               AND table_name IN ('items', 'item_photos', 'lenders',
-                                 'photo_file_deletions', 'verified_lenders')
+                                 'photo_file_deletions', 'verified_lenders',
+                                 'item_bookings')
             ORDER BY table_name`,
         )
       ).map((r: { table_name: string }) => r.table_name);
@@ -466,6 +467,8 @@ describe('Catalog schema (integration)', () => {
         )
       ).map((r: { column_name: string }) => r.column_name);
 
+    await db.undoLastMigration(); // item bookings
+    expect(await tables()).not.toContain('item_bookings');
     await db.undoLastMigration(); // rental limits, verified lenders
     expect(await itemColumns()).toEqual([]);
     expect(await tables()).toEqual([
@@ -478,8 +481,8 @@ describe('Catalog schema (integration)', () => {
     expect(await tables()).toEqual(['item_photos', 'items', 'lenders']);
     await db.undoLastMigration(); // initial
     expect(await tables()).toEqual([]);
-    expect(await runMigrations(db)).toBe(3);
-    expect(await tables()).toHaveLength(5);
+    expect(await runMigrations(db)).toBe(4);
+    expect(await tables()).toHaveLength(6);
     expect(await itemColumns()).toEqual([
       'max_rental_hours',
       'min_rental_hours',

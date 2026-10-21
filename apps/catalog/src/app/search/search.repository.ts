@@ -174,9 +174,13 @@ export async function suggestItems(
   );
 }
 
+/** How far back bookings count for featured items. */
+export const FEATURED_BOOKINGS_DAYS = 90;
+
 /**
- * Featured items on Explore: for now the most recently published visible
- * items within `radiusM` of `near` (Phase 3 ranks by bookings instead).
+ * Featured items on Explore: the visible items within `radiusM` of `near`
+ * booked most often in the last 90 days, then the most recently published
+ * (so the newest items fill in where nothing is booked yet).
  * `distance_m` is measured from `near`.
  */
 export async function featuredItems(
@@ -191,12 +195,42 @@ export async function featuredItems(
       ', ST_Distance(i.location_public, p.pt) AS distance_m' +
       VISIBLE +
       ' CROSS JOIN (SELECT ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography AS pt) p' +
-      ` WHERE i.status = 'ACTIVE'
+      ` CROSS JOIN LATERAL (
+          SELECT count(*) AS n FROM item_bookings ib
+           WHERE ib.item_id = i.id
+             AND ib.booked_at > now() - make_interval(days => $5::int)) b
+        WHERE i.status = 'ACTIVE'
           AND ST_DWithin(i.location_public, p.pt, $3::float8)
-        ORDER BY i.published_at DESC, i.id
+        ORDER BY b.n DESC, i.published_at DESC, i.id
         LIMIT $4::int`,
-    [near.lng, near.lat, radiusM, limit],
+    [near.lng, near.lat, radiusM, limit, FEATURED_BOOKINGS_DAYS],
   );
+}
+
+/** From `booking.accepted` / `.confirmed`: one row per booking, so repeats count once. */
+export async function saveItemBooking(
+  tx: EntityManager,
+  bookingId: string,
+  itemId: string,
+  bookedAt: string,
+): Promise<void> {
+  await tx.query(
+    `INSERT INTO item_bookings (booking_id, item_id, booked_at)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (booking_id) DO NOTHING`,
+    [bookingId, itemId, bookedAt],
+  );
+}
+
+/** Deletes bookings older than the featured window; returns how many. */
+export async function pruneItemBookings(tx: EntityManager): Promise<number> {
+  const rows: unknown[] = await tx.query(
+    `DELETE FROM item_bookings
+      WHERE booked_at <= now() - make_interval(days => $1::int)
+      RETURNING booking_id`,
+    [FEATURED_BOOKINGS_DAYS],
+  );
+  return rows.length;
 }
 
 /**

@@ -7,12 +7,14 @@ import {
 import { CatalogInitial1759800000000 } from './migrations/1759800000000-catalog-initial';
 import { CatalogPhotoPipeline1759900000000 } from './migrations/1759900000000-catalog-photo-pipeline';
 import { CatalogRentalLimitsVerifiedLenders1761100000000 } from './migrations/1761100000000-catalog-rental-limits-verified-lenders';
+import { CatalogItemBookings1761300000000 } from './migrations/1761300000000-catalog-item-bookings';
 
 export const MIGRATIONS = [
   CreateOutboxTables1759140000000,
   CatalogInitial1759800000000,
   CatalogPhotoPipeline1759900000000,
   CatalogRentalLimitsVerifiedLenders1761100000000,
+  CatalogItemBookings1761300000000,
 ];
 
 export function createCatalogDataSource(url: string): DataSource {
