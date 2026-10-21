@@ -92,8 +92,7 @@ export interface UnreadCountResponse {
 }
 
 export interface SendOfferRequest
-  extends ConversationRef,
-    Omit<ItemPeriodRequest, 'itemId'> {
+  extends ConversationRef, Omit<ItemPeriodRequest, 'itemId'> {
   /** A new random UUID per offer; sending it again returns the same offer. */
   offerId: string;
   rentCents: number;
@@ -122,7 +121,11 @@ export interface MessagingDataExport {
   }>;
   /** Offers the caller sent or received. */
   offers: OfferView[];
-  reports: Array<{ messageId: string; reason: ReportReason; createdAt: string }>;
+  reports: Array<{
+    messageId: string;
+    reason: ReportReason;
+    createdAt: string;
+  }>;
 }
 
 // --- Patterns ---------------------------------------------------------------
@@ -169,7 +172,10 @@ export interface MessagingRpcContract {
   [MessagingRpc.report]: { request: ReportMessageRequest; response: void };
   [MessagingRpc.sendOffer]: { request: SendOfferRequest; response: OfferView };
   [MessagingRpc.withdrawOffer]: { request: OfferRef; response: OfferView };
-  [MessagingRpc.bookOffer]: { request: BookOfferRequest; response: BookingView };
+  [MessagingRpc.bookOffer]: {
+    request: BookOfferRequest;
+    response: BookingView;
+  };
   [MessagingRpc.exportMe]: {
     request: Record<string, never>;
     response: MessagingDataExport;

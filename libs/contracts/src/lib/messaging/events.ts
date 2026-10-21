@@ -30,8 +30,10 @@ export interface ConversationUnreadV1Payload {
   senderId: string;
   unreadCount: number;
 }
-export const ConversationUnreadV1 =
-  defineEvent<ConversationUnreadV1Payload>()('conversation.unread', 1);
+export const ConversationUnreadV1 = defineEvent<ConversationUnreadV1Payload>()(
+  'conversation.unread',
+  1,
+);
 
 /** The lender offered a price for a period (ADR-0018). */
 export interface OfferSentV1Payload {
