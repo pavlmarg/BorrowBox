@@ -17,6 +17,9 @@ export interface ItemSnapshotV1 {
   category: ItemCategory;
   pricing: ItemPricing;
   depositCents: number;
+  /** Shortest and longest booking in hours, or null for no item limit. */
+  minRentalHours: number | null;
+  maxRentalHours: number | null;
   status: ItemStatus;
 }
 

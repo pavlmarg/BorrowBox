@@ -440,6 +440,7 @@ describe('Gateway (integration)', () => {
       const catalogExport = {
         exportedAt: '2026-09-29T00:00:00.000Z',
         lenderProfile: null,
+        emailVerifiedAt: null,
         items: [],
       };
       identity.on(IdentityRpc.exportMe, () => exported);
@@ -492,6 +493,103 @@ describe('Gateway (integration)', () => {
         .send({})
         .expect(403);
       expect(res.body.code).toBe('REAUTHENTICATION_REQUIRED');
+    });
+  });
+
+  describe('email links and passwords', () => {
+    const TOKEN = 'A'.repeat(43);
+
+    it('verify-email forwards the token without a sign-in and answers 204', async () => {
+      identity.on(IdentityRpc.verifyEmail, () => undefined);
+      await http()
+        .post('/api/auth/verify-email')
+        .send({ token: TOKEN })
+        .expect(204);
+      const [call] = identity.callsTo(IdentityRpc.verifyEmail);
+      expect(call.message.data).toEqual({ token: TOKEN });
+      expect(call.message.accessToken).toBeUndefined();
+    });
+
+    it.each(['TOKEN_INVALID', 'TOKEN_EXPIRED'])(
+      'maps %s to 400',
+      async (code) => {
+        identity.fail(IdentityRpc.verifyEmail, { code, message: 'No' });
+        const res = await http()
+          .post('/api/auth/verify-email')
+          .send({ token: TOKEN })
+          .expect(400);
+        expect(res.body.code).toBe(code);
+      },
+    );
+
+    it('password-reset answers 202 and forwards the trimmed email', async () => {
+      identity.on(IdentityRpc.requestPasswordReset, () => undefined);
+      await http()
+        .post('/api/auth/password-reset')
+        .send({ email: ' maria@example.com ' })
+        .expect(202);
+      expect(
+        identity.callsTo(IdentityRpc.requestPasswordReset)[0].message.data,
+      ).toEqual({ email: 'maria@example.com' });
+    });
+
+    it('password-reset/confirm checks the new password first, then clears the cookie', async () => {
+      await http()
+        .post('/api/auth/password-reset/confirm')
+        .send({ token: TOKEN, newPassword: 'short' })
+        .expect(400);
+      expect(identity.calls).toHaveLength(0);
+
+      identity.on(IdentityRpc.resetPassword, () => undefined);
+      const res = await http()
+        .post('/api/auth/password-reset/confirm')
+        .send({ token: TOKEN, newPassword: 'battery staple 7' })
+        .expect(204);
+      expect(
+        identity.callsTo(IdentityRpc.resetPassword)[0].message.data,
+      ).toEqual({ token: TOKEN, newPassword: 'battery staple 7' });
+      expect(cookie(res, 'bb_refresh')).toMatch(/Expires=Thu, 01 Jan 1970/);
+    });
+
+    it('me/verification-email needs a sign-in and answers 202', async () => {
+      await http().post('/api/me/verification-email').expect(401);
+      identity.on(IdentityRpc.sendVerificationEmail, () => undefined);
+      const auth = await bearer();
+      await http()
+        .post('/api/me/verification-email')
+        .set('Authorization', auth)
+        .expect(202);
+      expect(
+        identity.callsTo(IdentityRpc.sendVerificationEmail)[0].message
+          .accessToken,
+      ).toBe(auth.slice('Bearer '.length));
+    });
+
+    it('me/password forwards both passwords and maps PASSWORD_NOT_SET to 409', async () => {
+      identity.on(IdentityRpc.changePassword, () => undefined);
+      const body = {
+        currentPassword: 'correct horse 42',
+        newPassword: 'battery staple 7',
+      };
+      await http()
+        .post('/api/me/password')
+        .set('Authorization', await bearer())
+        .send(body)
+        .expect(204);
+      expect(
+        identity.callsTo(IdentityRpc.changePassword)[0].message.data,
+      ).toEqual(body);
+
+      identity.fail(IdentityRpc.changePassword, {
+        code: 'PASSWORD_NOT_SET',
+        message: 'This account has no password yet',
+      });
+      const res = await http()
+        .post('/api/me/password')
+        .set('Authorization', await bearer())
+        .send(body)
+        .expect(409);
+      expect(res.body.code).toBe('PASSWORD_NOT_SET');
     });
   });
 

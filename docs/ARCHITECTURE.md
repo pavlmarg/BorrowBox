@@ -68,8 +68,8 @@ flowchart TB
 | Service | Owns | Publishes | Consumes |
 |---|---|---|---|
 | **Gateway** | nothing (stateless) | – | Redis pub/sub (fan-out to sockets) |
-| **Identity** | users, credentials, refresh tokens, email tokens, verification status; sends its own account-security emails | `user.registered`, `user.profile_updated`, `user.verified`, `user.deletion_requested` | `payment.account_ready` |
-| **Catalog** | items, categories, photos, location | `item.created`, `item.updated`, `item.deleted` | `user.deletion_requested`, `review.created` (item rating) |
+| **Identity** | users, credentials, refresh tokens, email tokens, verification status; sends its own account-security emails | `user.registered`, `user.profile_updated`, `user.email_verified`, `user.verified` (ID check), `user.deletion_requested` | `payment.account_ready` |
+| **Catalog** | items, categories, photos, location | `item.created`, `item.updated`, `item.deleted` | `user.registered`, `.profile_updated` (lender names), `.email_verified` (to publish), `.deletion_requested`, `review.created` (item rating) |
 | **Bookings** | bookings, availability, handoffs, condition photos | `booking.requested`, `.accepted`, `.confirmed`, `.paid`, `.declined`, `.expired`, `.cancelled`, `.picked_up`, `.returned`, `.completed`, `.disputed` | `item.*`, `payment.captured`, `payment.failed`, `user.deletion_requested` |
 | **Payments** | Stripe accounts, payments, transfers, refunds, `stripe_events` | `payment.account_ready`, `payment.captured`, `payment.failed`, `payment.settled` | `booking.accepted`, `.cancelled`, `.completed`, `.disputed`, `dispute.resolved` |
 | **Messaging** | conversations, messages | `message.sent` | `payment.captured` (unlock chat), `user.deletion_requested` |
@@ -98,12 +98,16 @@ flowchart TB
   - The signed-in lender's own items under `/api/me/items`: list, create, get, `PATCH`, `DELETE`, `PUT /:id/location`, `POST /:id/publish` / `pause` / `unpause`, and photos (`POST /:id/photos` for an upload URL, `POST …/photos/:photoId/confirm`, `DELETE …/photos/:photoId`, `PUT /:id/photos/order`).
   - Catalog's state and limit refusals (`INVALID_STATE`, `NOT_PUBLISHABLE`, `ITEM_LIMIT_REACHED`, `PHOTO_LIMIT_REACHED`) are `409`; the PWA tells them apart by `code`.
   - `GET /api/me/export` has one section per service (`identity`, `catalog`). If any service doesn't answer, the whole export fails with `503` rather than returning partial data.
+- Phase 3 endpoints (Identity's email links, [ADR-0016](adr/0016-notifications-and-email.md)):
+  - No sign-in: `POST /api/auth/verify-email` and `/password-reset/confirm` (the token from the link is the proof; the confirm also clears the refresh cookie), and `POST /api/auth/password-reset`, which always answers `202`.
+  - Signed in: `POST /api/me/verification-email` (`202`) and `POST /api/me/password`.
+  - `TOKEN_INVALID` and `TOKEN_EXPIRED` are `400`, `PASSWORD_NOT_SET` is `409`, and Catalog's `EMAIL_NOT_VERIFIED` is `403`.
 - **Cookies:**
   - The refresh token is set only as `bb_refresh` (httpOnly, Secure, SameSite=Strict, `Path=/api/auth`) and never appears in a response body.
   - Google sign-in keeps its state, nonce and PKCE verifier in a signed, 10-minute `bb_oauth` cookie. It is SameSite=Lax because Google's redirect back is a cross-site navigation.
 - **Security:**
   - Helmet, a CORS allow-list, a 100 kB body limit and `class-validator` DTOs.
-  - Redis-backed rate limits per IP: 10/min for login, register and Google, 30/min for refresh, 300/min for search-as-you-type, 120/min otherwise.
+  - Redis-backed rate limits per IP: 10/min for login, register, Google, email links and password changes, 30/min for refresh, 300/min for search-as-you-type, 120/min otherwise.
   - While Redis is unreachable, each gateway instance counts in memory instead, so the limits stay in force and the API keeps answering. It switches back to Redis by itself once Redis recovers.
   - Every error has the shape `{ statusCode, code, message }` and never echoes the request body.
 - **OpenAPI:** `apps/gateway/openapi.json` is committed and regenerated with `nx run gateway:openapi`. A test fails if it drifts from the code. The PWA's API client is generated from it with `nx run web:api-client`.
@@ -127,6 +131,13 @@ flowchart TB
   - If that account's email was never verified, Google's proof is treated as the first real proof of ownership: the password is cleared and every session revoked. This defeats account pre-hijacking.
   - An email already linked to a different Google account is refused.
   - Unverified Google emails are rejected.
+- **Email links** ([ADR-0016](adr/0016-notifications-and-email.md)):
+  - Identity sends its own account-security emails through `libs/mailer`, in the account's language, after the transaction commits; a failed send is only logged and the user asks again.
+  - A link's token (256 bits) travels only in the email and in the link's fragment (`#t=…`), so it never reaches an access log or a `Referer` header. Identity stores its SHA-256 hash in `email_tokens`.
+  - A verification link lasts 24 hours, a reset link 10 minutes; each works once, and a new link replaces older ones of its kind. Each account gets at most one email of a kind per minute; extra requests succeed without sending.
+  - Registering with a password sends a verification link. Confirming one, a password reset, or Google's proof sets `email_verified_at` and emits `user.email_verified` once.
+  - Asking for a reset answers the same whether or not the email has an account, and does the work in the background so the timing doesn't tell either. A reset signs out every session, also gives Google-only accounts a password, and sends a notice.
+  - Changing the password needs the current one, signs out the other sessions and sends a notice.
 - Lender ID verification through **Stripe Identity**, required before listing items above a deposit threshold.
 - **GDPR:**
   - `GET /me/export` returns everything Identity holds, without hashes or tokens.
@@ -148,9 +159,11 @@ flowchart TB
   - The exact point is visible to its owner only, never to renters: once a booking goes ahead, the two people arrange where to meet ([ADR-0015](adr/0015-booking-model.md)).
 - **Setting the location:** lenders drop a pin on the map or use their device location; no address is geocoded ([ADR-0008](adr/0008-maps-pin-drop.md)).
 - **Pricing:** a rate card per item: any of hourly, daily, weekly and monthly rates (each €0.10–€1,000), or free, plus a separate deposit. Bookings computes what a booking costs ([ADR-0010](adr/0010-flexible-pricing.md)).
-- **Item lifecycle:** `DRAFT` → `ACTIVE` (publishing needs a location and a processed photo) ⇄ `PAUSED`; any of them → `DELETED`, a tombstone without location or description. `item.created` / `item.updated` carry a snapshot without location or description; `item.updated` is only sent when the snapshot changes.
+- **Rental limits:** each item may set a shortest and a longest booking in whole hours (1 hour to 90 days, `BOOKING_MAX_HOURS`), which Bookings will enforce.
+- **Item lifecycle:** `DRAFT` → `ACTIVE` (publishing and unpausing need a verified email, a location and a processed photo) ⇄ `PAUSED`; any of them → `DELETED`, a tombstone without location or description. `item.created` / `item.updated` carry a snapshot without location or description; `item.updated` is only sent when the snapshot changes.
 - **Commands are safe to repeat:** the client picks a new item's id (a UUID), so a retried create returns the same item; repeating a publish, pause, unpause or delete that already took effect succeeds without a second event.
 - **Limits:** a lender may have 10 items at once, drafts included (`ITEM_FREE_LIMIT`). Creates and the account's erasure share a per-lender lock, so parallel creates can't exceed the limit and an item can't slip past an erasure.
+- **Verified lenders:** Catalog keeps which accounts have a verified email from `user.email_verified`, apart from the lender names (the event may arrive first), and forgets it on `user.deletion_requested`. Items already published when the rule came in stay published.
 - **Deleted accounts:** access tokens stay valid for up to 15 minutes, so once Catalog has processed `user.deletion_requested`, it refuses that account's write commands.
 
 ### Bookings

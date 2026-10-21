@@ -21,6 +21,10 @@ const STATUS: Record<IdentityErrorCode, HttpStatus> = {
   OAUTH_EXCHANGE_FAILED: HttpStatus.BAD_GATEWAY,
   // The user's Google email isn't verified: a refusal, not an upstream failure.
   OAUTH_EMAIL_NOT_VERIFIED: HttpStatus.FORBIDDEN,
+  // A bad or old email link: the PWA tells them apart by code.
+  TOKEN_INVALID: HttpStatus.BAD_REQUEST,
+  TOKEN_EXPIRED: HttpStatus.BAD_REQUEST,
+  PASSWORD_NOT_SET: HttpStatus.CONFLICT,
   INTERNAL: HttpStatus.INTERNAL_SERVER_ERROR,
 };
 

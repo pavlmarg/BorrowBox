@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import {
+  BOOKING_MAX_HOURS,
   CatalogRpc,
   ITEM_FREE_LIMIT,
   type CatalogRpcPattern,
@@ -128,8 +129,18 @@ describe('Item commands (integration)', () => {
     return id;
   }
 
-  /** A located item with a processed photo, ready to publish. */
+  /** What Catalog records from `user.email_verified`. */
+  async function verify(userId: string): Promise<void> {
+    await catalog.dataSource.query(
+      `INSERT INTO verified_lenders (user_id, verified_at) VALUES ($1, now())
+       ON CONFLICT DO NOTHING`,
+      [userId],
+    );
+  }
+
+  /** A verified lender's located item with a processed photo, ready to publish. */
   async function publishable(userId: string): Promise<OwnItem> {
+    await verify(userId);
     const item = await create(userId);
     await as(userId, CatalogRpc.setLocation, {
       itemId: item.id,
@@ -275,6 +286,8 @@ describe('Item commands (integration)', () => {
         category: 'tools',
         pricing: { free: false, dailyCents: 500 },
         depositCents: 2000,
+        minRentalHours: null,
+        maxRentalHours: null,
         location: null,
         approximateLocation: null,
         photos: [],
@@ -298,6 +311,8 @@ describe('Item commands (integration)', () => {
         category: 'tools',
         pricing: { free: false, dailyCents: 500 },
         depositCents: 2000,
+        minRentalHours: null,
+        maxRentalHours: null,
         status: 'DRAFT',
       });
     });
@@ -785,11 +800,116 @@ describe('Item commands (integration)', () => {
     });
   });
 
+  // --- rental limits (ADR-0015) -----------------------------------------------------
+
+  describe('rental limits', () => {
+    it('are stored, shown to the owner and carried in the snapshot', async () => {
+      const userId = randomUUID();
+      const item = await create(userId, {
+        minRentalHours: 24,
+        maxRentalHours: 24 * 14,
+      });
+      expect(item).toMatchObject({ minRentalHours: 24, maxRentalHours: 336 });
+      const [created] = await eventsFor(item.id);
+      expect(created.payload).toMatchObject({
+        minRentalHours: 24,
+        maxRentalHours: 336,
+      });
+    });
+
+    it('change only when sent; null clears one', async () => {
+      const userId = randomUUID();
+      const item = await create(userId, {
+        minRentalHours: 4,
+        maxRentalHours: 48,
+      });
+      const ref = { itemId: item.id };
+
+      const renamed = await as(userId, CatalogRpc.update, {
+        ...ref,
+        title: 'Renamed drill',
+      });
+      expect(renamed).toMatchObject({ minRentalHours: 4, maxRentalHours: 48 });
+
+      const cleared = await as(userId, CatalogRpc.update, {
+        ...ref,
+        maxRentalHours: null,
+      });
+      expect(cleared).toMatchObject({
+        minRentalHours: 4,
+        maxRentalHours: null,
+      });
+      const events = await eventsFor(item.id);
+      expect(events.at(-1)?.payload).toMatchObject({ maxRentalHours: null });
+    });
+
+    it.each([
+      [
+        'a minimum above the maximum',
+        { minRentalHours: 48, maxRentalHours: 24 },
+      ],
+      ['zero hours', { minRentalHours: 0 }],
+      ['more than 90 days', { maxRentalHours: BOOKING_MAX_HOURS + 1 }],
+      ['part of an hour', { minRentalHours: 1.5 }],
+    ])('refuse %s', async (_, limits) => {
+      expect((await failure(create(randomUUID(), limits))).code).toBe(
+        'VALIDATION_FAILED',
+      );
+    });
+
+    it('are checked against the stored one when only one is sent', async () => {
+      const userId = randomUUID();
+      const item = await create(userId, { maxRentalHours: 24 });
+      const err = await failure(
+        as(userId, CatalogRpc.update, {
+          itemId: item.id,
+          minRentalHours: 48,
+        }),
+      );
+      expect(err).toEqual({
+        code: 'VALIDATION_FAILED',
+        message: 'Invalid fields: minRentalHours, maxRentalHours',
+      });
+    });
+  });
+
   // --- lifecycle ------------------------------------------------------------------
 
   describe('publish, pause and unpause', () => {
+    it('needs a verified email to publish or unpause', async () => {
+      const userId = randomUUID();
+      const item = await create(userId);
+      await as(userId, CatalogRpc.setLocation, {
+        itemId: item.id,
+        location: ATHENS,
+      });
+      await addPhoto(item.id, 'READY');
+      const ref = { itemId: item.id };
+      const notVerified = {
+        code: 'EMAIL_NOT_VERIFIED',
+        message: 'Confirm your email address before publishing items',
+      };
+      expect(await failure(as(userId, CatalogRpc.publish, ref))).toEqual(
+        notVerified,
+      );
+
+      await verify(userId);
+      await as(userId, CatalogRpc.publish, ref);
+      await as(userId, CatalogRpc.pause, ref);
+
+      // Should Catalog forget the verification, paused items stay paused.
+      await catalog.dataSource.query(
+        `DELETE FROM verified_lenders WHERE user_id = $1`,
+        [userId],
+      );
+      expect(await failure(as(userId, CatalogRpc.unpause, ref))).toEqual(
+        notVerified,
+      );
+    });
+
     it('needs a location and a processed photo to publish', async () => {
       const userId = randomUUID();
+      await verify(userId);
       const item = await create(userId);
       const ref = { itemId: item.id };
       const notPublishable = {
@@ -966,6 +1086,7 @@ describe('Item commands (integration)', () => {
 
       const before = await as(userId, CatalogRpc.exportMe, {});
       expect(before.lenderProfile).toBeNull();
+      expect(before.emailVerifiedAt).toBeNull();
       expect(before.exportedAt).toEqual(expect.any(String));
       const byTitle = Object.fromEntries(before.items.map((i) => [i.title, i]));
       expect(Object.keys(byTitle).sort()).toEqual(['Gone', 'Located']);
@@ -984,11 +1105,17 @@ describe('Item commands (integration)', () => {
          VALUES ($1, 'Maria', '2026-10-01T10:00:00Z')`,
         [userId],
       );
+      await catalog.dataSource.query(
+        `INSERT INTO verified_lenders (user_id, verified_at)
+         VALUES ($1, '2026-10-02T10:00:00Z')`,
+        [userId],
+      );
       const after = await as(userId, CatalogRpc.exportMe, {});
       expect(after.lenderProfile).toEqual({
         displayName: 'Maria',
         updatedAt: '2026-10-01T10:00:00.000Z',
       });
+      expect(after.emailVerifiedAt).toBe('2026-10-02T10:00:00.000Z');
     });
   });
 

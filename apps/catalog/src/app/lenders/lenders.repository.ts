@@ -27,6 +27,37 @@ export async function saveLenderName(
 }
 
 /**
+ * From `user.email_verified`. Ignored once the account is deleted, so a
+ * late event can't bring the fact back.
+ */
+export async function saveLenderVerified(
+  tx: EntityManager,
+  userId: string,
+  occurredAt: string,
+): Promise<void> {
+  await tx.query(
+    `INSERT INTO verified_lenders (user_id, verified_at)
+     SELECT $1, $2
+      WHERE NOT EXISTS (
+        SELECT 1 FROM lenders WHERE user_id = $1 AND deleted_at IS NOT NULL)
+     ON CONFLICT (user_id) DO NOTHING`,
+    [userId, occurredAt],
+  );
+}
+
+/** When the lender's email was verified, or null if Catalog doesn't know it is. */
+export async function findLenderVerifiedAt(
+  tx: EntityManager,
+  lenderId: string,
+): Promise<Date | null> {
+  const [row] = await tx.query(
+    `SELECT verified_at FROM verified_lenders WHERE user_id = $1`,
+    [lenderId],
+  );
+  return row?.verified_at ?? null;
+}
+
+/**
  * From `user.deletion_requested`. Keeps a row with only the id even for a
  * user Catalog never heard of, so a late `user.registered` can't add the
  * name back.
@@ -44,6 +75,7 @@ export async function markLenderDeleted(
            deleted_at = COALESCE(lenders.deleted_at, now())`,
     [userId, occurredAt],
   );
+  await tx.query(`DELETE FROM verified_lenders WHERE user_id = $1`, [userId]);
 }
 
 /**

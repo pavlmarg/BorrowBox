@@ -24,6 +24,7 @@
       "@borrowbox/media": ["./libs/media/src/index.ts"],
       "@borrowbox/outbox": ["./libs/outbox/src/index.ts"],
       "@borrowbox/auth": ["./libs/auth/src/index.ts"],
+      "@borrowbox/mailer": ["./libs/mailer/src/index.ts"],
       "@borrowbox/service-kit": ["./libs/service-kit/src/index.ts"],
       "@borrowbox/service-kit/testing": ["./libs/service-kit/src/testing.ts"]
     },

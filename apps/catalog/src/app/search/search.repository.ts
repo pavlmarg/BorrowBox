@@ -24,6 +24,8 @@ export type PublicItemRow = Pick<
   | 'weekly_cents'
   | 'monthly_cents'
   | 'deposit_cents'
+  | 'min_rental_hours'
+  | 'max_rental_hours'
   | 'public_lat'
   | 'public_lng'
   | 'published_at'
@@ -53,7 +55,7 @@ export interface SearchFilters {
 const PUBLIC_COLUMNS =
   'i.id, i.title, i.description, i.category, i.free,' +
   ' i.hourly_cents, i.daily_cents, i.weekly_cents, i.monthly_cents,' +
-  ' i.deposit_cents, i.published_at,' +
+  ' i.deposit_cents, i.min_rental_hours, i.max_rental_hours, i.published_at,' +
   ' ST_Y(i.location_public::geometry) AS public_lat,' +
   ' ST_X(i.location_public::geometry) AS public_lng,' +
   ' l.user_id AS lender_id, l.display_name AS lender_name,' +

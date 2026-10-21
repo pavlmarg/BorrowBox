@@ -22,3 +22,28 @@ export function isValidPassword(password: string): boolean {
     PASSWORD_RULE.test(password)
   );
 }
+
+/**
+ * Email-link tokens (verification, password reset; ADR-0016) are 32 random
+ * bytes in base64url: exactly this many characters.
+ */
+export const EMAIL_TOKEN_LENGTH = 43;
+
+/** True if `token` has an email-link token's shape (checked before any lookup). */
+export function isWellFormedEmailToken(token: unknown): token is string {
+  return (
+    typeof token === 'string' &&
+    token.length === EMAIL_TOKEN_LENGTH &&
+    /^[A-Za-z0-9_-]+$/.test(token)
+  );
+}
+
+/** How long a verification link works. */
+export const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+/** How long a password-reset link works. */
+export const PASSWORD_RESET_TTL_MS = 10 * 60 * 1000;
+/**
+ * At most one email of each kind per account in this time; further requests
+ * succeed without sending, so they can't be used to flood an inbox.
+ */
+export const EMAIL_LINK_COOLDOWN_MS = 60 * 1000;

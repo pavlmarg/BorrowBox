@@ -28,6 +28,12 @@ export type IdentityErrorCode =
    * password, or for accounts without one, a sign-in in the last 5 minutes.
    */
   | 'REAUTHENTICATION_REQUIRED'
+  /** An email link's token is unknown, already used or replaced by a newer one. */
+  | 'TOKEN_INVALID'
+  /** An email link's token is past its lifetime; the PWA offers to send a new one. */
+  | 'TOKEN_EXPIRED'
+  /** Changing the password needs a current one; accounts without one use a reset link instead. */
+  | 'PASSWORD_NOT_SET'
   /** Unexpected failure; details are only in Identity's logs. */
   | 'INTERNAL';
 
@@ -39,7 +45,8 @@ export interface UserProfile {
   displayName: string;
   locale: Locale;
   /**
-   * True once ownership of the email is proven (for now: a verified OAuth sign-in).
+   * True once ownership of the email is proven: an email link (verification
+   * or password reset), or a verified OAuth sign-in. Publishing items needs it.
    * Signing in with a verified provider email auto-links to an account with
    * that email. If the account was still unverified, its password is cleared and
    * all its sessions are revoked, which defeats account pre-hijacking.
@@ -114,6 +121,34 @@ export interface DeleteAccountRequest {
   password?: string;
 }
 
+/**
+ * Email links (ADR-0016). Their tokens reach the PWA in the link's fragment
+ * (`#t=…`) and come back here; they never travel anywhere else.
+ */
+export interface VerifyEmailRequest {
+  token: string;
+}
+
+/**
+ * Always succeeds the same way, whether or not the email has an account, so
+ * the answer doesn't reveal who is registered.
+ */
+export interface RequestPasswordResetRequest {
+  email: string;
+}
+
+/** Sets the password, signs out every session and marks the email verified. */
+export interface ResetPasswordRequest {
+  token: string;
+  newPassword: string;
+}
+
+/** Signs out the other sessions; the current one stays signed in. */
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
 /** Identity's part of `GET /me/export`. No secrets: no hashes, tokens or provider tokens. */
 export interface IdentityDataExport {
   exportedAt: string;
@@ -139,8 +174,13 @@ export const IdentityRpc = {
   refresh: 'identity.refresh',
   logout: 'identity.logout',
   googleExchange: 'identity.google.exchange',
+  verifyEmail: 'identity.email.verify',
+  requestPasswordReset: 'identity.password.reset.request',
+  resetPassword: 'identity.password.reset.confirm',
   getMe: 'identity.me.get',
   updateMe: 'identity.me.update',
+  sendVerificationEmail: 'identity.me.verification.send',
+  changePassword: 'identity.me.password.change',
   exportMe: 'identity.me.export',
   deleteMe: 'identity.me.delete',
 } as const;
@@ -158,6 +198,15 @@ export interface IdentityRpcContract {
     request: GoogleExchangeRequest;
     response: AuthSession;
   };
+  [IdentityRpc.verifyEmail]: { request: VerifyEmailRequest; response: void };
+  [IdentityRpc.requestPasswordReset]: {
+    request: RequestPasswordResetRequest;
+    response: void;
+  };
+  [IdentityRpc.resetPassword]: {
+    request: ResetPasswordRequest;
+    response: void;
+  };
   [IdentityRpc.getMe]: {
     request: Record<string, never>;
     response: UserProfile;
@@ -165,6 +214,15 @@ export interface IdentityRpcContract {
   [IdentityRpc.updateMe]: {
     request: UpdateProfileRequest;
     response: UserProfile;
+  };
+  /** A no-op for an already verified email. */
+  [IdentityRpc.sendVerificationEmail]: {
+    request: Record<string, never>;
+    response: void;
+  };
+  [IdentityRpc.changePassword]: {
+    request: ChangePasswordRequest;
+    response: void;
   };
   [IdentityRpc.exportMe]: {
     request: Record<string, never>;

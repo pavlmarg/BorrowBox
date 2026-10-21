@@ -4,6 +4,11 @@
 import { LenderProfileResponse } from '../models/lender-profile-response';
 import { OwnItemResponse } from '../models/own-item-response';
 export interface CatalogDataExportResponse {
+
+  /**
+   * When Catalog learned the email was verified, or null
+   */
+  emailVerifiedAt: string | null;
   exportedAt: string;
   items: Array<OwnItemResponse>;
   lenderProfile: (LenderProfileResponse & {

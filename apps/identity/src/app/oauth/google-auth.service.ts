@@ -3,6 +3,7 @@ import type { DataSource, EntityManager } from 'typeorm';
 import {
   DISPLAY_NAME_MAX_LENGTH,
   EMAIL_MAX_LENGTH,
+  UserEmailVerifiedV1,
   UserRegisteredV1,
   createEnvelope,
   type AuthSession,
@@ -11,6 +12,7 @@ import {
 import { addToOutbox } from '@borrowbox/outbox';
 import { SessionService } from '../auth/session.service';
 import { DATA_SOURCE } from '@borrowbox/service-kit';
+import { markEmailVerified } from '../email/email-verified';
 import { IdentityError } from '../rpc/rpc-errors';
 import {
   GoogleOidcClient,
@@ -34,8 +36,9 @@ export function displayNameFor(identity: GoogleIdentity): string {
  * 2. (google, sub) already linked → sign in
  * 3. an account has this email → link; if its email was never verified,
  *    Google's proof is the first real proof of ownership, so clear the
- *    password and revoke every session (defeats account pre-hijacking)
- * 4. otherwise → new verified account + user.registered
+ *    password, revoke every session and drop pending email links (defeats
+ *    account pre-hijacking), then user.email_verified
+ * 4. otherwise → new verified account + user.registered + user.email_verified
  */
 @Injectable()
 export class GoogleAuthService {
@@ -118,8 +121,7 @@ export class GoogleAuthService {
       );
       if (existing.email_verified_at === null) {
         await tx.query(
-          `UPDATE users SET password_hash = NULL, email_verified_at = now(), updated_at = now()
-            WHERE id = $1`,
+          `UPDATE users SET password_hash = NULL, updated_at = now() WHERE id = $1`,
           [existing.id],
         );
         await tx.query(
@@ -127,6 +129,10 @@ export class GoogleAuthService {
             WHERE user_id = $1 AND revoked_at IS NULL`,
           [existing.id],
         );
+        await tx.query(`DELETE FROM email_tokens WHERE user_id = $1`, [
+          existing.id,
+        ]);
+        await markEmailVerified(tx, existing.id, correlationId);
         this.logger.log(
           `Linked Google to unverified account ${existing.id}; password cleared and sessions revoked`,
         );
@@ -154,6 +160,14 @@ export class GoogleAuthService {
           displayName,
           locale: DEFAULT_LOCALE,
         },
+        { correlationId },
+      ),
+    );
+    await addToOutbox(
+      tx,
+      createEnvelope(
+        UserEmailVerifiedV1,
+        { userId: user.id },
         { correlationId },
       ),
     );

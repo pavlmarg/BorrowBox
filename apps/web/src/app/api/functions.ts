@@ -9,6 +9,12 @@ export type { AuthControllerRefresh$Params as AuthControllerRefresh$Params } fro
 export { authControllerRefresh as authControllerRefresh } from './fn/auth/auth-controller-refresh';
 export type { AuthControllerLogout$Params as AuthControllerLogout$Params } from './fn/auth/auth-controller-logout';
 export { authControllerLogout as authControllerLogout } from './fn/auth/auth-controller-logout';
+export type { AuthControllerVerifyEmail$Params as AuthControllerVerifyEmail$Params } from './fn/auth/auth-controller-verify-email';
+export { authControllerVerifyEmail as authControllerVerifyEmail } from './fn/auth/auth-controller-verify-email';
+export type { AuthControllerRequestPasswordReset$Params as AuthControllerRequestPasswordReset$Params } from './fn/auth/auth-controller-request-password-reset';
+export { authControllerRequestPasswordReset as authControllerRequestPasswordReset } from './fn/auth/auth-controller-request-password-reset';
+export type { AuthControllerResetPassword$Params as AuthControllerResetPassword$Params } from './fn/auth/auth-controller-reset-password';
+export { authControllerResetPassword as authControllerResetPassword } from './fn/auth/auth-controller-reset-password';
 export type { AuthControllerGoogleStart$Params as AuthControllerGoogleStart$Params } from './fn/auth/auth-controller-google-start';
 export { authControllerGoogleStart as authControllerGoogleStart } from './fn/auth/auth-controller-google-start';
 export type { MeControllerGet$Params as MeControllerGet$Params } from './fn/me/me-controller-get';
@@ -17,6 +23,10 @@ export type { MeControllerDelete$Params as MeControllerDelete$Params } from './f
 export { meControllerDelete as meControllerDelete } from './fn/me/me-controller-delete';
 export type { MeControllerUpdate$Params as MeControllerUpdate$Params } from './fn/me/me-controller-update';
 export { meControllerUpdate as meControllerUpdate } from './fn/me/me-controller-update';
+export type { MeControllerSendVerificationEmail$Params as MeControllerSendVerificationEmail$Params } from './fn/me/me-controller-send-verification-email';
+export { meControllerSendVerificationEmail as meControllerSendVerificationEmail } from './fn/me/me-controller-send-verification-email';
+export type { MeControllerChangePassword$Params as MeControllerChangePassword$Params } from './fn/me/me-controller-change-password';
+export { meControllerChangePassword as meControllerChangePassword } from './fn/me/me-controller-change-password';
 export type { MeControllerExport$Params as MeControllerExport$Params } from './fn/me/me-controller-export';
 export { meControllerExport as meControllerExport } from './fn/me/me-controller-export';
 export type { MyItemsControllerList$Params as MyItemsControllerList$Params } from './fn/my-items/my-items-controller-list';

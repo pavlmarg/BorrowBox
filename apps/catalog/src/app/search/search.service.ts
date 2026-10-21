@@ -123,6 +123,8 @@ export class SearchService {
       category: row.category,
       pricing: toPricing(row),
       depositCents: row.deposit_cents,
+      minRentalHours: row.min_rental_hours,
+      maxRentalHours: row.max_rental_hours,
       photos: photos.map((p) => ({
         id: p.id,
         urls: photoUrls(this.photosBaseUrl, p.public_key),

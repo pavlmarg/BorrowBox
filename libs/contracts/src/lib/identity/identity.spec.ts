@@ -1,11 +1,15 @@
-import { UserDeletionRequestedV1, UserRegisteredV1 } from './events';
+import {
+  UserDeletionRequestedV1,
+  UserEmailVerifiedV1,
+  UserRegisteredV1,
+} from './events';
 import { IdentityRpc, type IdentityRpcPattern } from './rpc';
 import {
   GOOGLE_EXCHANGE_MAX_REQUESTS,
   GOOGLE_EXCHANGE_TIMEOUT_MS,
   GOOGLE_HTTP_TIMEOUT_MS,
 } from './timeouts';
-import { isValidPassword } from './validation';
+import { isValidPassword, isWellFormedEmailToken } from './validation';
 
 describe('Google sign-in timeouts', () => {
   it('give the gateway longer than every Google request Identity may make', () => {
@@ -38,7 +42,20 @@ describe('identity events', () => {
     expect(UserDeletionRequestedV1.routingKey).toBe(
       'user.deletion_requested.v1',
     );
+    expect(UserEmailVerifiedV1.routingKey).toBe('user.email_verified.v1');
   });
+});
+
+describe('isWellFormedEmailToken', () => {
+  it('accepts 43 base64url characters', () =>
+    expect(isWellFormedEmailToken('a'.repeat(40) + '-_9')).toBe(true));
+
+  it.each([
+    ['too short', 'a'.repeat(42)],
+    ['too long', 'a'.repeat(44)],
+    ['other characters', 'a'.repeat(42) + '='],
+    ['not a string', 42],
+  ])('rejects %s', (_, t) => expect(isWellFormedEmailToken(t)).toBe(false));
 });
 
 describe('IdentityRpc patterns', () => {
@@ -52,6 +69,6 @@ describe('IdentityRpc patterns', () => {
   it('each have a contract entry', () => {
     // Compile-time check: every pattern is a key of IdentityRpcContract.
     const typed: IdentityRpcPattern[] = patterns;
-    expect(typed).toHaveLength(9);
+    expect(typed).toHaveLength(14);
   });
 });

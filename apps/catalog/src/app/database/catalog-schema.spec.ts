@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { DataSource } from 'typeorm';
 import {
+  BOOKING_MAX_HOURS,
+  BOOKING_MIN_HOURS,
   DEPOSIT_MAX_CENTS,
   DEPOSIT_MIN_CENTS,
   ITEM_CATEGORIES,
@@ -20,8 +22,8 @@ import { runMigrations } from '@borrowbox/service-kit';
 import { createCatalogDataSource } from './database.module';
 
 /**
- * The rules Catalog's tables enforce themselves (migration
- * 1759800000000-catalog-initial). Limits are checked at their boundaries
+ * The rules Catalog's tables enforce themselves (migrations
+ * 1759800000000-catalog-initial and later). Limits are checked at their boundaries
  * against the constants in libs/contracts, so the two can't drift apart.
  */
 describe('Catalog schema (integration)', () => {
@@ -190,6 +192,24 @@ describe('Catalog schema (integration)', () => {
       await expect(
         insertItem({ deposit_cents: DEPOSIT_MAX_CENTS + 1 }),
       ).rejects.toThrow(/items_deposit_cents_check/);
+    });
+
+    it('keeps rental limits within booking lengths, the minimum not above the maximum', async () => {
+      await insertItem({
+        min_rental_hours: BOOKING_MIN_HOURS,
+        max_rental_hours: BOOKING_MAX_HOURS,
+      });
+      await insertItem({ min_rental_hours: 24, max_rental_hours: 24 });
+      await insertItem({ min_rental_hours: null, max_rental_hours: null });
+      await expect(
+        insertItem({ min_rental_hours: BOOKING_MIN_HOURS - 1 }),
+      ).rejects.toThrow(/items_min_rental_hours_check/);
+      await expect(
+        insertItem({ max_rental_hours: BOOKING_MAX_HOURS + 1 }),
+      ).rejects.toThrow(/items_max_rental_hours_check/);
+      await expect(
+        insertItem({ min_rental_hours: 48, max_rental_hours: 24 }),
+      ).rejects.toThrow(/items_rental_limits_order/);
     });
 
     it('sets both points and the offset together', async () => {
@@ -431,16 +451,38 @@ describe('Catalog schema (integration)', () => {
         await db.query(
           `SELECT table_name FROM information_schema.tables
             WHERE table_schema = 'catalog'
-              AND table_name IN ('items', 'item_photos', 'lenders', 'photo_file_deletions')
+              AND table_name IN ('items', 'item_photos', 'lenders',
+                                 'photo_file_deletions', 'verified_lenders')
             ORDER BY table_name`,
         )
       ).map((r: { table_name: string }) => r.table_name);
+    const itemColumns = async (): Promise<string[]> =>
+      (
+        await db.query(
+          `SELECT column_name FROM information_schema.columns
+            WHERE table_schema = 'catalog' AND table_name = 'items'
+              AND column_name LIKE '%rental%'
+            ORDER BY column_name`,
+        )
+      ).map((r: { column_name: string }) => r.column_name);
 
+    await db.undoLastMigration(); // rental limits, verified lenders
+    expect(await itemColumns()).toEqual([]);
+    expect(await tables()).toEqual([
+      'item_photos',
+      'items',
+      'lenders',
+      'photo_file_deletions',
+    ]);
     await db.undoLastMigration(); // photo pipeline
     expect(await tables()).toEqual(['item_photos', 'items', 'lenders']);
     await db.undoLastMigration(); // initial
     expect(await tables()).toEqual([]);
-    expect(await runMigrations(db)).toBe(2);
-    expect(await tables()).toHaveLength(4);
+    expect(await runMigrations(db)).toBe(3);
+    expect(await tables()).toHaveLength(5);
+    expect(await itemColumns()).toEqual([
+      'max_rental_hours',
+      'min_rental_hours',
+    ]);
   });
 });

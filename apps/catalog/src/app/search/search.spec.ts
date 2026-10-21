@@ -438,6 +438,8 @@ describe('Search and public item pages (integration)', () => {
       category: 'tools',
       pricing: { free: false, dailyCents: 500 },
       depositCents: 1000,
+      minRentalHours: null,
+      maxRentalHours: null,
       photos: [
         { id: expect.any(String), urls: expect.any(Object) },
         { id: expect.any(String), urls: expect.any(Object) },

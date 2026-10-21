@@ -414,6 +414,7 @@ describe('Catalog routes (integration)', () => {
       ['INVALID_STATE', 409],
       ['ITEM_LIMIT_REACHED', 409],
       ['PHOTO_LIMIT_REACHED', 409],
+      ['EMAIL_NOT_VERIFIED', 403],
       ['INTERNAL', 500],
     ])('maps Catalog’s %s to %d with its message', async (code, status) => {
       catalog.fail(CatalogRpc.publish, { code, message: `Because ${code}` });

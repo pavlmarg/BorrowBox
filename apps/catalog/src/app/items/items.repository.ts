@@ -27,6 +27,8 @@ export interface ItemRow {
   weekly_cents: number | null;
   monthly_cents: number | null;
   deposit_cents: number;
+  min_rental_hours: number | null;
+  max_rental_hours: number | null;
   lat: number | null;
   lng: number | null;
   public_lat: number | null;
@@ -45,6 +47,8 @@ export interface ItemFields {
   category: ItemCategory;
   pricing: ItemPricing;
   depositCents: number;
+  minRentalHours: number | null;
+  maxRentalHours: number | null;
 }
 
 interface PhotoRow {
@@ -59,6 +63,7 @@ interface PhotoRow {
 const ITEM_SELECT =
   'SELECT id, lender_id, status, title, description, category, free,' +
   ' hourly_cents, daily_cents, weekly_cents, monthly_cents, deposit_cents,' +
+  ' min_rental_hours, max_rental_hours,' +
   ' ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng,' +
   ' ST_Y(location_public::geometry) AS public_lat,' +
   ' ST_X(location_public::geometry) AS public_lng,' +
@@ -139,8 +144,8 @@ export async function insertItem(
   const rows: unknown[] = await tx.query(
     `INSERT INTO items (id, lender_id, title, description, category, free,
                         hourly_cents, daily_cents, weekly_cents, monthly_cents,
-                        deposit_cents)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                        deposit_cents, min_rental_hours, max_rental_hours)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
      ON CONFLICT (id) DO NOTHING
      RETURNING id`,
     [itemId, lenderId, ...fieldValues(fields)],
@@ -157,7 +162,8 @@ export async function updateItemFields(
     `UPDATE items
         SET title = $2, description = $3, category = $4, free = $5,
             hourly_cents = $6, daily_cents = $7, weekly_cents = $8,
-            monthly_cents = $9, deposit_cents = $10, updated_at = now()
+            monthly_cents = $9, deposit_cents = $10,
+            min_rental_hours = $11, max_rental_hours = $12, updated_at = now()
       WHERE id = $1`,
     [itemId, ...fieldValues(fields)],
   );
@@ -175,6 +181,8 @@ function fieldValues(fields: ItemFields): unknown[] {
     pricing.weeklyCents ?? null,
     pricing.monthlyCents ?? null,
     fields.depositCents,
+    fields.minRentalHours,
+    fields.maxRentalHours,
   ];
 }
 
@@ -357,6 +365,8 @@ export function toFields(row: ItemRow): ItemFields {
     category: row.category,
     pricing: toPricing(row),
     depositCents: row.deposit_cents,
+    minRentalHours: row.min_rental_hours,
+    maxRentalHours: row.max_rental_hours,
   };
 }
 
@@ -369,6 +379,8 @@ export function toSnapshot(row: ItemRow): ItemSnapshotV1 {
     category: row.category,
     pricing: toPricing(row),
     depositCents: row.deposit_cents,
+    minRentalHours: row.min_rental_hours,
+    maxRentalHours: row.max_rental_hours,
     status: row.status,
   };
 }
@@ -407,6 +419,8 @@ export function toOwnItem(
     category: row.category,
     pricing: toPricing(row),
     depositCents: row.deposit_cents,
+    minRentalHours: row.min_rental_hours,
+    maxRentalHours: row.max_rental_hours,
     location: point(row.lat, row.lng),
     approximateLocation: point(row.public_lat, row.public_lng),
     photos: photos.map((p) => toPhotoView(p, photosBaseUrl)),

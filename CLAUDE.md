@@ -57,7 +57,8 @@ ADRs — read the relevant one before touching that area:
 - `@borrowbox/auth` also provides `RpcJwtAuthGuard` for services; `@CurrentUser()` works for HTTP and RPC.
 - `@borrowbox/contracts` also holds RPC contracts (`<Service>Rpc`, `<Service>RpcContract`, `RpcRequest`, `RpcErrorBody`) and shared input rules (`isValidPassword`, length limits) used by the PWA, the gateway and services.
 - `@borrowbox/service-kit` — a service's plumbing: `BaseServiceConfig`, `DatabaseModule.forRoot(MIGRATIONS)`, `EventsModule`, `ServiceError` + `RpcErrorFilter`, `runService()`; `@borrowbox/service-kit/testing` has `startServiceHarness()` for service harnesses.
-- `@borrowbox/testing` — `startPostgres()` (real per-service roles), `startRabbitMq()`, `startRedis()`. Spec files only (lint-enforced).
+- `@borrowbox/mailer` — `createMailer(config)` (SMTP via nodemailer; disabled without a host) and `renderEmail()` (the shared, HTML-escaped layout). Identity now, Notifications later.
+- `@borrowbox/testing` — `startPostgres()` (real per-service roles), `startRabbitMq()`, `startRedis()`, `startMailpit()`. Spec files only (lint-enforced).
 
 ## Non-negotiable invariants
 

@@ -41,3 +41,16 @@ export interface UserDeletionRequestedV1Payload {
 }
 export const UserDeletionRequestedV1 =
   defineEvent<UserDeletionRequestedV1Payload>()('user.deletion_requested', 1);
+
+/**
+ * The account's email is proven to be the user's: an email link (verification
+ * or password reset) or a verified Google sign-in. Sent once per account.
+ * Catalog requires it to publish items.
+ */
+export interface UserEmailVerifiedV1Payload {
+  userId: string;
+}
+export const UserEmailVerifiedV1 = defineEvent<UserEmailVerifiedV1Payload>()(
+  'user.email_verified',
+  1,
+);

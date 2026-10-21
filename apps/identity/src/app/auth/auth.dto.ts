@@ -24,7 +24,7 @@ const trim = () =>
   Transform(({ value }) => (typeof value === 'string' ? value.trim() : value));
 
 /** 8–64 characters with at least one letter and one digit (shared rule in @borrowbox/contracts). */
-function IsAcceptablePassword(): PropertyDecorator {
+export function IsAcceptablePassword(): PropertyDecorator {
   return (target, propertyName) =>
     registerDecorator({
       name: 'isAcceptablePassword',

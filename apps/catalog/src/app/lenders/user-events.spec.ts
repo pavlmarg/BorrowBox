@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   createEnvelope,
   UserDeletionRequestedV1,
+  UserEmailVerifiedV1,
   UserProfileUpdatedV1,
   UserRegisteredV1,
   type EventEnvelope,
@@ -79,6 +80,15 @@ describe('User events consumer (integration)', () => {
     );
   const deleted = (userId: string, minute: number) =>
     createEnvelope(UserDeletionRequestedV1, { userId }, at(minute));
+  const verified = (userId: string, minute: number) =>
+    createEnvelope(UserEmailVerifiedV1, { userId }, at(minute));
+  const verifiedAt = async (userId: string): Promise<Date | null> => {
+    const [row] = await catalog.dataSource.query(
+      `SELECT verified_at FROM verified_lenders WHERE user_id = $1`,
+      [userId],
+    );
+    return row?.verified_at ?? null;
+  };
 
   /** Publishes through the broker and waits until Catalog has handled it. */
   async function deliver(envelope: EventEnvelope): Promise<void> {
@@ -237,6 +247,30 @@ describe('User events consumer (integration)', () => {
       [deletion.eventId],
     );
     expect(count).toBe(1);
+  });
+
+  it('records a verified email once, even before the registration arrives', async () => {
+    const userId = randomUUID();
+    const first = verified(userId, 5);
+    await deliver(first);
+    expect(await verifiedAt(userId)).toEqual(at(5).occurredAt);
+    expect(await lender(userId)).toBeUndefined();
+
+    // A redelivery, and a later announcement, change nothing.
+    await catalog.app
+      .get(UserEventsConsumer)
+      .handle(first, UserEmailVerifiedV1.routingKey);
+    await deliver(verified(userId, 30));
+    expect(await verifiedAt(userId)).toEqual(at(5).occurredAt);
+  });
+
+  it('forgets a verified email on deletion, and ignores one arriving later', async () => {
+    const userId = randomUUID();
+    await deliver(verified(userId, 0));
+    await deliver(deleted(userId, 10));
+    expect(await verifiedAt(userId)).toBeNull();
+    await deliver(verified(userId, 5));
+    expect(await verifiedAt(userId)).toBeNull();
   });
 
   it('never brings a deleted user back, whatever arrives later', async () => {

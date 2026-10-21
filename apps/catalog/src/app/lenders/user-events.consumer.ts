@@ -7,6 +7,7 @@ import {
 import type { DataSource } from 'typeorm';
 import {
   UserDeletionRequestedV1,
+  UserEmailVerifiedV1,
   UserProfileUpdatedV1,
   UserRegisteredV1,
   type EventEnvelope,
@@ -17,20 +18,25 @@ import { DATA_SOURCE } from '@borrowbox/service-kit';
 import { EVENT_BUS } from '@borrowbox/service-kit';
 import { eraseItemsOfLender } from '../items/item-erasure';
 import { PhotoQueue } from '../photos/photo-queue';
-import { markLenderDeleted, saveLenderName } from './lenders.repository';
+import {
+  markLenderDeleted,
+  saveLenderName,
+  saveLenderVerified,
+} from './lenders.repository';
 import {
   InvalidEventError,
   parsePayload,
   UserDeletionPayload,
   UserNamePayload,
+  UserVerifiedPayload,
 } from './user-event-payloads';
 
 /** Also the consumer name in `processed_events`. */
 export const USER_EVENTS_QUEUE = 'catalog.user-events';
 
 /**
- * Identity's user events → Catalog's lender names, and GDPR erasure of a
- * deleted account's items. One queue for all three (RabbitMQ topology:
+ * Identity's user events → Catalog's lender names and verified lenders, and
+ * GDPR erasure of a deleted account's items. One queue for all four (RabbitMQ topology:
  * `catalog.user-events` + retries + DLQ, ADR-0001).
  */
 @Injectable()
@@ -50,6 +56,7 @@ export class UserEventsConsumer implements OnApplicationBootstrap {
       routingKeys: [
         UserRegisteredV1.routingKey,
         UserProfileUpdatedV1.routingKey,
+        UserEmailVerifiedV1.routingKey,
         UserDeletionRequestedV1.routingKey,
       ],
       handler: (envelope, { routingKey }) => this.handle(envelope, routingKey),
@@ -64,6 +71,13 @@ export class UserEventsConsumer implements OnApplicationBootstrap {
         const { userId, displayName } = parsePayload(envelope, UserNamePayload);
         await handleOnce(this.dataSource, USER_EVENTS_QUEUE, envelope, (tx) =>
           saveLenderName(tx, userId, displayName, envelope.occurredAt),
+        );
+        return;
+      }
+      case UserEmailVerifiedV1.routingKey: {
+        const { userId } = parsePayload(envelope, UserVerifiedPayload);
+        await handleOnce(this.dataSource, USER_EVENTS_QUEUE, envelope, (tx) =>
+          saveLenderVerified(tx, userId, envelope.occurredAt),
         );
         return;
       }

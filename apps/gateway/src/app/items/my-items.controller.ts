@@ -172,9 +172,15 @@ export class MyItemsController {
   @Post(':itemId/publish')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Publish a draft (needs a location and a processed photo)',
+    summary:
+      'Publish a draft (needs a verified email, a location and a processed photo)',
   })
   @ApiOkResponse({ type: OwnItemResponse })
+  @ApiResponse({
+    status: 403,
+    type: ApiErrorResponse,
+    description: 'EMAIL_NOT_VERIFIED',
+  })
   @ApiResponse({
     status: 409,
     type: ApiErrorResponse,
@@ -217,6 +223,11 @@ export class MyItemsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Show a paused item again' })
   @ApiOkResponse({ type: OwnItemResponse })
+  @ApiResponse({
+    status: 403,
+    type: ApiErrorResponse,
+    description: 'EMAIL_NOT_VERIFIED',
+  })
   @ApiResponse({
     status: 409,
     type: ApiErrorResponse,

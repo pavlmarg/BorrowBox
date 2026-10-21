@@ -192,6 +192,134 @@
         ]
       }
     },
+    "/api/auth/verify-email": {
+      "post": {
+        "description": "No sign-in needed: the token is the proof. Each link works once, for 24 hours.",
+        "operationId": "AuthController_verifyEmail",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "TOKEN_INVALID, TOKEN_EXPIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Confirm an email address with the token from its link",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/password-reset": {
+      "post": {
+        "description": "Always 202, whether or not the email has an account. At most one link per account per minute; a new link replaces older ones.",
+        "operationId": "AuthController_requestPasswordReset",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestPasswordResetBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": ""
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Email a link to choose a new password",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/password-reset/confirm": {
+      "post": {
+        "description": "Signs out every session (and clears this browser’s cookie) and marks the email verified. Each link works once, for 10 minutes.",
+        "operationId": "AuthController_resetPassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "VALIDATION_FAILED, TOKEN_INVALID, TOKEN_EXPIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Choose a new password with the token from a reset link",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/auth/google": {
       "get": {
         "operationId": "AuthController_googleStart",
@@ -363,6 +491,98 @@
           }
         ],
         "summary": "Delete my account (GDPR Art. 17)",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/me/verification-email": {
+      "post": {
+        "description": "Does nothing if the email is already verified, or within a minute of the last link. A new link replaces older ones.",
+        "operationId": "MeController_sendVerificationEmail",
+        "parameters": [],
+        "responses": {
+          "202": {
+            "description": ""
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Email me a new verification link",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/me/password": {
+      "post": {
+        "description": "Signs out my other sessions; this one stays. Accounts without a password ask for a reset link instead (`POST /auth/password-reset`).",
+        "operationId": "MeController_changePassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "INVALID_CREDENTIALS (wrong current password)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PASSWORD_NOT_SET",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Change my password",
         "tags": [
           "me"
         ]
@@ -860,6 +1080,16 @@
               }
             }
           },
+          "403": {
+            "description": "EMAIL_NOT_VERIFIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
           "404": {
             "description": "NOT_FOUND",
             "content": {
@@ -886,7 +1116,7 @@
             "bearer": []
           }
         ],
-        "summary": "Publish a draft (needs a location and a processed photo)",
+        "summary": "Publish a draft (needs a verified email, a location and a processed photo)",
         "tags": [
           "my items"
         ]
@@ -1004,6 +1234,16 @@
           },
           "401": {
             "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EMAIL_NOT_VERIFIED",
             "content": {
               "application/json": {
                 "schema": {
@@ -1857,6 +2097,53 @@
           "password"
         ]
       },
+      "VerifyEmailBody": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "The `t` value from the verification link’s fragment"
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "RequestPasswordResetBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "ResetPasswordBody": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "The `t` value from the reset link’s fragment"
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 64,
+            "format": "password",
+            "description": "At least one letter and one digit"
+          }
+        },
+        "required": [
+          "token",
+          "newPassword"
+        ]
+      },
       "UpdateProfileBody": {
         "type": "object",
         "properties": {
@@ -1873,6 +2160,27 @@
             ]
           }
         }
+      },
+      "ChangePasswordBody": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "format": "password",
+            "maxLength": 256
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 64,
+            "format": "password",
+            "description": "At least one letter and one digit"
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ]
       },
       "ExportedUser": {
         "type": "object",
@@ -2177,6 +2485,16 @@
           "depositCents": {
             "type": "number"
           },
+          "minRentalHours": {
+            "type": "number",
+            "nullable": true,
+            "description": "Shortest booking in hours, or null for no limit"
+          },
+          "maxRentalHours": {
+            "type": "number",
+            "nullable": true,
+            "description": "Longest booking in hours, or null for no limit beyond the platform’s"
+          },
           "location": {
             "nullable": true,
             "description": "The exact pin; only ever sent to the owner",
@@ -2225,6 +2543,8 @@
           "category",
           "pricing",
           "depositCents",
+          "minRentalHours",
+          "maxRentalHours",
           "location",
           "approximateLocation",
           "photos",
@@ -2249,6 +2569,12 @@
               }
             ]
           },
+          "emailVerifiedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "When Catalog learned the email was verified, or null"
+          },
           "items": {
             "type": "array",
             "items": {
@@ -2259,6 +2585,7 @@
         "required": [
           "exportedAt",
           "lenderProfile",
+          "emailVerifiedAt",
           "items"
         ]
       },
@@ -2320,6 +2647,20 @@
             "type": "number",
             "minimum": 0,
             "maximum": 500000
+          },
+          "minRentalHours": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 2160,
+            "description": "Shortest booking in hours; null or omitted = no limit. Not above `maxRentalHours`."
+          },
+          "maxRentalHours": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 2160,
+            "description": "Longest booking in hours; null or omitted = no limit beyond the platform’s 90 days."
           }
         },
         "required": [
@@ -2356,6 +2697,20 @@
             "type": "number",
             "minimum": 0,
             "maximum": 500000
+          },
+          "minRentalHours": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 2160,
+            "description": "Shortest booking in hours; null clears it."
+          },
+          "maxRentalHours": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 2160,
+            "description": "Longest booking in hours; null clears it."
           }
         }
       },
@@ -2898,6 +3253,16 @@
           "depositCents": {
             "type": "number"
           },
+          "minRentalHours": {
+            "type": "number",
+            "nullable": true,
+            "description": "Shortest booking in hours, or null for no limit"
+          },
+          "maxRentalHours": {
+            "type": "number",
+            "nullable": true,
+            "description": "Longest booking in hours, or null for no limit beyond the platform’s"
+          },
           "photos": {
             "type": "array",
             "items": {
@@ -2922,6 +3287,8 @@
           "category",
           "pricing",
           "depositCents",
+          "minRentalHours",
+          "maxRentalHours",
           "photos",
           "lender",
           "approximateLocation",

@@ -36,7 +36,7 @@ function IsAcceptablePassword(): PropertyDecorator {
       target: target.constructor,
       propertyName: propertyName as string,
       options: {
-        message: `password must be ${PASSWORD_MIN_LENGTH}-${PASSWORD_MAX_LENGTH} characters with at least one letter and one digit`,
+        message: `$property must be ${PASSWORD_MIN_LENGTH}-${PASSWORD_MAX_LENGTH} characters with at least one letter and one digit`,
       },
       validator: {
         validate: (value: unknown) =>
@@ -116,6 +116,62 @@ export class DeleteAccountBody {
 }
 
 // --- Responses --------------------------------------------------------------
+
+/** Email links carry a 43-character token; anything else is simply `TOKEN_INVALID`. */
+const TOKEN_MAX_LENGTH = 128;
+
+export class VerifyEmailBody {
+  @ApiProperty({
+    maxLength: TOKEN_MAX_LENGTH,
+    description: 'The `t` value from the verification link’s fragment',
+  })
+  @IsString()
+  @MaxLength(TOKEN_MAX_LENGTH)
+  token!: string;
+}
+
+export class RequestPasswordResetBody {
+  @ApiProperty({ format: 'email', maxLength: EMAIL_MAX_LENGTH })
+  @trim()
+  @IsString()
+  @MaxLength(EMAIL_MAX_LENGTH)
+  email!: string;
+}
+
+export class ResetPasswordBody {
+  @ApiProperty({
+    maxLength: TOKEN_MAX_LENGTH,
+    description: 'The `t` value from the reset link’s fragment',
+  })
+  @IsString()
+  @MaxLength(TOKEN_MAX_LENGTH)
+  token!: string;
+
+  @ApiProperty({
+    minLength: PASSWORD_MIN_LENGTH,
+    maxLength: PASSWORD_MAX_LENGTH,
+    format: 'password',
+    description: 'At least one letter and one digit',
+  })
+  @IsAcceptablePassword()
+  newPassword!: string;
+}
+
+export class ChangePasswordBody {
+  @ApiProperty({ format: 'password', maxLength: 256 })
+  @IsString()
+  @MaxLength(256)
+  currentPassword!: string;
+
+  @ApiProperty({
+    minLength: PASSWORD_MIN_LENGTH,
+    maxLength: PASSWORD_MAX_LENGTH,
+    format: 'password',
+    description: 'At least one letter and one digit',
+  })
+  @IsAcceptablePassword()
+  newPassword!: string;
+}
 
 export class UserProfileResponse {
   @ApiProperty({ format: 'uuid' }) id!: string;

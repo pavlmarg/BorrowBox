@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createAccessTokenSigner, pemFromEnv } from '@borrowbox/auth';
 import type { IdentityConfig } from '../config';
+import { EmailModule } from '../email/email.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PasswordHasher } from './password-hasher';
@@ -9,6 +10,7 @@ import { ACCESS_TOKEN_SIGNER, SessionService } from './session.service';
 
 /** Email + password: register, login, refresh, logout. */
 @Module({
+  imports: [EmailModule],
   controllers: [AuthController],
   providers: [
     {

@@ -42,6 +42,8 @@ export type CatalogErrorCode =
   | 'ITEM_LIMIT_REACHED'
   /** The action doesn't fit the item's status, e.g. pausing a draft. */
   | 'INVALID_STATE'
+  /** Publishing or unpausing needs a verified email (`UserProfile.emailVerified`). */
+  | 'EMAIL_NOT_VERIFIED'
   /** Unexpected failure; details are only in Catalog's logs. */
   | 'INTERNAL';
 
@@ -64,15 +66,20 @@ export interface CreateItemRequest {
   category: ItemCategory;
   pricing: ItemPricing;
   depositCents: number;
+  /** Hours; omitted or null = no limit (see `isValidRentalLimits`). */
+  minRentalHours?: number | null;
+  maxRentalHours?: number | null;
 }
 
-/** Only the fields present change. */
+/** Only the fields present change; null clears a rental limit. */
 export interface UpdateItemRequest extends ItemRef {
   title?: string;
   description?: string;
   category?: ItemCategory;
   pricing?: ItemPricing;
   depositCents?: number;
+  minRentalHours?: number | null;
+  maxRentalHours?: number | null;
 }
 
 /** The exact point the lender dropped; Catalog derives the fuzzed one (ADR-0007). */
@@ -113,6 +120,8 @@ export interface CatalogDataExport {
    * on their items), or null if Catalog hasn't received it.
    */
   lenderProfile: { displayName: string; updatedAt: string } | null;
+  /** When Catalog learned the email was verified (publishing needs it), or null. */
+  emailVerifiedAt: string | null;
   items: OwnItem[];
 }
 
