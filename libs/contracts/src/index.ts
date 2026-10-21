@@ -10,3 +10,6 @@ export * from './lib/catalog/validation';
 export * from './lib/catalog/events';
 export * from './lib/catalog/rpc';
 export * from './lib/bookings/periods';
+export * from './lib/bookings/bookings';
+export * from './lib/bookings/events';
+export * from './lib/bookings/rpc';
