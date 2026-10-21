@@ -47,6 +47,18 @@ describe('startPostgres (infra init script)', () => {
     });
   });
 
+  it('has btree_gist available for exclusion constraints on uuid + range', async () => {
+    await asService('bookings', async (c) => {
+      await c.query(`
+        CREATE TABLE t (
+          item_id uuid NOT NULL,
+          period  tstzrange NOT NULL,
+          EXCLUDE USING gist (item_id WITH =, period WITH &&)
+        )`);
+      await c.query('DROP TABLE t');
+    });
+  });
+
   it('denies reading or writing another service schema', async () => {
     await asService('catalog', (c) => c.query('CREATE TABLE items (id int)'));
     await asService('bookings', async (c) => {
