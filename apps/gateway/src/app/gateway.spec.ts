@@ -545,9 +545,9 @@ describe('Gateway (integration)', () => {
         .post('/api/auth/password-reset/confirm')
         .send({ token: TOKEN, newPassword: 'battery staple 7' })
         .expect(204);
-      expect(identity.callsTo(IdentityRpc.resetPassword)[0].message.data).toEqual(
-        { token: TOKEN, newPassword: 'battery staple 7' },
-      );
+      expect(
+        identity.callsTo(IdentityRpc.resetPassword)[0].message.data,
+      ).toEqual({ token: TOKEN, newPassword: 'battery staple 7' });
       expect(cookie(res, 'bb_refresh')).toMatch(/Expires=Thu, 01 Jan 1970/);
     });
 

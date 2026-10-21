@@ -8,9 +8,7 @@ import type { MigrationInterface, QueryRunner } from 'typeorm';
  * Limits are literals on purpose (see CatalogInitial): 1 hour to 90 days,
  * mirroring BOOKING_MIN_HOURS / BOOKING_MAX_HOURS in libs/contracts.
  */
-export class CatalogRentalLimitsVerifiedLenders1761100000000
-  implements MigrationInterface
-{
+export class CatalogRentalLimitsVerifiedLenders1761100000000 implements MigrationInterface {
   name = 'CatalogRentalLimitsVerifiedLenders1761100000000';
 
   async up(queryRunner: QueryRunner): Promise<void> {

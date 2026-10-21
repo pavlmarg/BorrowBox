@@ -7,9 +7,7 @@ import type { MigrationInterface, QueryRunner } from 'typeorm';
  * event. Plain SQL with the v1 envelope spelled out, so this migration
  * never changes with the code.
  */
-export class IdentityAnnounceVerifiedEmails1761000000001
-  implements MigrationInterface
-{
+export class IdentityAnnounceVerifiedEmails1761000000001 implements MigrationInterface {
   name = 'IdentityAnnounceVerifiedEmails1761000000001';
 
   async up(queryRunner: QueryRunner): Promise<void> {

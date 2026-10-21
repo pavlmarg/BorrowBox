@@ -844,14 +844,17 @@ describe('Item commands (integration)', () => {
     });
 
     it.each([
-      ['a minimum above the maximum', { minRentalHours: 48, maxRentalHours: 24 }],
+      [
+        'a minimum above the maximum',
+        { minRentalHours: 48, maxRentalHours: 24 },
+      ],
       ['zero hours', { minRentalHours: 0 }],
       ['more than 90 days', { maxRentalHours: BOOKING_MAX_HOURS + 1 }],
       ['part of an hour', { minRentalHours: 1.5 }],
     ])('refuse %s', async (_, limits) => {
-      expect(
-        (await failure(create(randomUUID(), limits))).code,
-      ).toBe('VALIDATION_FAILED');
+      expect((await failure(create(randomUUID(), limits))).code).toBe(
+        'VALIDATION_FAILED',
+      );
     });
 
     it('are checked against the stored one when only one is sent', async () => {

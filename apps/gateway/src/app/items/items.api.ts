@@ -193,7 +193,8 @@ export class CreateItemBody implements CreateItemRequest {
     nullable: true,
     minimum: BOOKING_MIN_HOURS,
     maximum: BOOKING_MAX_HOURS,
-    description: 'Shortest booking in hours; null or omitted = no limit. Not above `maxRentalHours`.',
+    description:
+      'Shortest booking in hours; null or omitted = no limit. Not above `maxRentalHours`.',
   })
   @IsOptional()
   @IsInt()
@@ -206,7 +207,8 @@ export class CreateItemBody implements CreateItemRequest {
     nullable: true,
     minimum: BOOKING_MIN_HOURS,
     maximum: BOOKING_MAX_HOURS,
-    description: 'Longest booking in hours; null or omitted = no limit beyond the platform’s 90 days.',
+    description:
+      'Longest booking in hours; null or omitted = no limit beyond the platform’s 90 days.',
   })
   @IsOptional()
   @IsInt()
@@ -528,7 +530,8 @@ export class OwnItemResponse {
   @ApiProperty({
     type: Number,
     nullable: true,
-    description: 'Longest booking in hours, or null for no limit beyond the platform’s',
+    description:
+      'Longest booking in hours, or null for no limit beyond the platform’s',
   })
   maxRentalHours!: number | null;
   @ApiProperty({
@@ -611,7 +614,8 @@ export class PublicItemDetailResponse {
   @ApiProperty({
     type: Number,
     nullable: true,
-    description: 'Longest booking in hours, or null for no limit beyond the platform’s',
+    description:
+      'Longest booking in hours, or null for no limit beyond the platform’s',
   })
   maxRentalHours!: number | null;
   @ApiProperty({ type: [PublicPhotoResponse] }) photos!: PublicPhotoResponse[];

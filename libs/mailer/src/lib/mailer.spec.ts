@@ -46,7 +46,12 @@ describe('createMailer', () => {
       { port: 25, secure: false, from: 'x@example.com' },
       { warn },
     );
-    await mailer.send({ to: 'a@example.com', subject: 's', text: 't', html: 'h' });
+    await mailer.send({
+      to: 'a@example.com',
+      subject: 's',
+      text: 't',
+      html: 'h',
+    });
     expect(warn).toHaveBeenCalledWith(
       expect.not.stringContaining('a@example.com'),
     );
@@ -88,7 +93,12 @@ describe('createMailer', () => {
         from: 'no-reply@borrowbox.test',
       });
       await expect(
-        mailer.send({ to: 'secret@example.com', subject: 's', text: 't', html: 'h' }),
+        mailer.send({
+          to: 'secret@example.com',
+          subject: 's',
+          text: 't',
+          html: 'h',
+        }),
       ).rejects.toThrow(/^SMTP send failed \([A-Z]+\)$/);
       mailer.close();
     });

@@ -165,8 +165,11 @@ describe('Identity email links (integration)', () => {
       const newToken = tokenIn(emails[1], '/auth/verify-email');
 
       expect(
-        (await failure(identity.send(IdentityRpc.verifyEmail, { token: oldToken })))
-          .code,
+        (
+          await failure(
+            identity.send(IdentityRpc.verifyEmail, { token: oldToken }),
+          )
+        ).code,
       ).toBe('TOKEN_INVALID');
       await identity.send(IdentityRpc.verifyEmail, { token: newToken });
 
