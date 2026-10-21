@@ -274,11 +274,12 @@ export async function deleteStaleConversations(
   tx: EntityManager,
   before: Date,
 ): Promise<number> {
-  const rows: unknown[] = await tx.query(
-    `DELETE FROM conversations WHERE last_message_at < $1 RETURNING id`,
+  // TypeORM returns [rows, rowCount] for DELETE.
+  const [, deleted]: [unknown[], number] = await tx.query(
+    `DELETE FROM conversations WHERE last_message_at < $1`,
     [before],
   );
-  return rows.length;
+  return deleted;
 }
 
 // --- messages -----------------------------------------------------------------
