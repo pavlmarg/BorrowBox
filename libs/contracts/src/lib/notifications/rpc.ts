@@ -6,9 +6,7 @@
 import type { Locale } from '../identity/rpc';
 
 export type NotificationsErrorCode =
-  | 'VALIDATION_FAILED'
-  | 'UNAUTHENTICATED'
-  | 'INTERNAL';
+  'VALIDATION_FAILED' | 'UNAUTHENTICATED' | 'INTERNAL';
 
 export const EMAIL_KINDS = [
   'BOOKING_REQUESTED',
@@ -18,6 +16,7 @@ export const EMAIL_KINDS = [
   'BOOKING_EXPIRED',
   'BOOKING_CANCELLED',
   'OFFER_RECEIVED',
+  'OFFER_BOOKED',
   'MESSAGES_UNREAD',
 ] as const;
 export type EmailKind = (typeof EMAIL_KINDS)[number];
