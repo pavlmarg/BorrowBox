@@ -17,15 +17,29 @@ export interface ServiceBootstrapOptions {
   /** Config keys of the TCP bind address, e.g. `CATALOG_HOST` / `CATALOG_PORT`. */
   hostKey: string;
   portKey: string;
+  /**
+   * One-off commands, e.g. `republish-items`: `node main.js <name>` runs it
+   * with only config + database (`migrateModule`), logs its summary and exits.
+   */
+  tasks?: Record<string, (dataSource: DataSource) => Promise<string>>;
 }
 
 /**
  * A service's `main.ts`: `node main.js migrate` (production, `nx run <app>:migrate`)
- * applies pending migrations and exits; otherwise it serves the gateway over
- * NestJS TCP (ADR-0005).
+ * applies pending migrations and exits; `node main.js <task>` runs one of
+ * `tasks`; otherwise it serves the gateway over NestJS TCP (ADR-0005).
  */
 export function runService(options: ServiceBootstrapOptions): void {
-  const run = process.argv[2] === 'migrate' ? migrate : serve;
+  const command = process.argv[2];
+  const task = command ? options.tasks?.[command] : undefined;
+  const run =
+    command === undefined
+      ? serve
+      : command === 'migrate'
+        ? migrate
+        : task
+          ? (o: ServiceBootstrapOptions) => runTask(o, command, task)
+          : () => Promise.reject(new Error(`Unknown command "${command}"`));
   run(options).catch((err: unknown) => {
     Logger.error(
       err instanceof Error ? err.message : String(err),
@@ -43,6 +57,19 @@ async function migrate({
   const ran = await runMigrations(app.get<DataSource>(DATA_SOURCE));
   Logger.log(`${ran} migration(s) applied`, 'Migrate');
   await app.close();
+}
+
+async function runTask(
+  { migrateModule }: ServiceBootstrapOptions,
+  name: string,
+  task: (dataSource: DataSource) => Promise<string>,
+): Promise<void> {
+  const app = await NestFactory.createApplicationContext(migrateModule);
+  try {
+    Logger.log(await task(app.get<DataSource>(DATA_SOURCE)), name);
+  } finally {
+    await app.close();
+  }
 }
 
 async function serve({
