@@ -17,3 +17,6 @@ export * from './lib/messaging/messaging';
 export * from './lib/messaging/events';
 export * from './lib/messaging/rpc';
 export * from './lib/notifications/rpc';
+export * from './lib/payments/payments';
+export * from './lib/payments/events';
+export * from './lib/payments/rpc';
