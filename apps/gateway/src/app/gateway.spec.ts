@@ -10,14 +10,22 @@ import {
   type AccessTokenSigner,
 } from '@borrowbox/auth';
 import {
+  BookingsRpc,
   CatalogRpc,
   IdentityRpc,
+  MessagingRpc,
+  NotificationsRpc,
   type AuthSession,
   type RpcRequest,
   type UserProfile,
 } from '@borrowbox/contracts';
 import { startRedis, type TestRedis } from '@borrowbox/testing';
-import { FakeCatalog, FakeIdentity } from '../testing/fake-service';
+import {
+  FakeBookings,
+  FakeCatalog,
+  FakeIdentity,
+  FakeNotifications,
+} from '../testing/fake-service';
 
 const WEB = 'http://localhost:4200';
 const GOOGLE_AUTH = 'https://accounts.example/o/oauth2/auth';
@@ -46,6 +54,8 @@ describe('Gateway (integration)', () => {
   let redis: TestRedis;
   let identity: FakeIdentity;
   let catalog: FakeCatalog;
+  let bookings: FakeBookings;
+  let notifications: FakeNotifications;
   let app: NestExpressApplication;
   let signer: AccessTokenSigner;
   let otherSigner: AccessTokenSigner;
@@ -56,7 +66,14 @@ describe('Gateway (integration)', () => {
     redis = await startRedis();
     identity = new FakeIdentity();
     catalog = new FakeCatalog();
-    await Promise.all([identity.start(), catalog.start()]);
+    bookings = new FakeBookings();
+    notifications = new FakeNotifications();
+    await Promise.all([
+      identity.start(),
+      catalog.start(),
+      bookings.start(),
+      notifications.start(),
+    ]);
 
     const keys = generateKeyPairSync('ed25519', {
       publicKeyEncoding: { type: 'spki', format: 'pem' },
@@ -81,6 +98,10 @@ describe('Gateway (integration)', () => {
       IDENTITY_PORT: String(identity.port),
       CATALOG_HOST: '127.0.0.1',
       CATALOG_PORT: String(catalog.port),
+      BOOKINGS_HOST: '127.0.0.1',
+      BOOKINGS_PORT: String(bookings.port),
+      NOTIFICATIONS_HOST: '127.0.0.1',
+      NOTIFICATIONS_PORT: String(notifications.port),
       RPC_TIMEOUT_MS: '1000',
       COOKIE_SECRET: 'test-cookie-secret-0123456789abcdef',
       JWT_PUBLIC_KEY: keys.publicKey,
@@ -109,7 +130,12 @@ describe('Gateway (integration)', () => {
 
   afterAll(async () => {
     await app?.close();
-    await Promise.all([identity?.stop(), catalog?.stop()]);
+    await Promise.all([
+      identity?.stop(),
+      catalog?.stop(),
+      bookings?.stop(),
+      notifications?.stop(),
+    ]);
     await redisClient?.quit();
     process.env = savedEnv;
     await redis?.stop();
@@ -118,6 +144,8 @@ describe('Gateway (integration)', () => {
   beforeEach(async () => {
     identity.reset();
     catalog.reset();
+    bookings.reset();
+    notifications.reset();
     await redisClient.flushall(); // rate-limit counters
   });
 
@@ -443,24 +471,50 @@ describe('Gateway (integration)', () => {
         emailVerifiedAt: null,
         items: [],
       };
+      const bookingsExport = { exportedAt: 'b', asRenter: [], asLender: [] };
+      const messagingExport = { exportedAt: 'm', conversations: [] };
+      const notificationsExport = { exportedAt: 'n', emails: [] };
       identity.on(IdentityRpc.exportMe, () => exported);
       catalog.on(CatalogRpc.exportMe, () => catalogExport);
+      bookings.on(BookingsRpc.exportMe, () => bookingsExport);
+      bookings.on(MessagingRpc.exportMe, () => messagingExport);
+      notifications.on(NotificationsRpc.exportMe, () => notificationsExport);
       const res = await http()
         .get('/api/me/export')
         .set('Authorization', await bearer())
         .expect(200);
-      expect(res.body).toEqual({ identity: exported, catalog: catalogExport });
-      // Both services verify the same token again.
+      expect(res.body).toEqual({
+        identity: exported,
+        catalog: catalogExport,
+        bookings: bookingsExport,
+        messaging: messagingExport,
+        notifications: notificationsExport,
+      });
+      // Every service verifies the same token again.
+      const token = identity.callsTo(IdentityRpc.exportMe)[0].message
+        .accessToken;
       expect(catalog.callsTo(CatalogRpc.exportMe)[0].message.accessToken).toBe(
-        identity.callsTo(IdentityRpc.exportMe)[0].message.accessToken,
+        token,
       );
+      expect(
+        bookings.callsTo(BookingsRpc.exportMe)[0].message.accessToken,
+      ).toBe(token);
+      expect(
+        notifications.callsTo(NotificationsRpc.exportMe)[0].message.accessToken,
+      ).toBe(token);
       expect(res.headers['content-disposition']).toMatch(/^attachment;/);
       expect(res.headers['cache-control']).toBe('no-store');
     });
 
     it('fails the whole export with 503 when a service does not answer', async () => {
       identity.on(IdentityRpc.exportMe, () => ({ exportedAt: 'x' }));
-      catalog.on(CatalogRpc.exportMe, () => new Promise(() => undefined));
+      catalog.on(CatalogRpc.exportMe, () => ({ exportedAt: 'x' }));
+      bookings.on(BookingsRpc.exportMe, () => ({ exportedAt: 'x' }));
+      bookings.on(MessagingRpc.exportMe, () => ({ exportedAt: 'x' }));
+      notifications.on(
+        NotificationsRpc.exportMe,
+        () => new Promise(() => undefined),
+      );
       const res = await http()
         .get('/api/me/export')
         .set('Authorization', await bearer())

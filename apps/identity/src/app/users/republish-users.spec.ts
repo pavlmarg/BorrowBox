@@ -2,7 +2,7 @@ import type { DataSource } from 'typeorm';
 import { createServiceDataSource } from '@borrowbox/service-kit';
 import { startPostgres, type TestPostgres } from '@borrowbox/testing';
 import { MIGRATIONS } from '../database/database.module';
-import { republishUsers } from './republish-users';
+import { republishRegistered, republishUsers } from './republish-users';
 
 /** `nx run identity:republish-users`, for services that started later. */
 describe('republishUsers (integration)', () => {
@@ -58,5 +58,20 @@ describe('republishUsers (integration)', () => {
       },
     ]);
     expect(JSON.stringify(rows)).not.toContain('@example.com');
+  });
+
+  it('re-sends user.registered with the email when asked to', async () => {
+    await db.query(`DELETE FROM outbox`);
+    await republishRegistered(db);
+    const rows: Array<{ routing_key: string; email: string | null }> =
+      await db.query(
+        `SELECT routing_key, envelope->'payload'->>'email' AS email
+           FROM outbox ORDER BY id`,
+      );
+    expect(rows).toEqual([
+      { routing_key: 'user.registered.v1', email: 'v@example.com' },
+      { routing_key: 'user.email_verified.v1', email: null },
+      { routing_key: 'user.registered.v1', email: 'u@example.com' },
+    ]);
   });
 });

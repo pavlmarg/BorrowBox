@@ -61,7 +61,13 @@ export interface BookingPrice {
   depositCents: number;
   /** rent + deposit. Payments adds its fee in Phase 4. */
   totalCents: number;
+  /**
+   * The rate-card combination for the period. For a booking made from an
+   * offer, it's what the rate card would have used; the rent is the offer's.
+   */
   units: PriceUnits;
+  /** Set when the price came from the lender's offer in chat (ADR-0018). */
+  offerId: string | null;
 }
 
 export interface BookingParty {

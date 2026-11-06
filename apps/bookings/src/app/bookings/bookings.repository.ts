@@ -26,6 +26,7 @@ export interface BookingRow {
   status: BookingStatus;
   reason: BookingCloseReason | null;
   expires_at: Date | null;
+  offer_id: string | null;
   created_at: Date;
   updated_at: Date;
   renter_name: string | null;
@@ -45,13 +46,16 @@ export interface NewBooking {
   start: Date;
   end: Date;
   expiresAt: Date;
+  /** The offer the price came from (ADR-0018), if any. */
+  offerId?: string;
 }
 
 const SELECT_BOOKINGS = `
   SELECT b.id, b.item_id, b.lender_id, b.renter_id, b.item_title, b.pricing,
          b.units, b.rent_cents, b.deposit_cents,
          lower(b.period) AS start, upper(b.period) AS "end",
-         b.status, b.reason, b.expires_at, b.created_at, b.updated_at,
+         b.status, b.reason, b.expires_at, b.offer_id, b.created_at,
+         b.updated_at,
          r.display_name AS renter_name, l.display_name AS lender_name
     FROM bookings b
     LEFT JOIN users r ON r.user_id = b.renter_id
@@ -68,9 +72,9 @@ export async function insertBooking(
   await tx.query(
     `INSERT INTO bookings (id, item_id, lender_id, renter_id, item_title,
                            pricing, units, rent_cents, deposit_cents, period,
-                           status, expires_at)
+                           status, expires_at, offer_id)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
-             tstzrange($10, $11, '[)'), 'REQUESTED', $12)`,
+             tstzrange($10, $11, '[)'), 'REQUESTED', $12, $13)`,
     [
       b.id,
       b.itemId,
@@ -84,6 +88,7 @@ export async function insertBooking(
       b.start,
       b.end,
       b.expiresAt,
+      b.offerId ?? null,
     ],
   );
 }
@@ -306,6 +311,7 @@ export function toSnapshot(row: BookingRow): BookingSnapshotV1 {
     end: row.end.toISOString(),
     rentCents: row.rent_cents,
     depositCents: row.deposit_cents,
+    ...(row.offer_id ? { offerId: row.offer_id } : {}),
   };
 }
 
@@ -326,6 +332,7 @@ export function toView(row: BookingRow, userId: string): BookingView {
       depositCents: row.deposit_cents,
       totalCents: row.rent_cents + row.deposit_cents,
       units: row.units,
+      offerId: row.offer_id,
     },
     pricing: row.pricing,
     reason: row.reason,

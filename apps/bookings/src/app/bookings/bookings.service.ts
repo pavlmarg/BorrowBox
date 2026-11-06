@@ -16,10 +16,12 @@ import {
 import { addToOutbox } from '@borrowbox/outbox';
 import { DATA_SOURCE } from '@borrowbox/service-kit';
 import { ExpiryQueue } from '../expiry/expiry-queue';
+import { ChatPublisher, ChatPushes } from '../messaging/chat-publisher';
+import { addBookingLine } from '../messaging/system-messages';
 import { findItem, type ItemRow } from '../read-models/items.repository';
 import { findUser, lockUserBookings } from '../read-models/users.repository';
 import { BookingsError } from '../rpc/rpc-errors';
-import { moveBooking } from './booking-transitions';
+import { acceptBooking, moveBooking } from './booking-transitions';
 import type {
   ItemPeriodDto,
   ListBookingsDto,
@@ -36,7 +38,6 @@ import {
   listBookings,
   lockBooking,
   lockItemBookings,
-  lockOverlappingRequests,
   toSnapshot,
   toView,
   type BookingRow,
@@ -71,6 +72,7 @@ export class BookingsService {
   constructor(
     @Inject(DATA_SOURCE) private readonly dataSource: DataSource,
     private readonly expiry: ExpiryQueue,
+    private readonly chat: ChatPublisher,
   ) {}
 
   /** What the period would cost; public, so the item page can show it. */
@@ -113,6 +115,7 @@ export class BookingsService {
     dto: RequestBookingDto,
     correlationId: string,
   ): Promise<BookingView> {
+    const pushes = new ChatPushes();
     const booking = await this.dataSource.transaction(async (tx) => {
       // Before anything is read: serialises the renter's requests with each
       // other (the open-request limit) and with the account's erasure.
@@ -182,8 +185,10 @@ export class BookingsService {
           correlationId,
         }),
       );
+      await addBookingLine(tx, row, 'BOOKING_REQUESTED', pushes);
       return row;
     });
+    await this.chat.flush(pushes);
     if (booking.status === 'REQUESTED' && booking.expires_at) {
       await this.expiry.checkAt(booking.id, booking.expires_at);
     }
@@ -200,6 +205,7 @@ export class BookingsService {
     bookingId: string,
     correlationId: string,
   ): Promise<BookingView> {
+    const pushes = new ChatPushes();
     let booking: BookingRow;
     try {
       booking = await this.dataSource.transaction(async (tx) => {
@@ -218,30 +224,7 @@ export class BookingsService {
           throw invalidState('Only a request can be accepted');
         }
         assertNotDue(row);
-
-        const free = row.rent_cents + row.deposit_cents === 0;
-        const accepted = await moveBooking(
-          tx,
-          row,
-          { to: free ? 'CONFIRMED' : 'ACCEPTED' },
-          { correlationId },
-        );
-        const overlapping = await lockOverlappingRequests(
-          tx,
-          row.item_id,
-          row.start,
-          row.end,
-          row.id,
-        );
-        for (const id of overlapping) {
-          await moveBooking(
-            tx,
-            (await findBooking(tx, id)) as BookingRow,
-            { to: 'DECLINED', reason: 'OVERLAP' },
-            { correlationId },
-          );
-        }
-        return accepted;
+        return acceptBooking(tx, row, { correlationId }, pushes);
       });
     } catch (err) {
       if ((err as { code?: string }).code === EXCLUSION_VIOLATION) {
@@ -249,6 +232,7 @@ export class BookingsService {
       }
       throw err;
     }
+    await this.chat.flush(pushes);
     if (booking.status === 'ACCEPTED') {
       // Unpaid at its start, it expires (until Payments adds a timeout).
       await this.expiry.checkAt(booking.id, booking.start);
@@ -257,12 +241,13 @@ export class BookingsService {
   }
 
   /** The lender says no to a request. */
-  decline(
+  async decline(
     user: AuthUser,
     bookingId: string,
     correlationId: string,
   ): Promise<BookingView> {
-    return this.dataSource.transaction(async (tx) => {
+    const pushes = new ChatPushes();
+    const view = await this.dataSource.transaction(async (tx) => {
       await this.assertActive(tx, user);
       const row = await this.mustLockAsParty(tx, bookingId, user);
       if (row.lender_id !== user.userId) {
@@ -277,9 +262,12 @@ export class BookingsService {
         row,
         { to: 'DECLINED', reason: 'LENDER' },
         { correlationId },
+        pushes,
       );
       return toView(declined, user.userId);
     });
+    await this.chat.flush(pushes);
+    return view;
   }
 
   /**
@@ -287,12 +275,13 @@ export class BookingsService {
    * confirmed booking before it starts. Paid bookings follow the refund
    * policy (Phase 4).
    */
-  cancel(
+  async cancel(
     user: AuthUser,
     bookingId: string,
     correlationId: string,
   ): Promise<BookingView> {
-    return this.dataSource.transaction(async (tx) => {
+    const pushes = new ChatPushes();
+    const view = await this.dataSource.transaction(async (tx) => {
       await this.assertActive(tx, user);
       const row = await this.mustLockAsParty(tx, bookingId, user);
       const asRenter = row.renter_id === user.userId;
@@ -315,9 +304,12 @@ export class BookingsService {
         row,
         { to: 'CANCELLED', reason: asRenter ? 'RENTER' : 'LENDER' },
         { correlationId },
+        pushes,
       );
       return toView(cancelled, user.userId);
     });
+    await this.chat.flush(pushes);
+    return view;
   }
 
   async get(user: AuthUser, bookingId: string): Promise<BookingView> {

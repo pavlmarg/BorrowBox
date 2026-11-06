@@ -84,6 +84,10 @@ describe('access tokens', () => {
     expect(user.userId).toBe(USER_ID);
     expect(user.sessionId).toBe(SESSION_ID);
     expect(user.tokenId).toMatch(/^[0-9a-f-]{36}$/);
+    // The token's own `exp`, as the signer reported it (whole seconds).
+    expect(user.expiresAt.getTime()).toBe(
+      Math.floor(expiresAt.getTime() / 1000) * 1000,
+    );
     expect(expiresAt.getTime() - Date.now()).toBeGreaterThan(
       (ACCESS_TOKEN_TTL_SECONDS - 5) * 1000,
     );

@@ -22,6 +22,8 @@ export interface BookingSnapshotV1 {
   end: string;
   rentCents: number;
   depositCents: number;
+  /** Present when the price came from the lender's offer (ADR-0018). */
+  offerId?: string;
 }
 
 /** A renter asked to book an item. The lender has 24 hours to answer. */

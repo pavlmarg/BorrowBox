@@ -66,7 +66,7 @@ export interface RequestBookingRequest extends ItemPeriodRequest {
   bookingId: string;
 }
 
-export interface QuoteResponse extends BookingPrice {
+export interface QuoteResponse extends Omit<BookingPrice, 'offerId'> {
   itemId: string;
   start: string;
   end: string;

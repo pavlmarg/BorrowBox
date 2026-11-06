@@ -22,6 +22,12 @@ import {
 } from '@borrowbox/service-kit';
 import { cancelBookings } from '../bookings/booking-transitions';
 import { lockOpenBookings } from '../bookings/bookings.repository';
+import { ChatPublisher, ChatPushes } from '../messaging/chat-publisher';
+import {
+  eraseMessagesOf,
+  lockOpenOffers,
+} from '../messaging/messaging.repository';
+import { withdrawOffers } from '../messaging/offer-withdrawals';
 import { UserIdPayload, UserNamePayload } from './event-payloads';
 import {
   lockUserBookings,
@@ -35,8 +41,9 @@ export const USER_EVENTS_QUEUE = 'bookings.user-events';
 
 /**
  * Identity's user events → Bookings' names and verified emails, and GDPR
- * erasure: a deleted account's open bookings are cancelled, on both sides.
- * Finished bookings stay, without the name (ADR-0015, Q10).
+ * erasure: a deleted account's open bookings are cancelled and open offers
+ * withdrawn, on both sides, and the text of its messages removed. Finished
+ * bookings and conversations stay, without the name (ADR-0015, ADR-0017).
  */
 @Injectable()
 export class UserEventsConsumer implements OnApplicationBootstrap {
@@ -45,6 +52,7 @@ export class UserEventsConsumer implements OnApplicationBootstrap {
   constructor(
     @Inject(DATA_SOURCE) private readonly dataSource: DataSource,
     @Inject(EVENT_BUS) private readonly bus: EventBus,
+    private readonly chat: ChatPublisher,
   ) {}
 
   /** The EventBus closes the subscription on shutdown, before the DataSource goes. */
@@ -82,6 +90,7 @@ export class UserEventsConsumer implements OnApplicationBootstrap {
       case UserDeletionRequestedV1.routingKey: {
         const { userId } = parsePayload(envelope, UserIdPayload);
         let cancelled = 0;
+        const pushes = new ChatPushes();
         const ran = await handleOnce(
           this.dataSource,
           USER_EVENTS_QUEUE,
@@ -91,11 +100,20 @@ export class UserEventsConsumer implements OnApplicationBootstrap {
             await lockUserBookings(tx, userId);
             await markUserDeleted(tx, userId);
             const ids = await lockOpenBookings(tx, { userId });
-            await cancelBookings(tx, ids, 'ACCOUNT_DELETED', envelope);
+            await cancelBookings(tx, ids, 'ACCOUNT_DELETED', envelope, pushes);
             cancelled = ids.length;
+            await withdrawOffers(
+              tx,
+              await lockOpenOffers(tx, { userId }),
+              'ACCOUNT_DELETED',
+              { causedBy: envelope },
+              pushes,
+            );
+            await eraseMessagesOf(tx, userId);
           },
         );
         if (ran) {
+          await this.chat.flush(pushes);
           this.logger.log(
             `Erased account data: ${cancelled} booking(s) cancelled (eventId=${envelope.eventId})`,
           );

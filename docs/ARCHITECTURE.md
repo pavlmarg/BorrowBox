@@ -72,8 +72,8 @@ flowchart TB
 | **Catalog** | items, categories, photos, location | `item.created`, `item.updated`, `item.deleted` | `user.registered`, `.profile_updated` (lender names), `.email_verified` (to publish), `.deletion_requested`, `booking.accepted` / `.confirmed` (featured items), `review.created` (item rating) |
 | **Bookings** | bookings, availability, handoffs, condition photos | `booking.requested`, `.accepted`, `.confirmed`, `.paid`, `.declined`, `.expired`, `.cancelled`, `.picked_up`, `.returned`, `.completed`, `.disputed` | `item.*`, `user.registered`, `.profile_updated` (names), `.email_verified` (to book), `.deletion_requested`, `payment.captured`, `payment.failed` |
 | **Payments** | Stripe accounts, payments, transfers, refunds, `stripe_events` | `payment.account_ready`, `payment.captured`, `payment.failed`, `payment.settled` | `booking.accepted`, `.cancelled`, `.completed`, `.disputed`, `dispute.resolved` |
-| **Messaging** | conversations, messages | `message.sent` | `payment.captured` (unlock chat), `user.deletion_requested` |
-| **Notifications** | recipients (from `user.*` events); later preferences, push subscriptions, in-app inbox | – | nearly every event above |
+| **Messaging** (a module of Bookings for now, [ADR-0017](adr/0017-in-app-chat.md)) | conversations, messages, price offers, reports | `message.sent`, `conversation.unread`, `offer.sent`, `offer.withdrawn` | booking changes (system lines, in-process), `item.deleted`, `user.deletion_requested` |
+| **Notifications** | recipients (from `user.*` events), email jobs; later preferences, push subscriptions, in-app inbox | – | `user.registered`, `.profile_updated`, `.deletion_requested`, `booking.*`, `offer.sent`, `conversation.unread` |
 | **Reviews / Trust** | reviews, trust scores | `review.created` | `booking.completed`, `user.verified`, `booking.disputed` |
 
 **Media** is a shared library, not a service. It issues presigned upload URLs into a private uploads bucket, and runs a BullMQ worker (inside the owning service) that strips all metadata with `sharp` and writes resized versions to a separate public-read bucket. Only processed photos are served. Stripping EXIF matters because photo GPS data would leak home locations. See [ADR-0009](adr/0009-photo-pipeline.md).
@@ -97,11 +97,19 @@ flowchart TB
   - Public, no sign-in: `POST /api/items/search`, `/suggest`, `/featured` and `/category-counts` (the searcher's point travels in the body, so it never lands in URLs, access logs or browser history), `GET /api/items/:id` and `/:id/similar`.
   - The signed-in lender's own items under `/api/me/items`: list, create, get, `PATCH`, `DELETE`, `PUT /:id/location`, `POST /:id/publish` / `pause` / `unpause`, and photos (`POST /:id/photos` for an upload URL, `POST …/photos/:photoId/confirm`, `DELETE …/photos/:photoId`, `PUT /:id/photos/order`).
   - Catalog's state and limit refusals (`INVALID_STATE`, `NOT_PUBLISHABLE`, `ITEM_LIMIT_REACHED`, `PHOTO_LIMIT_REACHED`) are `409`; the PWA tells them apart by `code`.
-  - `GET /api/me/export` has one section per service (`identity`, `catalog`). If any service doesn't answer, the whole export fails with `503` rather than returning partial data.
+  - `GET /api/me/export` has one section per service (`identity`, `catalog`, and from Phase 3 `bookings`, `messaging`, `notifications`). If any service doesn't answer, the whole export fails with `503` rather than returning partial data.
 - Phase 3 endpoints (Identity's email links, [ADR-0016](adr/0016-notifications-and-email.md)):
   - No sign-in: `POST /api/auth/verify-email` and `/password-reset/confirm` (the token from the link is the proof; the confirm also clears the refresh cookie), and `POST /api/auth/password-reset`, which always answers `202`.
   - Signed in: `POST /api/me/verification-email` (`202`) and `POST /api/me/password`.
   - `TOKEN_INVALID` and `TOKEN_EXPIRED` are `400`, `PASSWORD_NOT_SET` is `409`, and Catalog's `EMAIL_NOT_VERIFIED` is `403`.
+- Phase 3 endpoints (Bookings, [ADR-0015](adr/0015-booking-model.md); chat and offers, [ADR-0017](adr/0017-in-app-chat.md), [ADR-0018](adr/0018-price-offers.md)):
+  - Public: `GET /api/items/:id/quote?start=&end=` and `GET /api/items/:id/busy`.
+  - Signed in: `POST /api/bookings` (the client picks the id), `GET /api/bookings/:id`, `POST /api/bookings/:id/accept`, `/decline`, `/cancel`, and `GET /api/me/bookings?role=&statuses=&cursor=`.
+  - Chat: `POST /api/items/:id/conversations` (start or get mine), `GET /api/me/conversations`, `GET /api/me/unread`, `GET /api/conversations/:id`, `GET` / `POST /api/conversations/:id/messages`, `POST /api/conversations/:id/read`, `POST /api/messages/:id/report`.
+  - Offers: `POST /api/conversations/:id/offers`, `POST /api/offers/:id/withdraw`, `POST /api/offers/:id/book`.
+  - `INVALID_PERIOD` is `400`, `EMAIL_NOT_VERIFIED` `403`, and the state and limit refusals (`SLOT_TAKEN`, `DUPLICATE_REQUEST`, `REQUEST_LIMIT_REACHED`, `OWN_ITEM`, `ITEM_UNAVAILABLE`, `INVALID_STATE`, `CONVERSATION_CLOSED`, `OFFER_UNAVAILABLE`, `PRICE_ABOVE_LIST`) `409`.
+  - Per user, on top of the per-IP limits: 30 booking requests (and offer bookings) per hour, 30 messages (and offers) per minute, 20 new conversations per day.
+- **Live chat:** Socket.IO on the gateway's server, namespace `/chat`. The access token goes in the handshake (`auth.token`), the Origin must be on the CORS allow-list, and each socket joins its user's room; it is disconnected when the token expires and reconnects with a fresh one. Every gateway instance subscribes to Redis `chat:*` and emits to its own sockets. Clients only listen: sending is REST.
 - **Cookies:**
   - The refresh token is set only as `bb_refresh` (httpOnly, Secure, SameSite=Strict, `Path=/api/auth`) and never appears in a response body.
   - Google sign-in keeps its state, nonce and PKCE verifier in a signed, 10-minute `bb_oauth` cookie. It is SameSite=Lax because Google's redirect back is a cross-site navigation.
@@ -187,13 +195,22 @@ flowchart TB
 See §6.
 
 ### Messaging
-- One conversation per booking, unlocked once payment succeeds. Before that, fixed quick questions are allowed, which prevents taking deals off-platform before trust exists.
-- Messages are persisted in Postgres and published to Redis. The gateway pushes them to connected sockets, and Notifications sends a push or email if the recipient is offline.
+See [ADR-0017](adr/0017-in-app-chat.md) and [ADR-0018](adr/0018-price-offers.md). A module of `apps/bookings`, with tables in the `bookings` schema, until its contracts settle.
+- **One conversation per item and asker**, open before any booking: someone with a verified email asks about an `ACTIVE` item that isn't theirs, and the lender replies. It carries on into every booking between them for that item; a request without a chat creates it. It becomes read-only when the item is deleted or an account erased.
+- Text messages (1–2000 characters, the client picks the id), read state for unread counts and "seen", and system lines with a code for booking moments and withdrawn offers (`BOOKING_CONFIRMED` asks both to arrange where and when to meet).
+- **Contact details** (phone numbers, email addresses, links) are masked when read until the two have a booking of the item that went ahead (`CONFIRMED`, `PAID` or later). A sender always sees their own text.
+- **Live delivery:** after the commit, Bookings publishes each change, shaped for each reader, on Redis `chat:<userId>`; the gateway pushes it to sockets. A lost push is fetched on reconnect.
+- **Unread email:** 2 minutes after a message, if it's unread and the recipient wasn't reminded about the conversation in the last 30 minutes, `conversation.unread.v1` goes out; Notifications emails a link. Events never carry message text.
+- **Price offers:** the lender offers a rent (at most the rate card's, deposit unchanged) for a period; one open offer per conversation, valid 48 hours or until an hour before its start, single use. Booking it creates the booking and accepts it in one transaction (`REQUESTED` → `ACCEPTED`, or `CONFIRMED` with nothing to pay), with `offerId` on the price and the events.
+- **Retention and GDPR:** a daily sweep deletes conversations idle for 2 years. Erasing an account removes its messages' text ("[deleted]"), withdraws its open offers and deletes its reports. The export has the caller's conversations, own messages, offers and reports. Reports wait for the admin area.
 
 ### Notifications
 See [ADR-0016](adr/0016-notifications-and-email.md).
 - Its own service, consuming events. It knows recipients (email, name, language `el`/`en`) from `user.*` events, and forgets them on `user.deletion_requested`.
-- Email over SMTP with `nodemailer` (Mailpit locally), from plain TypeScript templates in Greek and English. Phase 3 sends email only; preferences, an in-app inbox and Web Push come later.
+- Email over SMTP with `nodemailer` (Mailpit locally), from plain TypeScript templates in Greek and English, with times in Europe/Athens. Phase 3 sends email only; preferences, an in-app inbox and Web Push come later.
+- **Which emails:** a new request (lender), accepted (renter; for an offer, the lender learns it was booked), confirmed (both: arrange where to meet), declined (renter), expired (renter, and the lender if they never answered), cancelled (the other side; for a deleted item the renter), a new offer (renter), unread messages (recipient). No welcome email.
+- **Sending:** the consumer writes `email_jobs` in the same transaction as `processed_events`. A polling sender claims due jobs with a lease, renders them in the recipient's language when sending, and retries with backoff for up to a day; a job for a recipient not known yet waits. At least once: a crash mid-send can repeat an email. Sent jobs are kept 30 days.
+- Jobs store ids, the item title, times and amounts, never names or message text. The export has the recipient's details and their emails; erasure forgets both.
 - **Account-security emails** (email verification, password reset, password change) are sent by Identity itself, so their tokens never travel in events. Identity stores only a hash of each token; a reset link lasts 10 minutes, a verification link 24 hours, each works once, and a new one cancels the older ones. Both senders share `libs/mailer`.
 
 ## 4. Booking lifecycle
@@ -240,7 +257,7 @@ sequenceDiagram
     R->>S: pay (SCA / 3DS)
     S->>P: webhook payment_intent.succeeded
     P-->>B: payment.captured
-    B-->>N: booking.paid → "arrange where to meet" + chat unlocked
+    B-->>N: booking.paid → "arrange where to meet" (email + chat line)
     L->>R: shows pickup QR
     R->>B: scan → booking.picked_up
     R->>L: shows return QR

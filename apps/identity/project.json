@@ -66,6 +66,13 @@
       "options": {
         "command": "node dist/apps/identity/main.js republish-users"
       }
+    },
+    "republish-registered": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "node dist/apps/identity/main.js republish-registered"
+      }
     }
   }
 }

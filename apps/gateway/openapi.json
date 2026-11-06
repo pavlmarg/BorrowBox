@@ -1896,6 +1896,1484 @@
         ]
       }
     },
+    "/api/items/{itemId}/quote": {
+      "get": {
+        "operationId": "ItemBookingsController_quote",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start",
+            "required": true,
+            "in": "query",
+            "description": "On a whole hour, 1 hour to 180 days ahead",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "name": "end",
+            "required": true,
+            "in": "query",
+            "description": "On a whole hour; 1 hour to 90 days after the start",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED, INVALID_PERIOD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND (unknown or not bookable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "What a period would cost (the cheapest combination of rates)",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/items/{itemId}/busy": {
+      "get": {
+        "operationId": "ItemBookingsController_busy",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusyPeriodsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED, INVALID_PERIOD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND (unknown or not bookable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "When the item is taken from now on (periods only)",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/bookings": {
+      "post": {
+        "description": "The client picks the id; repeating the same request returns the same booking. The price is fixed now.",
+        "operationId": "BookingsController_request",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestBookingBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingViewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED, INVALID_PERIOD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EMAIL_NOT_VERIFIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ITEM_UNAVAILABLE, OWN_ITEM, SLOT_TAKEN, DUPLICATE_REQUEST, REQUEST_LIMIT_REACHED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (30 per hour)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Ask to book an item for a period",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/bookings/{bookingId}": {
+      "get": {
+        "operationId": "BookingsController_get",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingViewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED, INVALID_PERIOD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "One of my bookings, as renter or lender",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/bookings/{bookingId}/accept": {
+      "post": {
+        "description": "CONFIRMED when there is nothing to pay, else ACCEPTED. Declines the other requests that overlap it.",
+        "operationId": "BookingsController_accept",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingViewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED, INVALID_PERIOD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE, SLOT_TAKEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Accept a request (lender)",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/bookings/{bookingId}/decline": {
+      "post": {
+        "operationId": "BookingsController_decline",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingViewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED, INVALID_PERIOD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Decline a request (lender)",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/bookings/{bookingId}/cancel": {
+      "post": {
+        "operationId": "BookingsController_cancel",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingViewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED, INVALID_PERIOD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Withdraw a request (renter), or cancel before the start",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/me/bookings": {
+      "get": {
+        "operationId": "MyBookingsController_list",
+        "parameters": [
+          {
+            "name": "role",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "RENTER",
+                "LENDER"
+              ]
+            }
+          },
+          {
+            "name": "statuses",
+            "required": false,
+            "in": "query",
+            "description": "Comma-separated; all statuses if omitted",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/BookingStatus"
+              }
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "The previous page's nextCursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListBookingsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "My bookings in one role, newest first",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/items/{itemId}/conversations": {
+      "post": {
+        "description": "Needs a verified email and a published item that is not mine. The lender replies but cannot start one.",
+        "operationId": "ConversationsController_start",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationViewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EMAIL_NOT_VERIFIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "OWN_ITEM, ITEM_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (20 per day)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "My conversation about an item, started if new",
+        "tags": [
+          "messages"
+        ]
+      }
+    },
+    "/api/me/conversations": {
+      "get": {
+        "operationId": "ConversationsController_list",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "The previous page's nextCursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListConversationsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "My conversations, most recent activity first",
+        "tags": [
+          "messages"
+        ]
+      }
+    },
+    "/api/me/unread": {
+      "get": {
+        "operationId": "ConversationsController_unread",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCountResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Unread messages across my conversations",
+        "tags": [
+          "messages"
+        ]
+      }
+    },
+    "/api/conversations/{conversationId}": {
+      "get": {
+        "operationId": "ConversationsController_get",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationViewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "One of my conversations",
+        "tags": [
+          "messages"
+        ]
+      }
+    },
+    "/api/conversations/{conversationId}/messages": {
+      "get": {
+        "operationId": "ConversationsController_messages",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "The previous page's nextCursor (older)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListMessagesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Messages, newest first, page by page",
+        "tags": [
+          "messages"
+        ]
+      },
+      "post": {
+        "description": "The client picks the id; repeating it returns the same message.",
+        "operationId": "ConversationsController_send",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessageBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageViewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONVERSATION_CLOSED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (30 per minute)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Send a message",
+        "tags": [
+          "messages"
+        ]
+      }
+    },
+    "/api/conversations/{conversationId}/read": {
+      "post": {
+        "operationId": "ConversationsController_read",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarkReadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Mark the conversation read up to now",
+        "tags": [
+          "messages"
+        ]
+      }
+    },
+    "/api/messages/{messageId}/report": {
+      "post": {
+        "operationId": "ConversationsController_report",
+        "parameters": [
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportMessageBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE (own message or a system line)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Report the other person's message",
+        "tags": [
+          "messages"
+        ]
+      }
+    },
+    "/api/conversations/{conversationId}/offers": {
+      "post": {
+        "description": "At most the rate card’s rent; the deposit is the item’s. Replaces the open offer; valid 48 hours or until an hour before the start.",
+        "operationId": "ConversationsController_sendOffer",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendOfferBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferViewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE, CONVERSATION_CLOSED, ITEM_UNAVAILABLE, PRICE_ABOVE_LIST",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Offer a price for a period (lender)",
+        "tags": [
+          "messages"
+        ]
+      }
+    },
+    "/api/offers/{offerId}/withdraw": {
+      "post": {
+        "operationId": "ConversationsController_withdrawOffer",
+        "parameters": [
+          {
+            "name": "offerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferViewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE, OFFER_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Withdraw an open offer (lender)",
+        "tags": [
+          "messages"
+        ]
+      }
+    },
+    "/api/offers/{offerId}/book": {
+      "post": {
+        "description": "Accepted at once, at the offer’s price. The client picks the booking id; repeating it returns the same booking.",
+        "operationId": "ConversationsController_bookOffer",
+        "parameters": [
+          {
+            "name": "offerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookOfferBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingViewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EMAIL_NOT_VERIFIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE, OFFER_UNAVAILABLE, ITEM_UNAVAILABLE, SLOT_TAKEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Book an offer (renter)",
+        "tags": [
+          "messages"
+        ]
+      }
+    },
     "/api/health": {
       "get": {
         "operationId": "HealthController_get",
@@ -2589,6 +4067,568 @@
           "items"
         ]
       },
+      "BookingsProfileResponse": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "displayName",
+          "updatedAt"
+        ]
+      },
+      "BookingPartyResponse": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true,
+            "description": "Null once the account is deleted"
+          }
+        },
+        "required": [
+          "userId",
+          "displayName"
+        ]
+      },
+      "BookingStatus": {
+        "type": "string",
+        "enum": [
+          "REQUESTED",
+          "ACCEPTED",
+          "CONFIRMED",
+          "DECLINED",
+          "EXPIRED",
+          "CANCELLED",
+          "PAID",
+          "PICKED_UP",
+          "RETURNED",
+          "COMPLETED",
+          "DISPUTED"
+        ]
+      },
+      "PriceUnitsResponse": {
+        "type": "object",
+        "properties": {
+          "HOUR": {
+            "type": "number"
+          },
+          "DAY": {
+            "type": "number"
+          },
+          "WEEK": {
+            "type": "number"
+          },
+          "MONTH": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "HOUR",
+          "DAY",
+          "WEEK",
+          "MONTH"
+        ]
+      },
+      "BookingPriceResponse": {
+        "type": "object",
+        "properties": {
+          "rentCents": {
+            "type": "number"
+          },
+          "depositCents": {
+            "type": "number"
+          },
+          "totalCents": {
+            "type": "number"
+          },
+          "units": {
+            "$ref": "#/components/schemas/PriceUnitsResponse"
+          },
+          "offerId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Set when the price came from the lender's offer (ADR-0018)"
+          }
+        },
+        "required": [
+          "rentCents",
+          "depositCents",
+          "totalCents",
+          "units",
+          "offerId"
+        ]
+      },
+      "BookingCloseReason": {
+        "type": "string",
+        "enum": [
+          "LENDER",
+          "OVERLAP",
+          "RENTER",
+          "ITEM_DELETED",
+          "ACCOUNT_DELETED",
+          "NO_ANSWER",
+          "STARTED"
+        ]
+      },
+      "BookingViewResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "RENTER",
+              "LENDER"
+            ],
+            "description": "The caller's side"
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemTitle": {
+            "type": "string"
+          },
+          "renter": {
+            "$ref": "#/components/schemas/BookingPartyResponse"
+          },
+          "lender": {
+            "$ref": "#/components/schemas/BookingPartyResponse"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BookingStatus"
+              }
+            ]
+          },
+          "price": {
+            "$ref": "#/components/schemas/BookingPriceResponse"
+          },
+          "pricing": {
+            "description": "The item's rate card when the booking was requested",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ItemPricingBody"
+              }
+            ]
+          },
+          "reason": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BookingCloseReason"
+              }
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "While REQUESTED: when it expires without an answer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "itemId",
+          "itemTitle",
+          "renter",
+          "lender",
+          "start",
+          "end",
+          "status",
+          "price",
+          "pricing",
+          "reason",
+          "expiresAt",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "BookingsDataExportResponse": {
+        "type": "object",
+        "properties": {
+          "exportedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "profile": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BookingsProfileResponse"
+              }
+            ]
+          },
+          "emailVerifiedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "asRenter": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookingViewResponse"
+            }
+          },
+          "asLender": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookingViewResponse"
+            }
+          }
+        },
+        "required": [
+          "exportedAt",
+          "profile",
+          "emailVerifiedAt",
+          "asRenter",
+          "asLender"
+        ]
+      },
+      "ExportedMessage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "text": {
+            "type": "string",
+            "nullable": true
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "sentAt"
+        ]
+      },
+      "ExportedConversation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemTitle": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "RENTER",
+              "LENDER"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "myMessages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExportedMessage"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "itemId",
+          "itemTitle",
+          "role",
+          "createdAt",
+          "myMessages"
+        ]
+      },
+      "OfferStatus": {
+        "type": "string",
+        "enum": [
+          "OPEN",
+          "USED",
+          "WITHDRAWN",
+          "REPLACED",
+          "EXPIRED"
+        ]
+      },
+      "OfferViewResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "conversationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rentCents": {
+            "type": "number"
+          },
+          "depositCents": {
+            "type": "number"
+          },
+          "totalCents": {
+            "type": "number"
+          },
+          "listRentCents": {
+            "type": "number",
+            "description": "What the rate card charges for the period"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferStatus"
+              }
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "bookingId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "conversationId",
+          "itemId",
+          "start",
+          "end",
+          "rentCents",
+          "depositCents",
+          "totalCents",
+          "listRentCents",
+          "status",
+          "expiresAt",
+          "bookingId",
+          "createdAt"
+        ]
+      },
+      "ReportReason": {
+        "type": "string",
+        "enum": [
+          "SPAM",
+          "SCAM",
+          "ABUSE",
+          "OTHER"
+        ]
+      },
+      "ExportedReport": {
+        "type": "object",
+        "properties": {
+          "messageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportReason"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "messageId",
+          "reason",
+          "createdAt"
+        ]
+      },
+      "MessagingDataExportResponse": {
+        "type": "object",
+        "properties": {
+          "exportedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "conversations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExportedConversation"
+            }
+          },
+          "offers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OfferViewResponse"
+            }
+          },
+          "reports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExportedReport"
+            }
+          }
+        },
+        "required": [
+          "exportedAt",
+          "conversations",
+          "offers",
+          "reports"
+        ]
+      },
+      "ExportedRecipient": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "locale": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Locale"
+              }
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "email",
+          "displayName",
+          "locale",
+          "updatedAt"
+        ]
+      },
+      "EmailKind": {
+        "type": "string",
+        "enum": [
+          "BOOKING_REQUESTED",
+          "BOOKING_ACCEPTED",
+          "BOOKING_CONFIRMED",
+          "BOOKING_DECLINED",
+          "BOOKING_EXPIRED",
+          "BOOKING_CANCELLED",
+          "OFFER_RECEIVED",
+          "OFFER_BOOKED",
+          "MESSAGES_UNREAD"
+        ]
+      },
+      "ExportedEmail": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EmailKind"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "kind",
+          "createdAt",
+          "sentAt"
+        ]
+      },
+      "NotificationsDataExportResponse": {
+        "type": "object",
+        "properties": {
+          "exportedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "recipient": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExportedRecipient"
+              }
+            ]
+          },
+          "emails": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExportedEmail"
+            }
+          }
+        },
+        "required": [
+          "exportedAt",
+          "recipient",
+          "emails"
+        ]
+      },
       "DataExportResponse": {
         "type": "object",
         "properties": {
@@ -2597,11 +4637,23 @@
           },
           "catalog": {
             "$ref": "#/components/schemas/CatalogDataExportResponse"
+          },
+          "bookings": {
+            "$ref": "#/components/schemas/BookingsDataExportResponse"
+          },
+          "messaging": {
+            "$ref": "#/components/schemas/MessagingDataExportResponse"
+          },
+          "notifications": {
+            "$ref": "#/components/schemas/NotificationsDataExportResponse"
           }
         },
         "required": [
           "identity",
-          "catalog"
+          "catalog",
+          "bookings",
+          "messaging",
+          "notifications"
         ]
       },
       "DeleteAccountBody": {
@@ -3308,6 +5360,444 @@
         },
         "required": [
           "items"
+        ]
+      },
+      "QuoteResponse": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rentCents": {
+            "type": "number"
+          },
+          "depositCents": {
+            "type": "number"
+          },
+          "totalCents": {
+            "type": "number",
+            "description": "rent + deposit"
+          },
+          "units": {
+            "description": "The cheapest combination of the offered units",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriceUnitsResponse"
+              }
+            ]
+          }
+        },
+        "required": [
+          "itemId",
+          "start",
+          "end",
+          "rentCents",
+          "depositCents",
+          "totalCents",
+          "units"
+        ]
+      },
+      "BookingPeriodResponse": {
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ]
+      },
+      "BusyPeriodsResponse": {
+        "type": "object",
+        "properties": {
+          "periods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookingPeriodResponse"
+            }
+          }
+        },
+        "required": [
+          "periods"
+        ]
+      },
+      "RequestBookingBody": {
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "description": "On a whole hour, 1 hour to 180 days ahead"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "description": "On a whole hour; 1 hour to 90 days after the start"
+          },
+          "bookingId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A new random UUID per request; repeating it returns the same booking"
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "bookingId",
+          "itemId"
+        ]
+      },
+      "ListBookingsResponse": {
+        "type": "object",
+        "properties": {
+          "bookings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookingViewResponse"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "bookings",
+          "nextCursor"
+        ]
+      },
+      "MessageKind": {
+        "type": "string",
+        "enum": [
+          "TEXT",
+          "SYSTEM",
+          "OFFER"
+        ]
+      },
+      "SystemMessageCode": {
+        "type": "string",
+        "enum": [
+          "BOOKING_REQUESTED",
+          "BOOKING_ACCEPTED",
+          "BOOKING_CONFIRMED",
+          "BOOKING_DECLINED",
+          "BOOKING_CANCELLED",
+          "BOOKING_EXPIRED",
+          "OFFER_WITHDRAWN"
+        ]
+      },
+      "MessageViewResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "conversationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MessageKind"
+              }
+            ]
+          },
+          "senderId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "mine": {
+            "type": "boolean",
+            "description": "True if the reader sent it"
+          },
+          "text": {
+            "type": "string",
+            "nullable": true,
+            "description": "TEXT only; contact details masked until a booking goes ahead; null once deleted"
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "systemCode": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SystemMessageCode"
+              }
+            ]
+          },
+          "bookingId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "offer": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferViewResponse"
+              }
+            ]
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "conversationId",
+          "kind",
+          "senderId",
+          "mine",
+          "text",
+          "deleted",
+          "systemCode",
+          "bookingId",
+          "offer",
+          "sentAt"
+        ]
+      },
+      "ConversationViewResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemTitle": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "RENTER",
+              "LENDER"
+            ]
+          },
+          "other": {
+            "$ref": "#/components/schemas/BookingPartyResponse"
+          },
+          "lastMessage": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MessageViewResponse"
+              }
+            ]
+          },
+          "lastMessageAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "unreadCount": {
+            "type": "number"
+          },
+          "otherReadAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "closed": {
+            "type": "boolean",
+            "description": "Read-only: item deleted or an account erased"
+          },
+          "openOffer": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferViewResponse"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "itemId",
+          "itemTitle",
+          "role",
+          "other",
+          "lastMessage",
+          "lastMessageAt",
+          "unreadCount",
+          "otherReadAt",
+          "closed",
+          "openOffer",
+          "createdAt"
+        ]
+      },
+      "ListConversationsResponse": {
+        "type": "object",
+        "properties": {
+          "conversations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConversationViewResponse"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "conversations",
+          "nextCursor"
+        ]
+      },
+      "UnreadCountResponse": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "total"
+        ]
+      },
+      "ListMessagesResponse": {
+        "type": "object",
+        "properties": {
+          "messages": {
+            "description": "Newest first",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageViewResponse"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "messages",
+          "nextCursor"
+        ]
+      },
+      "SendMessageBody": {
+        "type": "object",
+        "properties": {
+          "messageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A new random UUID per message; repeating it is harmless"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "messageId",
+          "text"
+        ]
+      },
+      "MarkReadResponse": {
+        "type": "object",
+        "properties": {
+          "readAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "readAt"
+        ]
+      },
+      "ReportMessageBody": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportReason"
+              }
+            ]
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "SendOfferBody": {
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "description": "On a whole hour, 1 hour to 180 days ahead"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "description": "On a whole hour; 1 hour to 90 days after the start"
+          },
+          "offerId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A new random UUID per offer; repeating it is harmless"
+          },
+          "rentCents": {
+            "type": "number",
+            "minimum": 0,
+            "description": "At most what the rate card charges for the period"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "offerId",
+          "rentCents"
+        ]
+      },
+      "BookOfferBody": {
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A new random UUID"
+          }
+        },
+        "required": [
+          "bookingId"
         ]
       },
       "HealthResponse": {

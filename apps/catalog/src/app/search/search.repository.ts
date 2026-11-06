@@ -224,13 +224,13 @@ export async function saveItemBooking(
 
 /** Deletes bookings older than the featured window; returns how many. */
 export async function pruneItemBookings(tx: EntityManager): Promise<number> {
-  const rows: unknown[] = await tx.query(
+  // TypeORM returns [rows, rowCount] for DELETE.
+  const [, deleted]: [unknown[], number] = await tx.query(
     `DELETE FROM item_bookings
-      WHERE booked_at <= now() - make_interval(days => $1::int)
-      RETURNING booking_id`,
+      WHERE booked_at <= now() - make_interval(days => $1::int)`,
     [FEATURED_BOOKINGS_DAYS],
   );
-  return rows.length;
+  return deleted;
 }
 
 /**

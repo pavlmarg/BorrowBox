@@ -20,6 +20,9 @@ import {
 } from '@borrowbox/service-kit';
 import { cancelBookings } from '../bookings/booking-transitions';
 import { lockOpenBookings } from '../bookings/bookings.repository';
+import { ChatPublisher, ChatPushes } from '../messaging/chat-publisher';
+import { lockOpenOffers } from '../messaging/messaging.repository';
+import { withdrawOffers } from '../messaging/offer-withdrawals';
 import { ItemDeletedPayload, parseItemSnapshot } from './event-payloads';
 import { markItemDeleted, saveItemSnapshot } from './items.repository';
 
@@ -28,13 +31,15 @@ export const ITEM_EVENTS_QUEUE = 'bookings.item-events';
 
 /**
  * Catalog's item events → Bookings' item read model. A deleted item's open
- * bookings are cancelled; pausing only stops new requests (ADR-0015).
+ * bookings are cancelled and open offers withdrawn; pausing only stops new
+ * requests and conversations (ADR-0015, ADR-0018).
  */
 @Injectable()
 export class ItemEventsConsumer implements OnApplicationBootstrap {
   constructor(
     @Inject(DATA_SOURCE) private readonly dataSource: DataSource,
     @Inject(EVENT_BUS) private readonly bus: EventBus,
+    private readonly chat: ChatPublisher,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -62,7 +67,8 @@ export class ItemEventsConsumer implements OnApplicationBootstrap {
       }
       case ItemDeletedV1.routingKey: {
         const { itemId, lenderId } = parsePayload(envelope, ItemDeletedPayload);
-        await handleOnce(
+        const pushes = new ChatPushes();
+        const ran = await handleOnce(
           this.dataSource,
           ITEM_EVENTS_QUEUE,
           envelope,
@@ -70,9 +76,17 @@ export class ItemEventsConsumer implements OnApplicationBootstrap {
             // Waits for requests in flight (they hold the item row).
             await markItemDeleted(tx, itemId, lenderId, envelope.occurredAt);
             const ids = await lockOpenBookings(tx, { itemId });
-            await cancelBookings(tx, ids, 'ITEM_DELETED', envelope);
+            await cancelBookings(tx, ids, 'ITEM_DELETED', envelope, pushes);
+            await withdrawOffers(
+              tx,
+              await lockOpenOffers(tx, { itemId }),
+              'ITEM_DELETED',
+              { causedBy: envelope },
+              pushes,
+            );
           },
         );
+        if (ran) await this.chat.flush(pushes);
         return;
       }
       default:

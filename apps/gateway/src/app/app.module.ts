@@ -11,6 +11,17 @@ import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis'
 import type Redis from 'ioredis';
 import { AuthModule, pemFromEnv } from '@borrowbox/auth';
 import { AuthController } from './auth/auth.controller';
+import {
+  BookingsController,
+  ItemBookingsController,
+  MyBookingsController,
+} from './bookings/bookings.controller';
+import {
+  BOOKINGS_PROXY,
+  BookingsClient,
+  MESSAGING_PROXY,
+  MessagingClient,
+} from './bookings/bookings.client';
 import { validateConfig, type GatewayConfig } from './config';
 import { CATALOG_PROXY, CatalogClient } from './catalog/catalog.client';
 import { HealthController } from './health.controller';
@@ -20,6 +31,12 @@ import { IDENTITY_PROXY, IdentityClient } from './identity/identity.client';
 import { MyItemsController } from './items/my-items.controller';
 import { PublicItemsController } from './items/public-items.controller';
 import { MeController } from './me/me.controller';
+import { ChatGateway } from './messaging/chat.gateway';
+import { ConversationsController } from './messaging/conversations.controller';
+import {
+  NOTIFICATIONS_PROXY,
+  NotificationsClient,
+} from './notifications/notifications.client';
 import { REDIS, RedisModule } from './redis.module';
 import { rpcTimeoutProvider, tcpClientProvider } from './rpc/rpc.providers';
 
@@ -65,6 +82,10 @@ const configModule = ConfigModule.forRoot({
     MeController,
     MyItemsController,
     PublicItemsController,
+    ItemBookingsController,
+    BookingsController,
+    MyBookingsController,
+    ConversationsController,
     HealthController,
   ],
   providers: [
@@ -73,6 +94,17 @@ const configModule = ConfigModule.forRoot({
     IdentityClient,
     tcpClientProvider(CATALOG_PROXY, 'CATALOG_HOST', 'CATALOG_PORT'),
     CatalogClient,
+    tcpClientProvider(BOOKINGS_PROXY, 'BOOKINGS_HOST', 'BOOKINGS_PORT'),
+    BookingsClient,
+    tcpClientProvider(MESSAGING_PROXY, 'BOOKINGS_HOST', 'BOOKINGS_PORT'),
+    MessagingClient,
+    tcpClientProvider(
+      NOTIFICATIONS_PROXY,
+      'NOTIFICATIONS_HOST',
+      'NOTIFICATIONS_PORT',
+    ),
+    NotificationsClient,
+    ChatGateway,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })

@@ -12,10 +12,16 @@ import {
 } from '@nestjs/microservices';
 import { Test } from '@nestjs/testing';
 import {
+  BookingsRpc,
   CatalogRpc,
   IdentityRpc,
+  MessagingRpc,
+  NotificationsRpc,
+  type BookingsRpcPattern,
   type CatalogRpcPattern,
   type IdentityRpcPattern,
+  type MessagingRpcPattern,
+  type NotificationsRpcPattern,
   type RpcErrorBody,
   type RpcRequest,
 } from '@borrowbox/contracts';
@@ -121,6 +127,21 @@ export class FakeIdentity extends FakeService<IdentityRpcPattern> {
 export class FakeCatalog extends FakeService<CatalogRpcPattern> {
   constructor() {
     super(Object.values(CatalogRpc));
+  }
+}
+
+/** Bookings serves Messaging's patterns too (ADR-0017). */
+export class FakeBookings extends FakeService<
+  BookingsRpcPattern | MessagingRpcPattern
+> {
+  constructor() {
+    super([...Object.values(BookingsRpc), ...Object.values(MessagingRpc)]);
+  }
+}
+
+export class FakeNotifications extends FakeService<NotificationsRpcPattern> {
+  constructor() {
+    super(Object.values(NotificationsRpc));
   }
 }
 
