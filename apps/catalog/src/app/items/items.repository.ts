@@ -121,6 +121,13 @@ export async function listOwnItems(
   );
 }
 
+/** Every item not deleted, of every lender, oldest first (for re-announcing). */
+export async function listLiveItems(tx: EntityManager): Promise<ItemRow[]> {
+  return tx.query(
+    ITEM_SELECT + " WHERE status <> 'DELETED' ORDER BY created_at, id",
+  );
+}
+
 /** Items that count towards the lender's limit: everything not deleted. */
 export async function countLenderItems(
   tx: EntityManager,

@@ -69,6 +69,7 @@ describe('Catalog AppModule (integration)', () => {
       );
       expect(rows).toEqual(
         [
+          'item_bookings',
           'item_photos',
           'items',
           'lenders',
@@ -87,7 +88,7 @@ describe('Catalog AppModule (integration)', () => {
     }
     // Idempotent: nothing left to run.
     expect(await catalog.dataSource.showMigrations()).toBe(false);
-    expect(MIGRATIONS).toHaveLength(4);
+    expect(MIGRATIONS).toHaveLength(5);
   });
 
   it('publishes outbox events to RabbitMQ through the relay', async () => {

@@ -173,7 +173,7 @@ export class SearchService {
     };
   }
 
-  /** Featured items on Explore: newest first for now, whatever the filters. */
+  /** Featured items on Explore: most booked lately, then newest, whatever the filters. */
   async featured(dto: FeaturedItemsDto): Promise<FeaturedItemsResponse> {
     const rows = await featuredItems(
       this.dataSource.manager,

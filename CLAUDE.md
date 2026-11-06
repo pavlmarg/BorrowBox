@@ -43,6 +43,7 @@ ADRs — read the relevant one before touching that area:
 - Start infra: `docker compose -f infra/docker-compose.yml up -d --wait`
 - Affected checks: `npx nx affected -t lint test build` (Docker must be running: integration tests use Testcontainers)
 - Single project: `npx nx test <project>`, `npx nx serve <project>` (apps need `apps/<app>/.env`; see README "Running the apps")
+- Backfill a newly started service's read models: `npx nx run identity:republish-users`, `npx nx run catalog:republish-items` (safe to repeat)
 - After changing gateway endpoints: `npx nx run gateway:openapi`, then `npx nx run web:api-client` (a test fails if `openapi.json` drifts)
 - Node ≥ 22.22.3 (`.nvmrc`); Angular 22 and Testcontainers need it
 - Formatting: `npx nx format:write` (Markdown is excluded on purpose)
@@ -56,7 +57,7 @@ ADRs — read the relevant one before touching that area:
 - `@borrowbox/auth` — `createAccessTokenSigner` (Identity only), `createAccessTokenVerifier`, `AuthModule`, `JwtAuthGuard`, `@CurrentUser()`. Keys: `node tools/gen-jwt-keys.mjs`.
 - `@borrowbox/auth` also provides `RpcJwtAuthGuard` for services; `@CurrentUser()` works for HTTP and RPC.
 - `@borrowbox/contracts` also holds RPC contracts (`<Service>Rpc`, `<Service>RpcContract`, `RpcRequest`, `RpcErrorBody`) and shared input rules (`isValidPassword`, length limits) used by the PWA, the gateway and services.
-- `@borrowbox/service-kit` — a service's plumbing: `BaseServiceConfig`, `DatabaseModule.forRoot(MIGRATIONS)`, `EventsModule`, `ServiceError` + `RpcErrorFilter`, `runService()`; `@borrowbox/service-kit/testing` has `startServiceHarness()` for service harnesses.
+- `@borrowbox/service-kit` — a service's plumbing: `BaseServiceConfig`, `DatabaseModule.forRoot(MIGRATIONS)`, `EventsModule`, `parsePayload()` (runtime check of incoming events), `ServiceError` + `RpcErrorFilter`, `runService()` (with one-off `tasks`); `@borrowbox/service-kit/testing` has `startServiceHarness()` for service harnesses.
 - `@borrowbox/mailer` — `createMailer(config)` (SMTP via nodemailer; disabled without a host) and `renderEmail()` (the shared, HTML-escaped layout). Identity now, Notifications later.
 - `@borrowbox/testing` — `startPostgres()` (real per-service roles), `startRabbitMq()`, `startRedis()`, `startMailpit()`. Spec files only (lint-enforced).
 

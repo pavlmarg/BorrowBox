@@ -5,12 +5,8 @@ import {
   UserRegisteredV1,
   type EventEnvelope,
 } from '@borrowbox/contracts';
-import {
-  InvalidEventError,
-  parsePayload,
-  UserDeletionPayload,
-  UserNamePayload,
-} from './user-event-payloads';
+import { InvalidEventError, parsePayload } from '@borrowbox/service-kit';
+import { UserDeletionPayload, UserNamePayload } from './user-event-payloads';
 
 const userId = '00000000-0000-4000-8000-000000000001';
 

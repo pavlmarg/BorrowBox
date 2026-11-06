@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import {
+  BookingConfirmedV1,
   CatalogRpc,
+  createEnvelope,
   FEATURED_ITEMS_MAX,
   type GeoPoint,
   type ItemCategory,
@@ -23,6 +25,7 @@ import {
   TEST_PHOTOS_BASE_URL,
   type CatalogHarness,
 } from '../../testing/catalog-harness';
+import { BookingEventsConsumer } from './booking-events.consumer';
 
 /**
  * Public search and item pages over real TCP, against PostGIS. Items are
@@ -809,6 +812,81 @@ describe('Search and public item pages (integration)', () => {
       ]);
       expect(ids(await featured(centre, 1))).toEqual([older]);
       expect(items[2].descriptionExcerpt).toBe('Two batteries');
+    });
+
+    it('ranks the most booked in the last 90 days first, then the newest', async () => {
+      const centre = newArea();
+      const owner = await lender();
+      const at = async (m: number) => pointFrom(centre, m, 120);
+      const [popular, booked, newest, stale] = [
+        await seed({
+          lenderId: owner,
+          publicAt: await at(200),
+          publishedAt: day(1),
+        }),
+        await seed({
+          lenderId: owner,
+          publicAt: await at(300),
+          publishedAt: day(2),
+        }),
+        await seed({
+          lenderId: owner,
+          publicAt: await at(400),
+          publishedAt: day(9),
+        }),
+        await seed({
+          lenderId: owner,
+          publicAt: await at(500),
+          publishedAt: day(3),
+        }),
+      ];
+      const consumer = catalog.app.get(BookingEventsConsumer);
+      const book = async (itemId: string, daysAgo = 1) => {
+        const envelope = createEnvelope(
+          BookingConfirmedV1,
+          {
+            bookingId: randomUUID(),
+            itemId,
+            itemTitle: 'Drill',
+            lenderId: owner,
+            renterId: randomUUID(),
+            start: '2026-11-01T10:00:00.000Z',
+            end: '2026-11-01T12:00:00.000Z',
+            rentCents: 0,
+            depositCents: 0,
+          },
+          { occurredAt: new Date(Date.now() - daysAgo * 86_400_000) },
+        );
+        await consumer.handle(envelope, BookingConfirmedV1.routingKey);
+        return envelope;
+      };
+      const twice = await book(popular);
+      await book(popular);
+      // The same event again counts once.
+      await consumer.handle(twice, BookingConfirmedV1.routingKey);
+      await book(booked);
+      // Outside the 90-day window: doesn't count.
+      await book(stale, 91);
+      await book(stale, 95);
+
+      expect(ids(await featured(centre))).toEqual([
+        popular,
+        booked,
+        newest,
+        stale,
+      ]);
+      const [row] = await catalog.dataSource.query(
+        `SELECT count(*)::int AS n FROM item_bookings WHERE item_id = $1`,
+        [popular],
+      );
+      expect(row.n).toBe(2);
+
+      await consumer.prune();
+      const [left] = await catalog.dataSource.query(
+        `SELECT count(*)::int AS n FROM item_bookings WHERE item_id = $1`,
+        [stale],
+      );
+      expect(left.n).toBe(0);
     });
 
     it('returns at most 10, and an empty list where there is nothing', async () => {

@@ -18,8 +18,9 @@ export const UserRegisteredV1 = defineEvent<UserRegisteredV1Payload>()(
 
 /**
  * The user changed their profile (`PATCH /me`). Only sent when something
- * actually changed. Carries the current values, so the newest event wins
- * (consumers compare `occurredAt`). Catalog keeps lender names from it.
+ * actually changed, or re-announced unchanged by `identity:republish-users`.
+ * Carries the current values, so the newest event wins (consumers compare
+ * `occurredAt`). Catalog and Bookings keep names from it.
  */
 export interface UserProfileUpdatedV1Payload {
   userId: string;
@@ -44,8 +45,10 @@ export const UserDeletionRequestedV1 =
 
 /**
  * The account's email is proven to be the user's: an email link (verification
- * or password reset) or a verified Google sign-in. Sent once per account.
- * Catalog requires it to publish items.
+ * or password reset) or a verified Google sign-in. Sent once per account,
+ * though `identity:republish-users` may announce it again: consumers keep the
+ * first and never treat it as news. Catalog requires it to publish items,
+ * Bookings to request bookings.
  */
 export interface UserEmailVerifiedV1Payload {
   userId: string;

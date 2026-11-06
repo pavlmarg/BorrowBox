@@ -45,6 +45,7 @@ The later states (`RETURNED`, `COMPLETED`, `DISPUTED`) stay as in ARCHITECTURE.m
 
 - **`CONFIRMED`** is a booking with nothing to pay: rent 0 and deposit 0. It counts like `PAID` from then on. Whether a platform fee applies to free items is decided with Payments (Phase 4).
 - **Until Phase 4**, a booking with something to pay stops at `ACCEPTED`. It keeps its slot, and the PWA says payment is coming soon. No payment timeout is scheduled until Payments exists.
+  - *Amendment (Phase 3, Bookings PR):* an `ACCEPTED` booking still unpaid when its start arrives expires (`ACCEPTED → EXPIRED`, reason `STARTED`), so stale bookings don't stay "payment coming soon" forever. Phase 4's payment timeout comes on top.
 - **No double booking:** the exclusion constraint covers `ACCEPTED`, `CONFIRMED`, `PAID` and `PICKED_UP`.
 - **Overlapping requests:** accepting a request declines, in the same transaction, every other `REQUESTED` booking of that item whose period overlaps it (reason `OVERLAP`). Renters get an answer straight away instead of waiting for expiry.
 - **Expiry:** a request with no answer expires after 24 hours, or at its start time if that is sooner.

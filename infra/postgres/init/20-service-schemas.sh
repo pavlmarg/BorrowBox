@@ -11,6 +11,9 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-S
   -- Only the service roles below may connect; no implicit access via PUBLIC.
   REVOKE ALL ON DATABASE "$POSTGRES_DB" FROM PUBLIC;
   REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+  -- Lets one exclusion constraint mix = (uuid) with && (ranges): Bookings'
+  -- no-double-booking rule. Service roles can't create extensions.
+  CREATE EXTENSION IF NOT EXISTS btree_gist;
 SQL
 
 for svc in $SERVICES; do

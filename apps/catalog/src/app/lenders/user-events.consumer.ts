@@ -14,8 +14,12 @@ import {
 } from '@borrowbox/contracts';
 import type { EventBus } from '@borrowbox/messaging';
 import { handleOnce } from '@borrowbox/outbox';
-import { DATA_SOURCE } from '@borrowbox/service-kit';
-import { EVENT_BUS } from '@borrowbox/service-kit';
+import {
+  DATA_SOURCE,
+  EVENT_BUS,
+  InvalidEventError,
+  parsePayload,
+} from '@borrowbox/service-kit';
 import { eraseItemsOfLender } from '../items/item-erasure';
 import { PhotoQueue } from '../photos/photo-queue';
 import {
@@ -24,8 +28,6 @@ import {
   saveLenderVerified,
 } from './lenders.repository';
 import {
-  InvalidEventError,
-  parsePayload,
   UserDeletionPayload,
   UserNamePayload,
   UserVerifiedPayload,

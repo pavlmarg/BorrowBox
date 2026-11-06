@@ -59,6 +59,13 @@
       "options": {
         "command": "node dist/apps/catalog/main.js migrate"
       }
+    },
+    "republish-items": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "node dist/apps/catalog/main.js republish-items"
+      }
     }
   }
 }

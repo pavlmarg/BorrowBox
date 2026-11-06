@@ -59,6 +59,13 @@
       "options": {
         "command": "node dist/apps/identity/main.js migrate"
       }
+    },
+    "republish-users": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "node dist/apps/identity/main.js republish-users"
+      }
     }
   }
 }

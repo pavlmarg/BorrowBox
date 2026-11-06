@@ -24,6 +24,7 @@ import {
   TEST_PHOTOS_BASE_URL,
   type CatalogHarness,
 } from '../../testing/catalog-harness';
+import { republishItems } from './republish-items';
 
 /**
  * The lender's item commands over real TCP, against Postgres + PostGIS and
@@ -1139,6 +1140,28 @@ describe('Item commands (integration)', () => {
       expect(await as(userId, CatalogRpc.getOwn, { itemId: older.id })).toEqual(
         mine[1],
       );
+    });
+  });
+
+  describe('republishItems (nx run catalog:republish-items)', () => {
+    it('re-announces every item not deleted, as its current snapshot', async () => {
+      const userId = randomUUID();
+      const kept = await create(userId, { title: 'Kept drill' });
+      const gone = await create(userId);
+      await as(userId, CatalogRpc.delete, { itemId: gone.id });
+
+      const summary = await republishItems(catalog.dataSource);
+      expect(summary).toMatch(/^\d+ item snapshot\(s\) written to the outbox$/);
+      const keptEvents = await eventsFor(kept.id);
+      expect(keptEvents.map((e) => e.type)).toEqual([
+        'item.created',
+        'item.updated',
+      ]);
+      expect(keptEvents[1].payload).toEqual(keptEvents[0].payload);
+      expect((await eventsFor(gone.id)).map((e) => e.type)).toEqual([
+        'item.created',
+        'item.deleted',
+      ]);
     });
   });
 

@@ -49,7 +49,7 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
     *   Follow-ups:
         *   ~~Publish a `user.profile_updated` event for Notifications' read model (Phase 3).~~ Done in Phase 2 (Catalog needs lender names).
         *   ~~Change / set password in the profile (also for Google-only accounts that want email + password sign-in), confirmed by an email link (Phase 3, needs Notifications).~~ Done in Phase 3: Identity sends its own security emails (ADR-0016); Google-only accounts set a password through a reset link. The PWA's pages come with Phase 3's web step.
-        *   ~~Email verification and password reset (Phase 3, needs Notifications). Unverified accounts can sign in and browse, but listing, booking and messaging require a verified email. (Until verification exists, Phase 2 lets unverified accounts list items; Phase 3 enforces the rule.)~~ Done in Phase 3 for listing: publishing needs a verified email (items already published stay). Booking and messaging enforce it when they're built.
+        *   ~~Email verification and password reset (Phase 3, needs Notifications). Unverified accounts can sign in and browse, but listing, booking and messaging require a verified email. (Until verification exists, Phase 2 lets unverified accounts list items; Phase 3 enforces the rule.)~~ Done in Phase 3 for listing and booking: publishing items and requesting bookings need a verified email (items already published stay). Messaging enforces it when it's built.
         *   Terms of Service / Privacy Policy pages, and recorded acceptance at sign-up — including the first Google sign-in that creates an account (GDPR).
         *   Upgrade to NestJS 12 once `@nx/nest` supports it.
 *   [x] **Phase 2 – Catalog:** item CRUD, photo upload, geo search + map, fuzzed locations, and the PWA's Explore, item page, listing wizard and My items
@@ -63,7 +63,7 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
         *   The production Docker image must use a base image `sharp` ships binaries for (e.g. Debian slim; Alpine needs the musl build) (Phase 7).
         *   Production CSP for maps: `connect-src` and `img-src` must allow `https://api.maptiler.com`; MapLibre's worker is served from our own origin, so `worker-src 'self'` is enough. The deployment writes the PWA's `config.json` with the production MapTiler key, restricted to the production domain (Phase 7).
         *   Paid extra listing slots (e.g. packs of 5 or 10 beyond the free 10 items): after Phase 4 (Payments), and only after an ADR on pricing, one-off vs subscription, what happens to items over the limit when it ends, refunds and EU VAT.
-        *   Explore's featured carousel shows the newest items nearby for now; rank it by bookings once they exist, from Catalog counting `booking.completed` per item (Phase 3).
+        *   ~~Explore's featured carousel shows the newest items nearby for now; rank it by bookings once they exist (Phase 3).~~ Done in Phase 3: the most booked in the last 90 days first, counted from `booking.accepted` / `booking.confirmed`.
         *   Profile photos: "Change photo" is a placeholder and avatars are a silhouette. Uploading one reuses the photo pipeline (ADR-0009) and must be covered by export and deletion (GDPR).
         *   Item titles and descriptions are searched in the language they were written in. If cross-language search matters, first add a hint in the listing wizard ("add the English name too"); machine translation would mean a new data processor (GDPR) and an ADR.
         *   Price tags on Explore's map (ADR-0014): revisit if users take them for exact addresses.
@@ -101,16 +101,20 @@ Ports can be changed in `infra/.env` if they clash with something already runnin
 
 > **Upgrading an existing `infra/.env`** (Phase 2): the single `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_BUCKET` were replaced by admin and catalog keys and two buckets. Copy the `S3_*` block from `infra/.env.example`, then run `docker compose -f infra/docker-compose.yml up -d --wait` again.
 
+> **Upgrading an existing Postgres volume** (Phase 3): Bookings needs the `btree_gist` extension, which the init script only creates on an empty volume. Add it once:
+> `docker compose -f infra/docker-compose.yml exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE EXTENSION IF NOT EXISTS btree_gist"'`
+
 ### Running the apps
 
 ```sh
 # 1. Config for each app (gitignored). Use the passwords from infra/.env.
 cp apps/identity/.env.example apps/identity/.env
 cp apps/catalog/.env.example apps/catalog/.env
+cp apps/bookings/.env.example apps/bookings/.env
 cp apps/gateway/.env.example apps/gateway/.env
 
 # 2. Token signing keys: paste all three lines into apps/identity/.env, and
-#    only JWT_KEY_ID + JWT_PUBLIC_KEY into apps/catalog/.env and apps/gateway/.env.
+#    only JWT_KEY_ID + JWT_PUBLIC_KEY into the catalog, bookings and gateway .env files.
 node tools/gen-jwt-keys.mjs
 
 # 3. Set COOKIE_SECRET in apps/gateway/.env (32+ random characters):
@@ -123,6 +127,7 @@ cp apps/web/public/config.example.json apps/web/public/config.json
 # 5. Start them (one terminal each)
 npx nx serve identity   # TCP :4001, runs DB migrations in dev
 npx nx serve catalog    # TCP :4002, runs DB migrations in dev; needs Redis + SeaweedFS (photo pipeline)
+npx nx serve bookings   # TCP :4003, runs DB migrations in dev; needs Redis (expiry jobs)
 npx nx serve gateway    # http://localhost:3000/api (Swagger UI at /api/docs)
 npx nx serve web        # http://localhost:4200 (proxies /api to the gateway)
 ```
@@ -133,9 +138,14 @@ files and `GOOGLE_CLIENT_SECRET` in Identity's only. Left empty, Google sign-in 
 
 Tests never read these `.env` files (`NODE_ENV=test`); they set their own environment.
 
-Catalog learns display names from Identity's `user.*` events, and RabbitMQ only delivers to queues that already
-exist. Accounts registered before Catalog first ran are therefore unknown to it, and their items won't show
-publicly. To fix such a local account, change its display name once in Settings.
+Catalog and Bookings learn names, verified emails and items from other services' events, and RabbitMQ only
+delivers to queues that already exist. Once a service runs for the first time, with the others running too,
+re-announce what came before it (safe to repeat):
+
+```sh
+npx nx run identity:republish-users   # names + verified emails (never email addresses)
+npx nx run catalog:republish-items    # every item not deleted, for Bookings
+```
 
 After changing gateway endpoints, run `npx nx run gateway:openapi` and then `npx nx run web:api-client` to
 regenerate the spec and the PWA's typed client.
