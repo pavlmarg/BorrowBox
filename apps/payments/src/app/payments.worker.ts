@@ -1,0 +1,189 @@
+import {
+  Inject,
+  Injectable,
+  Logger,
+  type BeforeApplicationShutdown,
+  type OnApplicationBootstrap,
+} from '@nestjs/common';
+import type { DataSource } from 'typeorm';
+import { DATA_SOURCE } from '@borrowbox/service-kit';
+import { syncAccount } from './accounts/account-sync';
+import {
+  claimDueDeletions,
+  markStripeDeleted,
+  retryDeletionLater,
+  type DeletionJob,
+} from './accounts/accounts.repository';
+import { STRIPE_API, type StripeApi } from './stripe/stripe-api';
+import {
+  claimDueEvents,
+  markProcessed,
+  pruneStripeEvents,
+  retryEventLater,
+  type StripeEventRow,
+} from './webhooks/stripe-events.repository';
+
+const POLL_MS = 2_000;
+const BATCH = 20;
+/** A claimed job is retried after this if its worker dies mid-way. */
+const LEASE_MS = 2 * 60 * 1000;
+const MAX_BACKOFF_MS = 60 * 60 * 1000;
+/**
+ * A Stripe event still failing after this many attempts is dropped (and
+ * logged): with the backoff below, about a day.
+ */
+const MAX_EVENT_ATTEMPTS = 30;
+/**
+ * An erased account with no Stripe id yet waits this long before counting
+ * as "nothing at Stripe": an onboarding call that started before the
+ * erasure may still be saving the id (it takes under a minute).
+ */
+const WAIT_FOR_STRIPE_ID_MS = 10 * 60 * 1000;
+const PRUNE_EVERY_MS = 60 * 60 * 1000;
+/** Processed events are kept this long to recognise Stripe's resends (it retries for 3 days). */
+export const KEEP_STRIPE_EVENTS_DAYS = 30;
+
+/**
+ * Payments' background work: processes stored Stripe events (P9, A3) and
+ * deletes erased lenders' Stripe accounts (A7). Both retry with backoff.
+ * Logs carry ids and error names only, never Stripe data.
+ */
+@Injectable()
+export class PaymentsWorker
+  implements OnApplicationBootstrap, BeforeApplicationShutdown
+{
+  private readonly logger = new Logger('PaymentsWorker');
+  private pollTimer?: NodeJS.Timeout;
+  private pruneTimer?: NodeJS.Timeout;
+  private running?: Promise<void>;
+  private stopped = false;
+
+  constructor(
+    @Inject(DATA_SOURCE) private readonly dataSource: DataSource,
+    @Inject(STRIPE_API) private readonly stripe: StripeApi,
+  ) {}
+
+  onApplicationBootstrap(): void {
+    this.pollTimer = setInterval(() => void this.tick(), POLL_MS);
+    this.pollTimer.unref();
+    this.pruneTimer = setInterval(() => void this.prune(), PRUNE_EVERY_MS);
+    this.pruneTimer.unref();
+  }
+
+  /** Does everything due now. One run at a time. */
+  async runDue(now = new Date()): Promise<void> {
+    if (this.running) return this.running;
+    this.running = this.run(now).finally(() => (this.running = undefined));
+    return this.running;
+  }
+
+  private async tick(): Promise<void> {
+    if (this.stopped) return;
+    try {
+      await this.runDue();
+    } catch (err) {
+      this.logger.warn(
+        `Work loop failed: ${err instanceof Error ? err.name : 'unknown'}`,
+      );
+    }
+  }
+
+  private async run(now: Date): Promise<void> {
+    for (;;) {
+      const events = await this.dataSource.transaction((tx) =>
+        claimDueEvents(tx, BATCH, LEASE_MS),
+      );
+      for (const event of events) await this.processEvent(event);
+      if (events.length < BATCH || this.stopped) break;
+    }
+    for (;;) {
+      const jobs = await this.dataSource.transaction((tx) =>
+        claimDueDeletions(tx, BATCH, LEASE_MS),
+      );
+      for (const job of jobs) await this.deleteAtStripe(job, now);
+      if (jobs.length < BATCH || this.stopped) break;
+    }
+  }
+
+  private async processEvent(event: StripeEventRow): Promise<void> {
+    const tx = this.dataSource.manager;
+    try {
+      if (event.type === 'account.updated' && event.account_id) {
+        await syncAccount(
+          this.dataSource,
+          this.stripe,
+          event.account_id,
+          `stripe:${event.event_id}`,
+        );
+      }
+      await markProcessed(tx, event.event_id);
+    } catch (err) {
+      const reason = err instanceof Error ? err.name : 'unknown';
+      if (event.attempts + 1 >= MAX_EVENT_ATTEMPTS) {
+        this.logger.error(
+          `Dropping Stripe event ${event.event_id} (${event.type}) after ${event.attempts + 1} attempts: ${reason}`,
+        );
+        await markProcessed(tx, event.event_id);
+        return;
+      }
+      this.logger.warn(
+        `Stripe event ${event.event_id} (${event.type}) failed (attempt ${event.attempts + 1}): ${reason}`,
+      );
+      await retryEventLater(tx, event.event_id, backoff(event.attempts));
+    }
+  }
+
+  private async deleteAtStripe(job: DeletionJob, now: Date): Promise<void> {
+    const tx = this.dataSource.manager;
+    if (!job.stripe_account_id) {
+      const age = now.getTime() - new Date(job.deleted_at).getTime();
+      if (age < WAIT_FOR_STRIPE_ID_MS) {
+        await retryDeletionLater(tx, job.id, 60_000);
+      } else {
+        await markStripeDeleted(tx, job.id);
+      }
+      return;
+    }
+    try {
+      await this.stripe.deleteAccount(job.stripe_account_id);
+      await markStripeDeleted(tx, job.id);
+      this.logger.log(
+        `Deleted Stripe account of erased lender (row ${job.id})`,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Deleting Stripe account (row ${job.id}) failed (attempt ${job.deletion_attempts + 1}): ${err instanceof Error ? err.name : 'unknown'}`,
+      );
+      // Kept trying: the account must go (GDPR), however long Stripe is down.
+      await retryDeletionLater(tx, job.id, backoff(job.deletion_attempts));
+    }
+  }
+
+  /** Forgets old processed Stripe events; never throws. */
+  async prune(): Promise<void> {
+    try {
+      const deleted = await pruneStripeEvents(
+        this.dataSource.manager,
+        KEEP_STRIPE_EVENTS_DAYS,
+      );
+      if (deleted > 0) this.logger.log(`Pruned ${deleted} Stripe event(s)`);
+    } catch (err) {
+      this.logger.warn(
+        `Prune failed: ${err instanceof Error ? err.name : 'unknown'}`,
+      );
+    }
+  }
+
+  /** Stops polling and lets a running batch finish before the DataSource closes. */
+  async beforeApplicationShutdown(): Promise<void> {
+    this.stopped = true;
+    clearInterval(this.pollTimer);
+    clearInterval(this.pruneTimer);
+    await this.running?.catch(() => undefined);
+  }
+}
+
+/** 1 min, 2, 4, … up to an hour. */
+function backoff(attempts: number): number {
+  return Math.min(MAX_BACKOFF_MS, 60_000 * 2 ** attempts);
+}

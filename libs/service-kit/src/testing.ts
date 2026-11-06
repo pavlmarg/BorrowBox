@@ -78,12 +78,16 @@ export async function startServiceHarness<
    * imported, so it must be loaded only after `env` is applied.
    */
   loadAppModule: () => Promise<Type>;
+  /** Providers to replace, e.g. a third-party API with a fake. */
+  overrides?: Array<{ token: symbol | Type; value: unknown }>;
 }): Promise<ServiceHarness<C>> {
   Object.assign(process.env, options.env);
   const appModule = await options.loadAppModule();
-  const moduleRef = await Test.createTestingModule({
-    imports: [appModule],
-  }).compile();
+  const builder = Test.createTestingModule({ imports: [appModule] });
+  for (const { token, value } of options.overrides ?? []) {
+    builder.overrideProvider(token).useValue(value);
+  }
+  const moduleRef = await builder.compile();
   const app = moduleRef.createNestMicroservice({
     transport: Transport.TCP,
     options: { host: '127.0.0.1', port: options.port },
