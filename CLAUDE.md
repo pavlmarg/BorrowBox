@@ -9,7 +9,7 @@ Full design (read before any structural change): @docs/ARCHITECTURE.md
 ADRs — read the relevant one before touching that area:
 - Messaging / RabbitMQ topology → `docs/adr/0001-rabbitmq.md`
 - Monorepo layout, DB schemas & roles → `docs/adr/0002-nx-monorepo-schema-per-service.md`
-- Anything involving money / Stripe → `docs/adr/0003-stripe-separate-charges-transfers.md`
+- Anything involving money / Stripe → `docs/adr/0003-stripe-separate-charges-transfers.md`, then `0019-payments-fees-and-policies.md` (onboarding, webhooks, fees, payment timeout, refunds)
 - Item locations, maps, photos → `docs/adr/0004-location-fuzzing.md`, then `0007-location-privacy-search.md` (supersedes parts of 0004), then `0011-one-offset-per-place.md` (amends 0007's offset rule)
 - Map tiles, setting item locations → `docs/adr/0008-maps-pin-drop.md`; Explore's map markers → `docs/adr/0014-price-tags-on-explore-map.md`
 - Photo uploads and processing → `docs/adr/0009-photo-pipeline.md`, then `0013-wider-photo-formats.md` (formats, browser conversion, camera)
@@ -24,7 +24,7 @@ ADRs — read the relevant one before touching that area:
 
 ## Current phase
 
-**Phase 3 – Bookings** (update this line as phases complete; see roadmap in `README.md`). Phase 1 and 2 follow-ups are listed there.
+**Phase 4 – Payments, backend first** (update this line as phases complete; see roadmap in `README.md`). Phase 3's backend is merged; the PWA screens for Phases 3 and 4 are built together after Phase 4's backend. Phase 1 and 2 follow-ups are listed there.
 
 - Only build what the current phase needs. If a task seems to require a later-phase feature, stop and ask.
 - Messaging and Reviews start as modules inside `apps/bookings` until their event contracts settle.
@@ -45,6 +45,7 @@ ADRs — read the relevant one before touching that area:
 - Affected checks: `npx nx affected -t lint test build` (Docker must be running: integration tests use Testcontainers)
 - Single project: `npx nx test <project>`, `npx nx serve <project>` (apps need `apps/<app>/.env`; see README "Running the apps")
 - Backfill a newly started service's read models: `npx nx run identity:republish-users` (or `republish-registered`, with emails, for Notifications), `npx nx run catalog:republish-items` (safe to repeat)
+- Stripe webhooks locally (test mode, Stripe CLI): `stripe listen --forward-to localhost:3000/api/webhooks/stripe --forward-connect-to localhost:3000/api/webhooks/stripe-connect`; put the printed `whsec_…` in both webhook secrets of `apps/payments/.env`
 - After changing gateway endpoints: `npx nx run gateway:openapi`, then `npx nx run web:api-client` (a test fails if `openapi.json` drifts)
 - Node ≥ 22.22.3 (`.nvmrc`); Angular 22 and Testcontainers need it
 - Formatting: `npx nx format:write` (Markdown is excluded on purpose)

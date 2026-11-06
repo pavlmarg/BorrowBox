@@ -45,7 +45,7 @@ flowchart TB
     gw -- sync RPC --> idn & cat & bok & pay & msg & rev
     mq[(RabbitMQ<br/>borrowbox.events)]
     idn & cat & bok & pay & msg & rev -- outbox relay --> mq
-    mq --> ntf & bok & pay & rev & cat & idn
+    mq --> ntf & bok & pay & rev & cat
 
     pg[(PostgreSQL + PostGIS<br/>schema per service)]
     redis[(Redis<br/>pub/sub, BullMQ, nonces)]
@@ -68,10 +68,10 @@ flowchart TB
 | Service | Owns | Publishes | Consumes |
 |---|---|---|---|
 | **Gateway** | nothing (stateless) | – | Redis pub/sub (fan-out to sockets) |
-| **Identity** | users, credentials, refresh tokens, email tokens, verification status; sends its own account-security emails | `user.registered`, `user.profile_updated`, `user.email_verified`, `user.verified` (ID check), `user.deletion_requested` | `payment.account_ready` |
+| **Identity** | users, credentials, refresh tokens, email tokens, verification status; sends its own account-security emails | `user.registered`, `user.profile_updated`, `user.email_verified`, `user.verified` (ID check), `user.deletion_requested` | – |
 | **Catalog** | items, categories, photos, location | `item.created`, `item.updated`, `item.deleted` | `user.registered`, `.profile_updated` (lender names), `.email_verified` (to publish), `.deletion_requested`, `booking.accepted` / `.confirmed` (featured items), `review.created` (item rating) |
-| **Bookings** | bookings, availability, handoffs, condition photos | `booking.requested`, `.accepted`, `.confirmed`, `.paid`, `.declined`, `.expired`, `.cancelled`, `.picked_up`, `.returned`, `.completed`, `.disputed` | `item.*`, `user.registered`, `.profile_updated` (names), `.email_verified` (to book), `.deletion_requested`, `payment.captured`, `payment.failed` |
-| **Payments** | Stripe accounts, payments, transfers, refunds, `stripe_events` | `payment.account_ready`, `payment.captured`, `payment.failed`, `payment.settled` | `booking.accepted`, `.cancelled`, `.completed`, `.disputed`, `dispute.resolved` |
+| **Bookings** | bookings, availability, handoffs, condition photos | `booking.requested`, `.accepted`, `.confirmed`, `.paid`, `.declined`, `.expired`, `.cancelled`, `.picked_up`, `.returned`, `.completed`, `.disputed` | `item.*`, `user.registered`, `.profile_updated` (names), `.email_verified` (to book), `.deletion_requested`, `payment.account_ready` / `.account_restricted` (payable lenders), `payment.captured`, `payment.failed` |
+| **Payments** | Stripe connected accounts, payments, transfers, refunds, `stripe_events` | `payment.account_ready`, `payment.account_restricted`, `payment.captured`, `payment.failed`, `payment.settled` | `user.email_verified`, `.deletion_requested`, `booking.accepted`, `.cancelled`, `.completed`, `.disputed`, `dispute.resolved` |
 | **Messaging** (a module of Bookings for now, [ADR-0017](adr/0017-in-app-chat.md)) | conversations, messages, price offers, reports | `message.sent`, `conversation.unread`, `offer.sent`, `offer.withdrawn` | booking changes (system lines, in-process), `item.deleted`, `user.deletion_requested` |
 | **Notifications** | recipients (from `user.*` events), email jobs; later preferences, push subscriptions, in-app inbox | – | `user.registered`, `.profile_updated`, `.deletion_requested`, `booking.*`, `offer.sent`, `conversation.unread` |
 | **Reviews / Trust** | reviews, trust scores | `review.created` | `booking.completed`, `user.verified`, `booking.disputed` |
@@ -97,7 +97,7 @@ flowchart TB
   - Public, no sign-in: `POST /api/items/search`, `/suggest`, `/featured` and `/category-counts` (the searcher's point travels in the body, so it never lands in URLs, access logs or browser history), `GET /api/items/:id` and `/:id/similar`.
   - The signed-in lender's own items under `/api/me/items`: list, create, get, `PATCH`, `DELETE`, `PUT /:id/location`, `POST /:id/publish` / `pause` / `unpause`, and photos (`POST /:id/photos` for an upload URL, `POST …/photos/:photoId/confirm`, `DELETE …/photos/:photoId`, `PUT /:id/photos/order`).
   - Catalog's state and limit refusals (`INVALID_STATE`, `NOT_PUBLISHABLE`, `ITEM_LIMIT_REACHED`, `PHOTO_LIMIT_REACHED`) are `409`; the PWA tells them apart by `code`.
-  - `GET /api/me/export` has one section per service (`identity`, `catalog`, and from Phase 3 `bookings`, `messaging`, `notifications`). If any service doesn't answer, the whole export fails with `503` rather than returning partial data.
+  - `GET /api/me/export` has one section per service (`identity`, `catalog`, from Phase 3 `bookings`, `messaging`, `notifications`, and from Phase 4 `payments`). If any service doesn't answer, the whole export fails with `503` rather than returning partial data.
 - Phase 3 endpoints (Identity's email links, [ADR-0016](adr/0016-notifications-and-email.md)):
   - No sign-in: `POST /api/auth/verify-email` and `/password-reset/confirm` (the token from the link is the proof; the confirm also clears the refresh cookie), and `POST /api/auth/password-reset`, which always answers `202`.
   - Signed in: `POST /api/me/verification-email` (`202`) and `POST /api/me/password`.
@@ -109,6 +109,10 @@ flowchart TB
   - Offers: `POST /api/conversations/:id/offers`, `POST /api/offers/:id/withdraw`, `POST /api/offers/:id/book`.
   - `INVALID_PERIOD` is `400`, `EMAIL_NOT_VERIFIED` `403`, and the state and limit refusals (`SLOT_TAKEN`, `DUPLICATE_REQUEST`, `REQUEST_LIMIT_REACHED`, `OWN_ITEM`, `ITEM_UNAVAILABLE`, `INVALID_STATE`, `CONVERSATION_CLOSED`, `OFFER_UNAVAILABLE`, `PRICE_ABOVE_LIST`) `409`.
   - Per user, on top of the per-IP limits: 30 booking requests (and offer bookings) per hour, 30 messages (and offers) per minute, 20 new conversations per day.
+- Phase 4 endpoints (Payments, [ADR-0019](adr/0019-payments-fees-and-policies.md)):
+  - Signed in: `GET /api/me/payouts` (status), `POST /api/me/payouts/onboarding` and `/dashboard` (each returns a single-use Stripe link; 10 per minute).
+  - Stripe only: `POST /api/webhooks/stripe` (platform events) and `/api/webhooks/stripe-connect` (connected accounts). The raw body (`rawBody`, within the 100 kB limit) and the `Stripe-Signature` header go to Payments, which verifies them; no rate limit, not in the OpenAPI spec.
+  - `PAYOUTS_NOT_SET_UP` is `409`, `INVALID_SIGNATURE` `400`, and `PROVIDER_UNAVAILABLE` (Stripe didn't answer) `503`. Onboarding waits up to 45 s and the dashboard 25 s, derived from Payments' Stripe timeouts in `libs/contracts`.
 - **Live chat:** Socket.IO on the gateway's server, namespace `/chat`. The access token goes in the handshake (`auth.token`), the Origin must be on the CORS allow-list, and each socket joins its user's room; it is disconnected when the token expires and reconnects with a fresh one. Every gateway instance subscribes to Redis `chat:*` and emits to its own sockets. Clients only listen: sending is REST.
 - **Cookies:**
   - The refresh token is set only as `bb_refresh` (httpOnly, Secure, SameSite=Strict, `Path=/api/auth`) and never appears in a response body.
@@ -192,7 +196,12 @@ flowchart TB
 - **GDPR:** the export has the stored name, the email verification and every booking on both sides.
 
 ### Payments
-See §6.
+See §6 and [ADR-0019](adr/0019-payments-fees-and-policies.md). Stripe test mode only: a live key stops the service from starting.
+- **Lender onboarding:** the first "Set up payouts" creates the lender's Express account (country `GR`, `transfers` only, our user id as metadata, nothing personal) and returns a link to Stripe's onboarding, which leads back to `/settings/payouts`. It needs a verified email (from `user.email_verified`). The row is written before Stripe is called and its id is Stripe's idempotency key, so retries never create a second account.
+- **Webhooks:** stored by Stripe's event id (type and object id only, never the payload) and processed by a worker that fetches the object's current state from Stripe, with retries and backoff. Processed events are pruned after 30 days.
+- **Erasure:** `user.deletion_requested` closes the lender's account (their still-valid tokens are refused) and the worker deletes the Stripe account, retrying until it succeeds. The row stays.
+- **GDPR:** the export has the payout account (Stripe account id, status, dates).
+- Checkout, refunds and settlement come with the next Phase 4 PRs.
 
 ### Messaging
 See [ADR-0017](adr/0017-in-app-chat.md) and [ADR-0018](adr/0018-price-offers.md). A module of `apps/bookings`, with tables in the `bookings` schema, until its contracts settle.
@@ -290,7 +299,7 @@ This proves both people were physically present with the item, so neither side c
 
 See [ADR-0003](adr/0003-stripe-separate-charges-transfers.md).
 
-- **Lenders** onboard as **Express connected accounts**. Stripe handles KYC, payouts to IBAN, SCA and DAC7 data collection. `account.updated` with `charges_enabled` triggers `payment.account_ready`.
+- **Lenders** onboard as **Express connected accounts**. Stripe handles KYC, payouts to IBAN, SCA and DAC7 data collection. An account is ready when its `transfers` capability is active (the one separate charges and transfers need): becoming ready emits `payment.account_ready`, losing it `payment.account_restricted` ([ADR-0019](adr/0019-payments-fees-and-policies.md)).
 - **Checkout:** one PaymentIntent on the platform account for `rent + deposit + service fee`, with `transfer_group = booking_<id>`.
 - **Settlement** on `booking.completed`: `Transfer(rent − platform commission)` to the lender, then `Refund(deposit)` to the renter.
 - **Damage claim:** an admin decides the amount. Payments transfers that part of the deposit to the lender and refunds the rest.
