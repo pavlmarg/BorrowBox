@@ -105,5 +105,11 @@ export type { ConversationsControllerWithdrawOffer$Params as ConversationsContro
 export { conversationsControllerWithdrawOffer as conversationsControllerWithdrawOffer } from './fn/messages/conversations-controller-withdraw-offer';
 export type { ConversationsControllerBookOffer$Params as ConversationsControllerBookOffer$Params } from './fn/messages/conversations-controller-book-offer';
 export { conversationsControllerBookOffer as conversationsControllerBookOffer } from './fn/messages/conversations-controller-book-offer';
+export type { PayoutsControllerGet$Params as PayoutsControllerGet$Params } from './fn/payouts/payouts-controller-get';
+export { payoutsControllerGet as payoutsControllerGet } from './fn/payouts/payouts-controller-get';
+export type { PayoutsControllerStartOnboarding$Params as PayoutsControllerStartOnboarding$Params } from './fn/payouts/payouts-controller-start-onboarding';
+export { payoutsControllerStartOnboarding as payoutsControllerStartOnboarding } from './fn/payouts/payouts-controller-start-onboarding';
+export type { PayoutsControllerDashboard$Params as PayoutsControllerDashboard$Params } from './fn/payouts/payouts-controller-dashboard';
+export { payoutsControllerDashboard as payoutsControllerDashboard } from './fn/payouts/payouts-controller-dashboard';
 export type { HealthControllerGet$Params as HealthControllerGet$Params } from './fn/health/health-controller-get';
 export { healthControllerGet as healthControllerGet } from './fn/health/health-controller-get';

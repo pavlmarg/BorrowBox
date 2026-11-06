@@ -26,6 +26,7 @@ export async function startGateway(options: {
   /** Fake Bookings (and Messaging); a closed port if omitted. */
   bookingsPort?: number;
   notificationsPort?: number;
+  paymentsPort?: number;
   rpcTimeoutMs?: number;
 }): Promise<GatewayHarness> {
   const keys = generateKeyPairSync('ed25519', {
@@ -55,6 +56,8 @@ export async function startGateway(options: {
     BOOKINGS_PORT: String(options.bookingsPort ?? 1),
     NOTIFICATIONS_HOST: '127.0.0.1',
     NOTIFICATIONS_PORT: String(options.notificationsPort ?? 1),
+    PAYMENTS_HOST: '127.0.0.1',
+    PAYMENTS_PORT: String(options.paymentsPort ?? 1),
     RPC_TIMEOUT_MS: String(options.rpcTimeoutMs ?? 1000),
     COOKIE_SECRET: 'test-cookie-secret-0123456789abcdef',
     JWT_PUBLIC_KEY: keys.publicKey,
@@ -71,6 +74,7 @@ export async function startGateway(options: {
   }).compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({
     bodyParser: false,
+    rawBody: true,
     logger: false,
   });
   configureApp(app);

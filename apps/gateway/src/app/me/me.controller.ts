@@ -28,6 +28,7 @@ import {
   IdentityRpc,
   MessagingRpc,
   NotificationsRpc,
+  PaymentsRpc,
 } from '@borrowbox/contracts';
 import {
   ApiErrorResponse,
@@ -40,6 +41,7 @@ import {
 import { BookingsClient, MessagingClient } from '../bookings/bookings.client';
 import { CatalogClient } from '../catalog/catalog.client';
 import { NotificationsClient } from '../notifications/notifications.client';
+import { PaymentsClient } from '../payments/payments.client';
 import { clearRefreshCookie } from '../http/cookies';
 import { AuthRateLimit } from '../http/rate-limits';
 import { AccessToken, CorrelationId } from '../http/request-context';
@@ -65,6 +67,7 @@ export class MeController {
     private readonly bookings: BookingsClient,
     private readonly messaging: MessagingClient,
     private readonly notifications: NotificationsClient,
+    private readonly payments: PaymentsClient,
   ) {}
 
   @Get()
@@ -175,15 +178,16 @@ export class MeController {
     // All or nothing (G4): if any service doesn't answer, the whole export
     // fails and can be retried, rather than silently missing data.
     const context = { accessToken, correlationId };
-    const [identity, catalog, bookings, messaging, notifications] =
+    const [identity, catalog, bookings, messaging, notifications, payments] =
       await Promise.all([
         this.identity.call(IdentityRpc.exportMe, {}, context),
         this.catalog.call(CatalogRpc.exportMe, {}, context),
         this.bookings.call(BookingsRpc.exportMe, {}, context),
         this.messaging.call(MessagingRpc.exportMe, {}, context),
         this.notifications.call(NotificationsRpc.exportMe, {}, context),
+        this.payments.call(PaymentsRpc.exportMe, {}, context),
       ]);
-    return { identity, catalog, bookings, messaging, notifications };
+    return { identity, catalog, bookings, messaging, notifications, payments };
   }
 
   @Delete()

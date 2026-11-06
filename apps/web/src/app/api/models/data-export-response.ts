@@ -6,10 +6,12 @@ import { CatalogDataExportResponse } from '../models/catalog-data-export-respons
 import { IdentityDataExportResponse } from '../models/identity-data-export-response';
 import { MessagingDataExportResponse } from '../models/messaging-data-export-response';
 import { NotificationsDataExportResponse } from '../models/notifications-data-export-response';
+import { PaymentsDataExportResponse } from '../models/payments-data-export-response';
 export interface DataExportResponse {
   bookings: BookingsDataExportResponse;
   catalog: CatalogDataExportResponse;
   identity: IdentityDataExportResponse;
   messaging: MessagingDataExportResponse;
   notifications: NotificationsDataExportResponse;
+  payments: PaymentsDataExportResponse;
 }

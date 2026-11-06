@@ -37,6 +37,11 @@ import {
   NOTIFICATIONS_PROXY,
   NotificationsClient,
 } from './notifications/notifications.client';
+import {
+  PayoutsController,
+  StripeWebhooksController,
+} from './payments/payments.controller';
+import { PAYMENTS_PROXY, PaymentsClient } from './payments/payments.client';
 import { REDIS, RedisModule } from './redis.module';
 import { rpcTimeoutProvider, tcpClientProvider } from './rpc/rpc.providers';
 
@@ -86,6 +91,8 @@ const configModule = ConfigModule.forRoot({
     BookingsController,
     MyBookingsController,
     ConversationsController,
+    PayoutsController,
+    StripeWebhooksController,
     HealthController,
   ],
   providers: [
@@ -104,6 +111,8 @@ const configModule = ConfigModule.forRoot({
       'NOTIFICATIONS_PORT',
     ),
     NotificationsClient,
+    tcpClientProvider(PAYMENTS_PROXY, 'PAYMENTS_HOST', 'PAYMENTS_PORT'),
+    PaymentsClient,
     ChatGateway,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],

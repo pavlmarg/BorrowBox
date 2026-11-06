@@ -140,6 +140,17 @@ export class GatewayConfig {
   @Max(65535)
   NOTIFICATIONS_PORT = 4004;
 
+  /** Payments' TCP endpoint (ADR-0005): payouts and Stripe's webhooks. */
+  @IsString()
+  @IsNotEmpty()
+  PAYMENTS_HOST = '127.0.0.1';
+
+  @toInt()
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  PAYMENTS_PORT = 4005;
+
   @toInt()
   @IsInt()
   @Min(100)

@@ -27,6 +27,7 @@ import {
   MessagingDataExportResponse,
   NotificationsDataExportResponse,
 } from './messaging/messaging.api';
+import { PaymentsDataExportResponse } from './payments/payments.api';
 
 // HTTP DTOs: validated here, validated again by Identity (never trust the
 // edge alone), and the source of the OpenAPI spec the PWA client is generated from.
@@ -254,6 +255,9 @@ export class DataExportResponse {
 
   @ApiProperty({ type: NotificationsDataExportResponse })
   notifications!: NotificationsDataExportResponse;
+
+  @ApiProperty({ type: PaymentsDataExportResponse })
+  payments!: PaymentsDataExportResponse;
 }
 
 export class ApiErrorResponse {
