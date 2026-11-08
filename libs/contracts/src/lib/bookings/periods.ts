@@ -13,6 +13,11 @@ export const BOOKING_MIN_LEAD_HOURS = 1;
 export const BOOKING_MAX_AHEAD_DAYS = 180;
 /** A request with no answer expires after this, or at its start if sooner. */
 export const BOOKING_ANSWER_HOURS = 24;
+/**
+ * After the lender accepts, the renter pays within this, or by the start if
+ * sooner; then the booking expires (`PAYMENT_TIMEOUT`, ADR-0019).
+ */
+export const PAYMENT_WINDOW_HOURS = 24;
 /** How many `REQUESTED` bookings a renter may have open at once. */
 export const BOOKING_OPEN_REQUESTS_MAX = 10;
 

@@ -45,8 +45,16 @@ export const BOOKING_CANCEL_REASONS = [
 ] as const;
 export type BookingCancelReason = (typeof BOOKING_CANCEL_REASONS)[number];
 
-/** A request nobody answered in time, or a booking whose start came first. */
-export const BOOKING_EXPIRE_REASONS = ['NO_ANSWER', 'STARTED'] as const;
+/**
+ * A request nobody answered in time (`NO_ANSWER`) or whose start came first
+ * (`STARTED`), or an accepted booking not paid by its pay-by time
+ * (`PAYMENT_TIMEOUT`, ADR-0019).
+ */
+export const BOOKING_EXPIRE_REASONS = [
+  'NO_ANSWER',
+  'STARTED',
+  'PAYMENT_TIMEOUT',
+] as const;
 export type BookingExpireReason = (typeof BOOKING_EXPIRE_REASONS)[number];
 
 export type BookingCloseReason =
@@ -59,8 +67,14 @@ export type PriceUnits = Record<PriceUnit, number>;
 export interface BookingPrice {
   rentCents: number;
   depositCents: number;
-  /** rent + deposit. Payments adds its fee in Phase 4. */
+  /** The renter's service fee on top (ADR-0020); 0 when nothing is charged. */
+  feeCents: number;
+  /** What the renter pays: rent + deposit + fee. */
   totalCents: number;
+  /** Taken from the lender's rent for the deposit's cost (ADR-0020). */
+  lenderFeeCents: number;
+  /** What the lender receives once the booking completes: rent − lender fee. */
+  payoutCents: number;
   /**
    * The rate-card combination for the period. For a booking made from an
    * offer, it's what the rate card would have used; the rent is the offer's.
@@ -96,6 +110,8 @@ export interface BookingView {
   reason: BookingCloseReason | null;
   /** While `REQUESTED`: when it expires without an answer. */
   expiresAt: string | null;
+  /** While `ACCEPTED`: when it expires unless paid (ADR-0019). */
+  payBy: string | null;
   createdAt: string;
   updatedAt: string;
 }

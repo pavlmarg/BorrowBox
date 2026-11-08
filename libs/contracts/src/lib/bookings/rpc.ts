@@ -41,6 +41,8 @@ export type BookingsErrorCode =
   | 'DUPLICATE_REQUEST'
   /** The renter already has `BOOKING_OPEN_REQUESTS_MAX` open requests. */
   | 'REQUEST_LIMIT_REACHED'
+  /** Accepting a booking with something to pay needs the lender's payouts set up (ADR-0019). */
+  | 'PAYOUTS_NOT_SET_UP'
   /** Unexpected failure; details are only in Bookings' logs. */
   | 'INTERNAL';
 

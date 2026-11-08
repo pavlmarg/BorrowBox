@@ -29,6 +29,8 @@ export const SYSTEM_MESSAGE_CODES = [
   'BOOKING_ACCEPTED',
   /** Also asks both to arrange where and when to meet (ADR-0015). */
   'BOOKING_CONFIRMED',
+  /** The renter paid; also asks both to arrange where and when to meet. */
+  'BOOKING_PAID',
   'BOOKING_DECLINED',
   'BOOKING_CANCELLED',
   'BOOKING_EXPIRED',
@@ -58,6 +60,9 @@ export interface OfferView {
   rentCents: number;
   /** The item's deposit; not negotiable. */
   depositCents: number;
+  /** The renter's service fee for this offer (ADR-0020). */
+  feeCents: number;
+  /** What the renter would pay: rent + deposit + fee. */
   totalCents: number;
   /** What the rate card would charge for the period, for comparison. */
   listRentCents: number;

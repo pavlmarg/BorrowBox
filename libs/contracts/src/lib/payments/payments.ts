@@ -35,6 +35,50 @@ export interface StripeLinkView {
   expiresAt: string | null;
 }
 
+/**
+ * A renter's payment for a booking (ADR-0019), as the renter sees it:
+ * - `REQUIRES_PAYMENT`: waiting for the renter (also after a failed attempt);
+ * - `PROCESSING`: the bank is still confirming;
+ * - `SUCCEEDED`: paid;
+ * - `CANCELLED`: the booking closed before it was paid;
+ * - `NEEDS_REFUND`: paid, but the booking had closed meanwhile: refunded in full.
+ */
+export const PAYMENT_STATUSES = [
+  'REQUIRES_PAYMENT',
+  'PROCESSING',
+  'SUCCEEDED',
+  'CANCELLED',
+  'NEEDS_REFUND',
+] as const;
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+
+/** Paying can't start (or resume) this close to the pay-by time, so it can't run past it. */
+export const CHECKOUT_CUTOFF_MINUTES = 10;
+
+export interface PaymentView {
+  bookingId: string;
+  status: PaymentStatus;
+  rentCents: number;
+  depositCents: number;
+  feeCents: number;
+  /** What the renter pays: rent + deposit + fee. */
+  chargeCents: number;
+  /** When the booking expires unless paid. */
+  payBy: string;
+  /** The last attempt failed (declined card, failed 3-D Secure); the renter may try again. */
+  lastAttemptFailed: boolean;
+  paidAt: string | null;
+}
+
+/**
+ * What the PWA needs to take the payment with Stripe's own form (the web
+ * pass). The client secret lets its holder pay this booking only: it goes to
+ * the renter and nowhere else, and is never logged or stored.
+ */
+export interface CheckoutView extends PaymentView {
+  clientSecret: string;
+}
+
 /** Payments' timeout for each request it makes to Stripe. */
 export const STRIPE_HTTP_TIMEOUT_MS = 10_000;
 

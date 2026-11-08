@@ -36,6 +36,8 @@ export type MessagingErrorCode =
   | 'INVALID_PERIOD'
   /** The offer's period is already held by another booking. */
   | 'SLOT_TAKEN'
+  /** An offer with something to pay needs the lender's payouts set up (ADR-0019). */
+  | 'PAYOUTS_NOT_SET_UP'
   | 'INTERNAL';
 
 // --- Requests ---------------------------------------------------------------

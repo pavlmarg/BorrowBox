@@ -5,6 +5,9 @@
  * and are trusted only after Payments checks their signature.
  */
 import type {
+  CheckoutView,
+  PaymentStatus,
+  PaymentView,
   PayoutAccountView,
   PayoutStatus,
   StripeLinkView,
@@ -21,6 +24,12 @@ export type PaymentsErrorCode =
    * PR B also: accepting a paid booking needs payouts set up (ADR-0019).
    */
   | 'PAYOUTS_NOT_SET_UP'
+  /** Unknown booking, or not the caller's to pay. Existence is never confirmed. */
+  | 'NOT_FOUND'
+  /** The booking isn't waiting for payment (already paid, or closed). */
+  | 'INVALID_STATE'
+  /** Too close to (or past) the booking's pay-by time to start paying. */
+  | 'PAYMENT_WINDOW_CLOSED'
   /** A webhook whose signature doesn't match: not from Stripe, or altered. */
   | 'INVALID_SIGNATURE'
   /** Stripe didn't answer in time or failed; nothing was changed, try again. */
@@ -48,6 +57,11 @@ export interface ReceiveWebhookRequest {
   signature: string;
 }
 
+/** The renter's booking to pay (they are identified by their token). */
+export interface BookingPaymentRequest {
+  bookingId: string;
+}
+
 // --- Responses --------------------------------------------------------------
 
 /** Payments' part of `GET /me/export`. */
@@ -61,6 +75,14 @@ export interface PaymentsDataExport {
     createdAt: string;
     updatedAt: string | null;
   } | null;
+  /** The caller's payments as a renter (amounts in cents, no card details). */
+  payments: Array<{
+    bookingId: string;
+    status: PaymentStatus;
+    chargeCents: number;
+    createdAt: string;
+    paidAt: string | null;
+  }>;
 }
 
 export const PaymentsRpc = {
@@ -68,6 +90,8 @@ export const PaymentsRpc = {
   startOnboarding: 'payments.payouts.onboard',
   dashboardLink: 'payments.payouts.dashboard',
   receiveWebhook: 'payments.webhooks.receive',
+  startCheckout: 'payments.checkout.start',
+  getPayment: 'payments.checkout.get',
   exportMe: 'payments.me.export',
 } as const;
 
@@ -88,6 +112,14 @@ export interface PaymentsRpcContract {
     request: ReceiveWebhookRequest;
     response: void;
   };
+  [PaymentsRpc.startCheckout]: {
+    request: BookingPaymentRequest;
+    response: CheckoutView;
+  };
+  [PaymentsRpc.getPayment]: {
+    request: BookingPaymentRequest;
+    response: PaymentView;
+  };
   [PaymentsRpc.exportMe]: {
     request: Record<string, never>;
     response: PaymentsDataExport;
@@ -99,11 +131,13 @@ export type PaymentsRpcPattern = keyof PaymentsRpcContract;
 /**
  * Stripe requests per call, for the gateway's timeouts
  * (`stripeCallTimeoutMs`): onboarding may create the account and then a
- * link; the dashboard needs one login link.
+ * link; the dashboard needs one login link; checkout creates or fetches the
+ * PaymentIntent.
  */
 export const PAYMENTS_STRIPE_REQUESTS: Partial<
   Record<PaymentsRpcPattern, number>
 > = {
   [PaymentsRpc.startOnboarding]: 2,
   [PaymentsRpc.dashboardLink]: 1,
+  [PaymentsRpc.startCheckout]: 1,
 };

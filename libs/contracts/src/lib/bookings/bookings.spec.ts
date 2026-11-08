@@ -4,6 +4,7 @@ import {
   BookingConfirmedV1,
   BookingDeclinedV1,
   BookingExpiredV1,
+  BookingPaidV1,
   BookingRequestedV1,
 } from './events';
 import { TIMESTAMP_OFFSET_PATTERN, hoursBetween, isWholeHour } from './periods';
@@ -52,6 +53,7 @@ describe('booking events', () => {
         BookingDeclinedV1,
         BookingExpiredV1,
         BookingCancelledV1,
+        BookingPaidV1,
       ].map((e) => e.routingKey),
     ).toEqual([
       'booking.requested.v1',
@@ -60,6 +62,7 @@ describe('booking events', () => {
       'booking.declined.v1',
       'booking.expired.v1',
       'booking.cancelled.v1',
+      'booking.paid.v1',
     ]);
   });
 });
