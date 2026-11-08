@@ -7,5 +7,6 @@ export interface ExportedPayment {
   chargeCents: number;
   createdAt: string;
   paidAt: string | null;
+  refundedCents: number;
   status: PaymentStatus;
 }

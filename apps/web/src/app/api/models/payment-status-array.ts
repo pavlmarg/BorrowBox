@@ -11,5 +11,7 @@ export const PAYMENT_STATUS: PaymentStatus[] = [
   'PROCESSING',
   'SUCCEEDED',
   'CANCELLED',
-  'NEEDS_REFUND'
+  'NEEDS_REFUND',
+  'REFUNDED',
+  'SETTLED'
 ];

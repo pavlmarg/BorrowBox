@@ -1,7 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  MONEY_MOVEMENT_STATUSES,
   PAYMENT_STATUSES,
   PAYOUT_STATUSES,
+  type MoneyMovementStatus,
   type PaymentStatus,
   type PayoutStatus,
 } from '@borrowbox/contracts';
@@ -56,7 +58,7 @@ export class PaymentViewResponse {
     enum: PAYMENT_STATUSES,
     enumName: 'PaymentStatus',
     description:
-      'REQUIRES_PAYMENT (also after a failed attempt), PROCESSING, SUCCEEDED, CANCELLED (the booking closed unpaid), NEEDS_REFUND (paid, but the booking closed)',
+      'REQUIRES_PAYMENT (also after a failed attempt), PROCESSING, SUCCEEDED, CANCELLED (the booking closed unpaid), NEEDS_REFUND (the refund is on its way), REFUNDED (a cancelled booking was refunded), SETTLED (completed: the lender was paid, the deposit returned)',
   })
   status!: PaymentStatus;
   @ApiProperty() rentCents!: number;
@@ -78,6 +80,11 @@ export class PaymentViewResponse {
   lastAttemptFailed!: boolean;
   @ApiProperty({ format: 'date-time', nullable: true, type: String })
   paidAt!: string | null;
+  @ApiProperty({
+    description:
+      'Back to the renter so far: a refund or the deposit (ADR-0021)',
+  })
+  refundedCents!: number;
 }
 
 export class CheckoutResponse extends PaymentViewResponse {
@@ -93,9 +100,21 @@ export class ExportedPayment {
   @ApiProperty({ enum: PAYMENT_STATUSES, enumName: 'PaymentStatus' })
   status!: PaymentStatus;
   @ApiProperty() chargeCents!: number;
+  @ApiProperty() refundedCents!: number;
   @ApiProperty({ format: 'date-time' }) createdAt!: string;
   @ApiProperty({ format: 'date-time', nullable: true, type: String })
   paidAt!: string | null;
+}
+
+export class ExportedPayout {
+  @ApiProperty({ format: 'uuid' }) bookingId!: string;
+  @ApiProperty() amountCents!: number;
+  @ApiProperty({
+    enum: MONEY_MOVEMENT_STATUSES,
+    enumName: 'MoneyMovementStatus',
+  })
+  status!: MoneyMovementStatus;
+  @ApiProperty({ format: 'date-time' }) createdAt!: string;
 }
 
 export class PaymentsDataExportResponse {
@@ -104,4 +123,9 @@ export class PaymentsDataExportResponse {
   payoutAccount!: ExportedPayoutAccount | null;
   @ApiProperty({ type: [ExportedPayment] })
   payments!: ExportedPayment[];
+  @ApiProperty({
+    type: [ExportedPayout],
+    description: 'What BorrowBox transferred to the caller as a lender',
+  })
+  payouts!: ExportedPayout[];
 }
