@@ -288,7 +288,7 @@ sequenceDiagram
     L->>B: scan → booking.returned
     Note over B: 48h claim window (BullMQ delayed job)
     B-->>P: booking.completed
-    P->>S: Transfer rent − fee to lender, Refund deposit
+    P->>S: Transfer rent − lender's deposit fee, Refund deposit
     P-->>N: payment.settled
 ```
 
@@ -318,7 +318,7 @@ See [ADR-0003](adr/0003-stripe-separate-charges-transfers.md).
 - **Checkout:** one PaymentIntent on the platform account for `rent + deposit + service fee`, with `transfer_group = booking_<id>`, created when the renter starts paying. The fee always covers Stripe's cost ([ADR-0020](adr/0020-booking-fees.md)).
 - **Settlement** on `booking.completed`: `Transfer(rent − lender's deposit fee)` to the lender ([ADR-0020](adr/0020-booking-fees.md)), then `Refund(deposit)` to the renter.
 - **Damage claim:** an admin decides the amount. Payments transfers that part of the deposit to the lender and refunds the rest.
-- **Cancellation policy:** full refund more than 24 h before the start, rent minus 50% after that (configurable).
+- **Cancellation policy** ([ADR-0021](adr/0021-refunds-and-settlement.md)): the renter more than 24 h before the start gets all but the service fee back (at least Stripe's cost kept); later, the deposit and half the rent, the lender the other half minus their deposit fee; anything not the renter's doing refunds everything.
 - **Webhooks:** raw body signature verification, stored in `payments.stripe_events` (unique on the Stripe event id) and processed asynchronously.
 - **Why not authorization holds:** card authorizations expire after about 7 days and not all EU cards support extended holds. Charging the deposit and then refunding it works for any rental length, and the UX must say so clearly.
 - ⚠️ **Before a real launch:** confirm with Stripe or legal counsel that the flow of funds is covered under Stripe's licence (EU PSD2), and set up insurance or damage-policy terms.
@@ -404,6 +404,8 @@ Messaging and Reviews can start as modules inside Bookings and move into their o
 - **Rate-limiting algorithm.** The Redis store counts in a fixed window that starts at a client's first request, so a client can get about 2× the limit in a burst across a window boundary. The in-memory fallback is a sliding-window log, so it's slightly stricter. That's fine for brute-force protection today. Decide whether to switch Redis to a sliding window or a token bucket (a custom Lua script) for smoother limits.
 - **Retries and a circuit breaker for gateway → service calls (revisit in Phase 7).** Today a failed call is not retried. Options: retry read-only calls once on a connection error, and/or a circuit breaker that fails fast while a service is down. Commands must not be retried blindly (they may already have run).
 - **Offsets derived from a secret (revisit in Phase 7).** A lender who moves a pin 300 m or more away and back draws a new offset each time, so someone recording one item's public point over weeks could average several offsets for the same home ([ADR-0011](adr/0011-one-offset-per-place.md)). The robust fix derives the offset from a server secret, the lender and a coarse area, so a place always gets the same offset.
+- **Stripe Connect costs (revisit before launch).** Stripe charges per payout to a lender's bank and per active connected account each month; payouts are batched per lender, so no per-booking fee covers them ([ADR-0021](adr/0021-refunds-and-settlement.md)). Likewise, a full refund that isn't the renter's doing loses Stripe's processing fee. Options: a small monthly lender fee, or recovering costs from a lender's next transfers (needs a running balance per lender).
+- **How long payment records are kept (before launch).** Payments keeps payments, refunds and transfers (ids and amounts only). Confirm the Greek legal retention period, then add a setting and a pruning job.
 - **CDN caching of public photos (decide at deployment, Phase 7).** If a CDN caches the public photo bucket, a deleted photo stays reachable at its old URL until its cache entry expires, which delays GDPR erasure. Choose a short cache lifetime, or purge the CDN on delete. Photo keys are random and never reused, so caching can't show the wrong photo.
 - **Dead-letter queues (Phase 7).** Messages that end in a DLQ raise no alert, there is no tool to replay them, and they never expire, although envelopes can hold personal data (the 7-day retention doesn't reach them). Options: a Grafana alert on DLQ depth, a replay command, and a TTL matching the outbox retention.
 - **Registration reveals accounts.** `POST /auth/register` answers `EMAIL_TAKEN`, so anyone can test whether an email has an account (the password reset is careful not to). Options: answer as if registered and email the owner instead, or accept it behind the rate limit.

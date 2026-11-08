@@ -71,7 +71,7 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
 *   [ ] **Phase 3 – Bookings:** availability, request / accept / decline, state machine, email notifications, in-app chat with price offers
     *   The backend is merged; its PWA screens (borrowing, bookings, chat, the email-link pages) are built together with Phase 4's, after Phase 4's backend.
 *   [ ] **Phase 4 – Payments:** Stripe Connect onboarding, checkout, webhooks, transfers & refunds (test mode)
-    *   Backend first ([ADR-0019](docs/adr/0019-payments-fees-and-policies.md), fees in [ADR-0020](docs/adr/0020-booking-fees.md)): lender onboarding, webhooks and checkout done; refunds and settlement next.
+    *   Backend first ([ADR-0019](docs/adr/0019-payments-fees-and-policies.md), fees in [ADR-0020](docs/adr/0020-booking-fees.md)): lender onboarding, webhooks, checkout, refunds and settlement done ([ADR-0021](docs/adr/0021-refunds-and-settlement.md)); a live run with Stripe test mode before pushing.
 *   [ ] **Phase 5 – Handoff:** QR pickup/return protocol, condition photos, claim window
 *   [ ] **Phase 6 – Trust & Social:** chat, reviews, trust score, ID verification
 *   [ ] **Phase 7 – Hardening:** observability stack, e2e tests, VPS deployment
@@ -156,7 +156,17 @@ Payments only ever uses Stripe's **test mode**: a live key stops it from startin
    Put the `whsec_…` it prints in both `STRIPE_WEBHOOK_SECRET` and `STRIPE_CONNECT_WEBHOOK_SECRET` (locally they're the same).
 4. Signed in with a verified email, `POST /api/me/payouts/onboarding` returns a Stripe link. Stripe's test onboarding takes the test data from [Stripe's Connect testing docs](https://docs.stripe.com/connect/testing) (test phone numbers, verification codes and bank accounts); nothing real is needed.
 
-In a deployment, register two webhook endpoints in the dashboard (`/api/webhooks/stripe` with "Your account" events, `/api/webhooks/stripe-connect` with "Connected accounts" events, at least `account.updated`); each has its own signing secret.
+In a deployment, register two webhook endpoints in the dashboard (`/api/webhooks/stripe` with "Your account" events, at least `payment_intent.succeeded`, `.payment_failed`, `.processing`, `.canceled`, `refund.updated` and `refund.failed`; `/api/webhooks/stripe-connect` with "Connected accounts" events, at least `account.updated`); each has its own signing secret.
+
+**Live run with Stripe test mode** (once, before pushing Phase 4; the PWA's payment screens come with the web pass):
+
+1. Start the infra, all services, the gateway and `stripe listen` as above; open Mailpit (http://localhost:8025) to see the emails.
+2. Create a lender and a renter and confirm both emails. Onboard the lender with Stripe's test data and wait for `GET /api/me/payouts` to say `READY` (run `npx nx run payments:republish-accounts` if Bookings started after the account became ready).
+3. The lender publishes an item, the renter requests it, the lender accepts. The accept email shows the fee and the pay-by time.
+4. The renter calls `POST /api/bookings/:id/payment`; the PaymentIntent id is the part of `clientSecret` before `_secret_`. Pay it from the CLI: `stripe payment_intents confirm <pi_…> --payment-method pm_card_visa` (or `pm_card_chargeDeclined` to see a failed attempt and its email). The booking turns `PAID`.
+5. Cancel paid bookings both ways (the renter more than 24 h ahead: all but the fee back; the lender: everything) and check the refunds in the dashboard and the emails.
+6. Settlement: Phase 5 doesn't emit `booking.completed` yet. Publish one by hand from RabbitMQ's management UI (http://localhost:15672) to `borrowbox.events` with routing key `booking.completed.v1` (a copy of the booking's `booking.paid` envelope with a new `eventId` and `type`); the lender's transfer and the deposit refund appear in the dashboard.
+7. Erase a lender whose connected account you first deleted in the dashboard, and note what the deletion worker logs: only Stripe's `resource_missing` counts as already gone (ADR-0019 follow-up).
 
 Tests never read these `.env` files (`NODE_ENV=test`); they set their own environment.
 

@@ -30,5 +30,5 @@ Examples (amounts in euros; Stripe's cost at 1.5% + €0.25, rounded up):
 - Every charged booking earns BorrowBox at least what Stripe takes for the standard EEA card. A property test checks it over thousands of rent and deposit combinations.
 - Lenders who ask for a deposit receive a little less than their rent, and a large deposit on a cheap item can take the whole rent: the PWA must show lenders the deposit's cost when they set it, and renters the fee before they request.
 - Cards from outside the EEA cost Stripe more, so those bookings can earn less, or lose a little. If they become common, raise `stripeBasisPoints`.
-- Not covered by any per-booking fee: chargebacks (Stripe's dispute fee) and Stripe Connect's account and payout fees. The payout fee should join the floor with settlement (PR C).
-- Refunds (PR C) must keep at least Stripe's cost, which Stripe never returns: ADR-0019's "everything refunded, the fee included" would lose it. To be decided with PR C.
+- Not covered by any per-booking fee: chargebacks (Stripe's dispute fee) and Stripe Connect's account and payout fees (payouts are batched per lender; a side decision, see [ADR-0021](0021-refunds-and-settlement.md)).
+- Refunds keep at least Stripe's cost, which Stripe never returns, when the renter cancels early: settled by [ADR-0021](0021-refunds-and-settlement.md).
