@@ -3,6 +3,8 @@ import {
   PaymentAccountRestrictedV1,
   PaymentCapturedV1,
   PaymentFailedV1,
+  PaymentRefundedV1,
+  PaymentSettledV1,
 } from './events';
 import { stripeCallTimeoutMs, stripeRetrySleepMs } from './payments';
 import { PAYMENTS_STRIPE_REQUESTS, PaymentsRpc } from './rpc';
@@ -15,12 +17,16 @@ describe('payments contracts', () => {
         PaymentAccountRestrictedV1,
         PaymentCapturedV1,
         PaymentFailedV1,
+        PaymentRefundedV1,
+        PaymentSettledV1,
       ].map((e) => e.routingKey),
     ).toEqual([
       'payment.account_ready.v1',
       'payment.account_restricted.v1',
       'payment.captured.v1',
       'payment.failed.v1',
+      'payment.refunded.v1',
+      'payment.settled.v1',
     ]);
   });
 

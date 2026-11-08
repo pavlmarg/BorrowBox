@@ -41,8 +41,11 @@ export interface StripeLinkView {
  * - `PROCESSING`: the bank is still confirming;
  * - `SUCCEEDED`: paid;
  * - `CANCELLED`: the booking closed before it was paid;
- * - `NEEDS_REFUND`: paid, but the booking closed (cancelled, or paid too late): a
- *   refund is due (PR C).
+ * - `NEEDS_REFUND`: paid, but the booking closed (cancelled, or paid too late):
+ *   the refund is on its way (ADR-0021);
+ * - `REFUNDED`: the cancelled booking's refund (and any share for the lender)
+ *   went out;
+ * - `SETTLED`: the booking completed: the lender was paid, the deposit went back.
  */
 export const PAYMENT_STATUSES = [
   'REQUIRES_PAYMENT',
@@ -50,8 +53,24 @@ export const PAYMENT_STATUSES = [
   'SUCCEEDED',
   'CANCELLED',
   'NEEDS_REFUND',
+  'REFUNDED',
+  'SETTLED',
 ] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+
+/**
+ * A refund or a transfer Payments makes (ADR-0021): planned (`PENDING`),
+ * accepted by Stripe (`SUBMITTED`, a refund still on its way), done
+ * (`SUCCEEDED`), or refused for good (`FAILED`, logged for a person to look
+ * at). Waiting for the lender's payouts keeps a transfer `PENDING`.
+ */
+export const MONEY_MOVEMENT_STATUSES = [
+  'PENDING',
+  'SUBMITTED',
+  'SUCCEEDED',
+  'FAILED',
+] as const;
+export type MoneyMovementStatus = (typeof MONEY_MOVEMENT_STATUSES)[number];
 
 /** Paying can't start (or resume) this close to the pay-by time, so it can't run past it. */
 export const CHECKOUT_CUTOFF_MINUTES = 10;
@@ -69,6 +88,8 @@ export interface PaymentView {
   /** The last attempt failed (declined card, failed 3-D Secure); the renter may try again. */
   lastAttemptFailed: boolean;
   paidAt: string | null;
+  /** Back to the renter so far: a cancellation's refund or the deposit. */
+  refundedCents: number;
 }
 
 /**
