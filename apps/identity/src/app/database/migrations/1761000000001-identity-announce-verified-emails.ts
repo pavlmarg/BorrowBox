@@ -11,22 +11,26 @@ export class IdentityAnnounceVerifiedEmails1761000000001 implements MigrationInt
   name = 'IdentityAnnounceVerifiedEmails1761000000001';
 
   async up(queryRunner: QueryRunner): Promise<void> {
+    // The id is drawn in the subquery's select list, so it is evaluated once
+    // per user. (An uncorrelated LATERAL (SELECT gen_random_uuid()) is
+    // evaluated only once, giving every row the same event id.)
     await queryRunner.query(`
       INSERT INTO outbox (event_id, routing_key, envelope)
-      SELECT e.id, 'user.email_verified.v1',
+      SELECT e.event_id, 'user.email_verified.v1',
              jsonb_build_object(
-               'eventId', e.id,
+               'eventId', e.event_id,
                'type', 'user.email_verified',
                'version', 1,
-               'occurredAt', to_char(u.email_verified_at AT TIME ZONE 'UTC',
+               'occurredAt', to_char(e.email_verified_at AT TIME ZONE 'UTC',
                                      'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-               'correlationId', e.id,
+               'correlationId', e.event_id,
                'causationId', NULL,
-               'payload', jsonb_build_object('userId', u.id))
-        FROM users u
-       CROSS JOIN LATERAL (SELECT gen_random_uuid() AS id) e
-       WHERE u.email_verified_at IS NOT NULL AND u.deleted_at IS NULL
-       ORDER BY u.email_verified_at
+               'payload', jsonb_build_object('userId', e.user_id))
+        FROM (SELECT gen_random_uuid() AS event_id, u.id AS user_id,
+                     u.email_verified_at
+                FROM users u
+               WHERE u.email_verified_at IS NOT NULL AND u.deleted_at IS NULL) e
+       ORDER BY e.email_verified_at
     `);
   }
 

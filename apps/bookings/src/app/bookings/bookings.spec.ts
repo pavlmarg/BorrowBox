@@ -136,6 +136,13 @@ describe('Bookings commands and queries (integration)', () => {
       await expect(quote(item.itemId, at(2), at(4))).rejects.toEqual(
         failure('INVALID_PERIOD'),
       );
+      // Without an offset the server's own time zone would apply.
+      await expect(
+        quote(item.itemId, at(2).replace('Z', ''), at(6)),
+      ).rejects.toEqual(failure('VALIDATION_FAILED'));
+      await expect(
+        quote(item.itemId, at(2), at(6).replace('Z', '+00:00')),
+      ).resolves.toBeDefined();
       await expect(quote(randomUUID(), at(2), at(6))).rejects.toEqual(
         failure('NOT_FOUND'),
       );
@@ -194,6 +201,19 @@ describe('Bookings commands and queries (integration)', () => {
       const again = await request(renter, item, at(2), at(4), bookingId);
       expect(again.id).toBe(first.id);
       expect(await events(bookingId)).toEqual(['booking.requested.v1']);
+
+      // The same id for another period is a mistake, not a repeat.
+      await expect(
+        request(renter, item, at(2), at(6), bookingId),
+      ).rejects.toEqual(failure('VALIDATION_FAILED'));
+      // The same instants written with another offset are a repeat.
+      const shifted = (iso: string) =>
+        new Date(new Date(iso).getTime() + 2 * HOUR)
+          .toISOString()
+          .replace('Z', '+02:00');
+      await expect(
+        request(renter, item, shifted(at(2)), shifted(at(4)), bookingId),
+      ).resolves.toMatchObject({ id: first.id });
 
       // Someone else can't take the id.
       const { renter: other } = await people();

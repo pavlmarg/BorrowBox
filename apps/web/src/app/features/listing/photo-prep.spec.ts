@@ -38,7 +38,14 @@ describe('planUndecodable', () => {
 
 describe('checkDecoded', () => {
   it('needs at least 320 px of width', () => {
-    expect(checkDecoded(319)).toBe('tooSmall');
-    expect(checkDecoded(320)).toBeNull();
+    expect(checkDecoded(319, 400)).toBe('tooSmall');
+    expect(checkDecoded(320, 400)).toBeNull();
+  });
+
+  it('checks the width after scaling down, as the server will see it', () => {
+    // 400 × 4000 is drawn at 205 × 2048.
+    expect(checkDecoded(400, 4000)).toBe('tooSmall');
+    // 640 × 4096 is drawn at 320 × 2048.
+    expect(checkDecoded(640, 4096)).toBeNull();
   });
 });

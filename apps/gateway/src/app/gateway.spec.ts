@@ -679,6 +679,20 @@ describe('Gateway (integration)', () => {
       expect(location.search).not.toMatch(/code_verifier/);
     });
 
+    it.each(['/api/auth/google', '/api/auth/google/callback'])(
+      'past the rate limit, %s sends the browser back to the web app',
+      async (path) => {
+        for (let i = 0; i < 10; i++) {
+          const ok = await http().get(path).expect(302);
+          expect(ok.headers['location']).not.toContain('RATE_LIMITED');
+        }
+        const res = await http().get(path).expect(302);
+        expect(res.headers['location']).toBe(
+          `${WEB}/auth/callback?error=RATE_LIMITED`,
+        );
+      },
+    );
+
     it('exchanges the code with the stored verifier and nonce, then returns to the web app', async () => {
       identity.on(IdentityRpc.googleExchange, () => session(3));
       const { location, cookiePair } = await start();

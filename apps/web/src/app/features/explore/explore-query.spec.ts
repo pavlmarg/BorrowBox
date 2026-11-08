@@ -30,6 +30,13 @@ describe('filtersFromQuery', () => {
     });
   });
 
+  it('cuts long text at 100 characters, never inside an emoji', () => {
+    const q = 'a' + '🔨'.repeat(120);
+    const cut = filtersFromQuery({ q }).q;
+    expect([...cut]).toHaveLength(100);
+    expect(cut.endsWith('🔨')).toBe(true);
+  });
+
   it('falls back to defaults for anything invalid', () => {
     expect(
       filtersFromQuery({

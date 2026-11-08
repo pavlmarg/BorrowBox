@@ -6,7 +6,7 @@ import {
   BookingExpiredV1,
   BookingRequestedV1,
 } from './events';
-import { hoursBetween, isWholeHour } from './periods';
+import { TIMESTAMP_OFFSET_PATTERN, hoursBetween, isWholeHour } from './periods';
 
 describe('booking periods', () => {
   it.each([
@@ -26,6 +26,19 @@ describe('booking periods', () => {
         new Date('2026-10-25T21:00:00Z'),
       ),
     ).toBe(24);
+  });
+
+  it.each([
+    ['2026-11-01T10:00:00.000Z', true],
+    ['2026-11-01T10:00:00z', true],
+    ['2026-11-01T12:00:00+02:00', true],
+    ['2026-11-01T12:00:00+0200', true],
+    ['2026-11-01T05:00:00-05:00', true],
+    ['2026-11-01T10:00:00', false],
+    ['2026-11-01T10:00', false],
+    ['2026-11-01', false],
+  ])('%s names its offset: %s', (iso, expected) => {
+    expect(TIMESTAMP_OFFSET_PATTERN.test(iso)).toBe(expected);
   });
 });
 

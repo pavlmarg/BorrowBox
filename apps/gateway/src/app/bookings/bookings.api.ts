@@ -11,9 +11,12 @@ import {
   IsUUID,
   Max,
   MaxLength,
+  Matches,
   Min,
 } from 'class-validator';
 import {
+  TIMESTAMP_OFFSET_MESSAGE,
+  TIMESTAMP_OFFSET_PATTERN,
   BOOKING_CANCEL_REASONS,
   BOOKING_DECLINE_REASONS,
   BOOKING_EXPIRE_REASONS,
@@ -47,6 +50,7 @@ export class PeriodQuery {
     description: 'On a whole hour, 1 hour to 180 days ahead',
   })
   @IsISO8601(ISO)
+  @Matches(TIMESTAMP_OFFSET_PATTERN, { message: TIMESTAMP_OFFSET_MESSAGE })
   start!: string;
 
   @ApiProperty({
@@ -54,6 +58,7 @@ export class PeriodQuery {
     description: 'On a whole hour; 1 hour to 90 days after the start',
   })
   @IsISO8601(ISO)
+  @Matches(TIMESTAMP_OFFSET_PATTERN, { message: TIMESTAMP_OFFSET_MESSAGE })
   end!: string;
 }
 

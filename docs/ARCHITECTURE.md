@@ -109,7 +109,7 @@ flowchart TB
   - Offers: `POST /api/conversations/:id/offers`, `POST /api/offers/:id/withdraw`, `POST /api/offers/:id/book`.
   - `INVALID_PERIOD` is `400`, `EMAIL_NOT_VERIFIED` `403`, and the state and limit refusals (`SLOT_TAKEN`, `DUPLICATE_REQUEST`, `REQUEST_LIMIT_REACHED`, `OWN_ITEM`, `ITEM_UNAVAILABLE`, `INVALID_STATE`, `CONVERSATION_CLOSED`, `OFFER_UNAVAILABLE`, `PRICE_ABOVE_LIST`) `409`.
   - Per user, on top of the per-IP limits: 30 booking requests (and offer bookings) per hour, 30 messages (and offers) per minute, 20 new conversations per day.
-- **Live chat:** Socket.IO on the gateway's server, namespace `/chat`. The access token goes in the handshake (`auth.token`), the Origin must be on the CORS allow-list, and each socket joins its user's room; it is disconnected when the token expires and reconnects with a fresh one. Every gateway instance subscribes to Redis `chat:*` and emits to its own sockets. Clients only listen: sending is REST.
+- **Live chat:** Socket.IO on the gateway's server, namespace `/chat`. The access token goes in the handshake (`auth.token`), the Origin must be on the CORS allow-list, and each socket joins its user's room; it is disconnected when the token expires and reconnects with a fresh one. Every gateway instance subscribes to Redis `chat:*` (also when Redis only comes up after the gateway) and emits to its own sockets. Clients only listen: sending is REST.
 - **Cookies:**
   - The refresh token is set only as `bb_refresh` (httpOnly, Secure, SameSite=Strict, `Path=/api/auth`) and never appears in a response body.
   - Google sign-in keeps its state, nonce and PKCE verifier in a signed, 10-minute `bb_oauth` cookie. It is SameSite=Lax because Google's redirect back is a cross-site navigation.
@@ -118,6 +118,7 @@ flowchart TB
   - Redis-backed rate limits per IP: 10/min for login, register, Google, email links and password changes, 30/min for refresh, 300/min for search-as-you-type, 120/min otherwise.
   - While Redis is unreachable, each gateway instance counts in memory instead, so the limits stay in force and the API keeps answering. It switches back to Redis by itself once Redis recovers.
   - Every error has the shape `{ statusCode, code, message }` and never echoes the request body.
+  - A malformed id in a URL is `400 VALIDATION_FAILED`, naming the parameter. Past the rate limit, Google sign-in's browser routes redirect back to the web app with `?error=RATE_LIMITED` instead of answering JSON.
 - **OpenAPI:** `apps/gateway/openapi.json` is committed and regenerated with `nx run gateway:openapi`. A test fails if it drifts from the code. The PWA's API client is generated from it with `nx run web:api-client`.
 
 ### Identity
@@ -132,7 +133,7 @@ flowchart TB
 - **Refresh token:**
   - An opaque 256-bit value, stored only as a SHA-256 hash.
   - Each use rotates it within its family, and the family expires 30 days after sign-in; rotation never extends it.
-  - Presenting a rotated or revoked token revokes the whole family (reuse detection).
+  - Presenting a revoked token, or one rotated 30 seconds ago or more, revokes the whole family (reuse detection). Within those 30 seconds a retry gets another token in the same family, so a lost answer doesn't sign the user out.
 - **Google sign-in (OIDC):**
   - Authorization code + PKCE + nonce, exchanged by Identity (`openid-client`). Accounts are matched on Google's `sub`, never on the email alone.
   - A verified Google email **auto-links** to an existing account with that email.
@@ -198,7 +199,7 @@ See §6.
 See [ADR-0017](adr/0017-in-app-chat.md) and [ADR-0018](adr/0018-price-offers.md). A module of `apps/bookings`, with tables in the `bookings` schema, until its contracts settle.
 - **One conversation per item and asker**, open before any booking: someone with a verified email asks about an `ACTIVE` item that isn't theirs, and the lender replies. It carries on into every booking between them for that item; a request without a chat creates it. It becomes read-only when the item is deleted or an account erased.
 - Text messages (1–2000 characters, the client picks the id), read state for unread counts and "seen", and system lines with a code for booking moments and withdrawn offers (`BOOKING_CONFIRMED` asks both to arrange where and when to meet).
-- **Contact details** (phone numbers, email addresses, links) are masked when read until the two have a booking of the item that went ahead (`CONFIRMED`, `PAID` or later). A sender always sees their own text.
+- **Contact details** (phone numbers of 10 or more digits, email addresses, links and bare domains) are masked when read until the two have a booking of the item that went ahead (`CONFIRMED`, `PAID` or later). A sender always sees their own text.
 - **Live delivery:** after the commit, Bookings publishes each change, shaped for each reader, on Redis `chat:<userId>`; the gateway pushes it to sockets. A lost push is fetched on reconnect.
 - **Unread email:** 2 minutes after a message, if it's unread and the recipient wasn't reminded about the conversation in the last 30 minutes, `conversation.unread.v1` goes out; Notifications emails a link. Events never carry message text.
 - **Price offers:** the lender offers a rent (at most the rate card's, deposit unchanged) for a period; one open offer per conversation, valid 48 hours or until an hour before its start, single use. Booking it creates the booking and accepts it in one transaction (`REQUESTED` → `ACCEPTED`, or `CONFIRMED` with nothing to pay), with `offerId` on the price and the events.
@@ -209,7 +210,7 @@ See [ADR-0016](adr/0016-notifications-and-email.md).
 - Its own service, consuming events. It knows recipients (email, name, language `el`/`en`) from `user.*` events, and forgets them on `user.deletion_requested`.
 - Email over SMTP with `nodemailer` (Mailpit locally), from plain TypeScript templates in Greek and English, with times in Europe/Athens. Phase 3 sends email only; preferences, an in-app inbox and Web Push come later.
 - **Which emails:** a new request (lender), accepted (renter; for an offer, the lender learns it was booked), confirmed (both: arrange where to meet), declined (renter), expired (renter, and the lender if they never answered), cancelled (the other side; for a deleted item the renter), a new offer (renter), unread messages (recipient). No welcome email.
-- **Sending:** the consumer writes `email_jobs` in the same transaction as `processed_events`. A polling sender claims due jobs with a lease, renders them in the recipient's language when sending, and retries with backoff for up to a day; a job for a recipient not known yet waits. At least once: a crash mid-send can repeat an email. Sent jobs are kept 30 days.
+- **Sending:** the consumer writes `email_jobs` in the same transaction as `processed_events`. A polling sender claims due jobs with a lease, renders them in the recipient's language when sending, and retries with backoff for up to a day; a job for a recipient not known yet waits. Without an SMTP host nothing counts as sent: jobs retry like failed sends. A job that can't be rendered is dropped and logged. Cancellations caused by an erasure wait 10 minutes, so the erased person's copy is dropped. At least once: a crash mid-send can repeat an email. Sent jobs are kept 30 days.
 - Jobs store ids, the item title, times and amounts, never names or message text. The export has the recipient's details and their emails; erasure forgets both.
 - **Account-security emails** (email verification, password reset, password change) are sent by Identity itself, so their tokens never travel in events. Identity stores only a hash of each token; a reset link lasts 10 minutes, a verification link 24 hours, each works once, and a new one cancels the older ones. Both senders share `libs/mailer`.
 
@@ -269,7 +270,7 @@ sequenceDiagram
 ```
 
 ### Reliability patterns
-- **Transactional outbox:** every state change and its event are written in one DB transaction to `<schema>.outbox`. A relay (polling or `LISTEN/NOTIFY`) publishes to RabbitMQ and marks rows as sent. This gives at-least-once delivery.
+- **Transactional outbox:** every state change and its event are written in one DB transaction to `<schema>.outbox`. A relay (polling or `LISTEN/NOTIFY`) publishes to RabbitMQ and marks rows as sent. This gives at-least-once delivery. When a service runs several instances, one relay publishes at a time (an advisory lock keyed by the schema), so events leave in the order they were written.
 - **Idempotent consumers:** each consumer records `event_id` in `<schema>.processed_events` in the same transaction as its side effect.
 - **Retention:** published outbox rows and `processed_events` entries are deleted after 7 days (the relay prunes the outbox hourly). Old envelopes can hold personal data, and redeliveries arrive within minutes.
 - **Retries and DLQ:** each queue has a retry queue with TTL-based backoff (3 attempts) and a dead-letter queue, surfaced in Grafana.
@@ -381,3 +382,10 @@ Messaging and Reviews can start as modules inside Bookings and move into their o
 - **Retries and a circuit breaker for gateway → service calls (revisit in Phase 7).** Today a failed call is not retried. Options: retry read-only calls once on a connection error, and/or a circuit breaker that fails fast while a service is down. Commands must not be retried blindly (they may already have run).
 - **Offsets derived from a secret (revisit in Phase 7).** A lender who moves a pin 300 m or more away and back draws a new offset each time, so someone recording one item's public point over weeks could average several offsets for the same home ([ADR-0011](adr/0011-one-offset-per-place.md)). The robust fix derives the offset from a server secret, the lender and a coarse area, so a place always gets the same offset.
 - **CDN caching of public photos (decide at deployment, Phase 7).** If a CDN caches the public photo bucket, a deleted photo stays reachable at its old URL until its cache entry expires, which delays GDPR erasure. Choose a short cache lifetime, or purge the CDN on delete. Photo keys are random and never reused, so caching can't show the wrong photo.
+- **Dead-letter queues (Phase 7).** Messages that end in a DLQ raise no alert, there is no tool to replay them, and they never expire, although envelopes can hold personal data (the 7-day retention doesn't reach them). Options: a Grafana alert on DLQ depth, a replay command, and a TTL matching the outbox retention.
+- **Registration reveals accounts.** `POST /auth/register` answers `EMAIL_TAKEN`, so anyone can test whether an email has an account (the password reset is careful not to). Options: answer as if registered and email the owner instead, or accept it behind the rate limit.
+- **One signing key.** Access tokens carry a `kid`, but the gateway and services trust a single public key, so rotating it signs everyone out. Options: a list of public keys by `kid`, with the old one kept for 15 minutes.
+- **Open sockets after sign-out.** A chat socket stays connected until its access token expires (up to 15 minutes), even after logout, a password reset or erasure. Options: publish revoked sessions on Redis and disconnect their sockets.
+- **Indexes for pruning.** Pruning deletes published outbox rows and `processed_events` older than 7 days without an index on those timestamps, so each run scans the table. Fine at today's volume; add partial indexes if the tables grow.
+- **Angular schematics version.** `@schematics/angular` is pinned a minor behind `@angular/core` and `@angular/cli` (generators only, not the build). Align it at the next Angular update.
+- **Redis password on the command line.** Locally the password is passed as `--requirepass`, so it shows in `docker inspect` and process lists. Use a config file or a Docker secret in deployment (Phase 7).

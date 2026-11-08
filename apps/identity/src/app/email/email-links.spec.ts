@@ -279,6 +279,7 @@ describe('Identity email links (integration)', () => {
 
       const all = await mailpit.waitForEmails(s.user.email, 3);
       expect(all[2].subject).toBe('Your BorrowBox password was changed');
+      expect(all[2].text).toContain('you were signed out on every device');
       expect(all[2].text).toContain(
         'https://borrowbox.test/auth/forgot-password',
       );
@@ -418,6 +419,7 @@ describe('Identity email links (integration)', () => {
 
       const emails = await mailpit.waitForEmails(s.user.email, 2);
       expect(emails[1].subject).toBe('Ο κωδικός σου στο BorrowBox άλλαξε');
+      expect(emails[1].text).toContain('οι άλλες συσκευές σου αποσυνδέθηκαν');
     });
   });
 

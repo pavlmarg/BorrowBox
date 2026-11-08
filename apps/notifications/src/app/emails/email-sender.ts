@@ -93,7 +93,15 @@ export class EmailSender
         claimDueJobs(tx, BATCH, LEASE_MS),
       );
       for (const job of jobs) {
-        if (await this.deliver(job, now)) sent++;
+        try {
+          if (await this.deliver(job, now)) sent++;
+        } catch (err) {
+          // e.g. the database blinked: this job is retried after its lease,
+          // and the rest of the batch still goes out.
+          this.logger.warn(
+            `Email ${job.kind} job ${job.id} failed: ${err instanceof Error ? err.name : 'unknown'}`,
+          );
+        }
       }
       if (jobs.length < BATCH || this.stopped) return sent;
     }
@@ -114,15 +122,31 @@ export class EmailSender
     }
 
     const other = await findRecipient(tx, job.data.otherId);
-    const email = renderNotification({
-      kind: job.kind,
-      data: job.data,
-      locale: recipient.locale,
-      recipientName: recipient.display_name,
-      otherName: other?.deleted_at ? null : (other?.display_name ?? null),
-      webBaseUrl: this.webBaseUrl,
-    });
+    let email: ReturnType<typeof renderNotification>;
     try {
+      email = renderNotification({
+        kind: job.kind,
+        data: job.data,
+        locale: recipient.locale,
+        recipientName: recipient.display_name,
+        otherName: other?.deleted_at ? null : (other?.display_name ?? null),
+        webBaseUrl: this.webBaseUrl,
+      });
+    } catch (err) {
+      // A job that can't be rendered never will be: drop it rather than
+      // claiming it again every lease, forever.
+      this.logger.error(
+        `Email ${job.kind} job ${job.id} can't be rendered, dropped: ${err instanceof Error ? err.name : 'unknown'}`,
+      );
+      await markDropped(tx, job.id);
+      return false;
+    }
+    try {
+      // Without an SMTP host nothing is sent: a failed attempt like any
+      // other, so the email still goes out if the host is set within a day.
+      if (!this.mailer.enabled) {
+        throw new Error('Email sending is disabled (no SMTP host)');
+      }
       await this.mailer.send({ to: recipient.email, ...email });
     } catch (err) {
       this.logger.warn(

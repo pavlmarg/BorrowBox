@@ -1,7 +1,7 @@
 import {
   provideHttpClient,
-  withFetch,
   withInterceptors,
+  withXhr,
 } from '@angular/common/http';
 import {
   type ApplicationConfig,
@@ -41,7 +41,8 @@ export const appConfig: ApplicationConfig = {
       // Animated route changes (CSS in styles.scss); no-op where unsupported.
       withViewTransitions({ skipInitialTransition: true }),
     ),
-    provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
+    // XHR, not fetch: only XHR reports upload progress (photo uploads).
+    provideHttpClient(withXhr(), withInterceptors([authInterceptor])),
     // Same origin: the dev server proxies /api to the gateway, Caddy does in production.
     provideApiConfiguration(''),
     provideTransloco({

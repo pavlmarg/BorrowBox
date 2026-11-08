@@ -279,6 +279,66 @@ describe('Offers (integration)', () => {
     await expect(book(renter, taken.id)).rejects.toEqual(failure('SLOT_TAKEN'));
   });
 
+  describe('booking an offer while the item or the lender is deleted', () => {
+    /** An open offer, and another renter's overlapping request it will decline. */
+    async function raceSetup() {
+      const s = await setup();
+      const sent = await offer(s.lender, s.conversationId, 500);
+      const other = await bookings.addUser();
+      await bookings.send(
+        BookingsRpc.request,
+        {
+          bookingId: randomUUID(),
+          itemId: s.item.itemId,
+          start: at(5),
+          end: at(7),
+        },
+        await as(other),
+      );
+      return { ...s, offerId: sent.id };
+    }
+
+    /** Both finish: the booking goes ahead or is refused, never a deadlock (INTERNAL). */
+    async function race(
+      deletion: () => Promise<void>,
+      booking: Promise<unknown>,
+    ) {
+      const [booked, deleted] = await Promise.allSettled([booking, deletion()]);
+      expect(deleted.status).toBe('fulfilled');
+      if (booked.status === 'rejected') {
+        expect(['OFFER_UNAVAILABLE', 'ITEM_UNAVAILABLE']).toContain(
+          (booked.reason as RpcErrorBody).code,
+        );
+      }
+    }
+
+    async function openBookings(itemId: string) {
+      const [{ n }] = await bookings.dataSource.query(
+        `SELECT count(*)::int AS n FROM bookings
+          WHERE item_id = $1
+            AND status IN ('REQUESTED','ACCEPTED','CONFIRMED','PAID')`,
+        [itemId],
+      );
+      return n;
+    }
+
+    it('never deadlocks with the item’s deletion', async () => {
+      for (let round = 0; round < 5; round++) {
+        const { renter, item, offerId } = await raceSetup();
+        await race(() => bookings.deleteItem(item), book(renter, offerId));
+        expect(await openBookings(item.itemId)).toBe(0);
+      }
+    });
+
+    it('never deadlocks with the lender’s erasure', async () => {
+      for (let round = 0; round < 5; round++) {
+        const { lender, renter, item, offerId } = await raceSetup();
+        await race(() => bookings.deleteUser(lender), book(renter, offerId));
+        expect(await openBookings(item.itemId)).toBe(0);
+      }
+    });
+  });
+
   it('withdraws open offers when the item is deleted', async () => {
     const { lender, renter, item, conversationId } = await setup();
     const sent = await offer(lender, conversationId, 500);

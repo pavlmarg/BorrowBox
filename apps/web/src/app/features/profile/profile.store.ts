@@ -19,6 +19,9 @@ import { AuthStore } from '../../core/auth/auth.store';
 
 type Busy = 'saving' | 'exporting' | 'deleting' | null;
 
+/** How long the export's download URL stays valid after the click. */
+const EXPORT_URL_LIFETIME_MS = 60_000;
+
 interface ProfileState {
   busy: Busy;
   error: KnownErrorCode | null;
@@ -88,8 +91,14 @@ export const ProfileStore = signalStore(
         const link = store._document.createElement('a');
         link.href = url;
         link.download = 'borrowbox-data-export.json';
+        // Attached and revoked later: some browsers (Firefox, Safari) ignore
+        // a click on a detached link or cancel a download whose URL is
+        // revoked before it started.
+        link.hidden = true;
+        store._document.body.appendChild(link);
         link.click();
-        URL.revokeObjectURL(url);
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), EXPORT_URL_LIFETIME_MS);
         patchState(store, { exported: true });
       },
 

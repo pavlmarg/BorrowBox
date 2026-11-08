@@ -113,7 +113,11 @@ function english(input: TemplateInput): EmailContent {
     case 'BOOKING_EXPIRED':
       return {
         ...base,
-        subject: `The request for ${item} expired`,
+        // STARTED is an unanswered request or an unpaid booking at its start.
+        subject:
+          data.reason === 'STARTED'
+            ? `The booking of ${item} expired`
+            : `The request for ${item} expired`,
         paragraphs: [
           data.reason === 'STARTED'
             ? `The booking of ${item} for ${period} wasn't completed before it started.`
@@ -231,7 +235,10 @@ function greek(input: TemplateInput): EmailContent {
     case 'BOOKING_EXPIRED':
       return {
         ...base,
-        subject: `Το αίτημα για ${item} έληξε`,
+        subject:
+          data.reason === 'STARTED'
+            ? `Η κράτηση για ${item} έληξε`
+            : `Το αίτημα για ${item} έληξε`,
         paragraphs: [
           data.reason === 'STARTED'
             ? `Η κράτηση για ${item} (${period}) δεν ολοκληρώθηκε πριν από την έναρξή της.`

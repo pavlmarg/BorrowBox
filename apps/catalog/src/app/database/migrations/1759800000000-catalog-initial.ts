@@ -53,7 +53,7 @@ export class CatalogInitial1759800000000 implements MigrationInterface {
         monthly_cents  integer     CHECK (monthly_cents BETWEEN 10 AND 100000),
         deposit_cents  integer     NOT NULL CHECK (deposit_cents BETWEEN 0 AND 500000),
 
-        -- Exact point: only ever shown to the owner (and later a PAID renter).
+        -- Exact point: only ever shown to the owner (ADR-0015: never to renters).
         location        geography(Point, 4326),
         -- The exact point moved by the stored offset (ADR-0007). Every
         -- search and public read uses this one.

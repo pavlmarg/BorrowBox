@@ -5,8 +5,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
-  ParseUUIDPipe,
   Patch,
   Post,
   Put,
@@ -23,6 +21,7 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@borrowbox/auth';
 import { CatalogRpc } from '@borrowbox/contracts';
+import { UuidParam } from '../http/params';
 import { ApiErrorResponse } from '../api.dto';
 import { CatalogClient } from '../catalog/catalog.client';
 import { AccessToken, CorrelationId } from '../http/request-context';
@@ -37,8 +36,8 @@ import {
   UpdateItemBody,
 } from './items.api';
 
-const itemId = () => Param('itemId', ParseUUIDPipe);
-const photoId = () => Param('photoId', ParseUUIDPipe);
+const itemId = () => UuidParam('itemId');
+const photoId = () => UuidParam('photoId');
 
 /**
  * The signed-in lender's own items and photos (G1). The gateway checks the

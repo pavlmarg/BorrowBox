@@ -71,14 +71,18 @@ const VISIBLE =
  * The search's filters on $1–$8: point (lng, lat), radius, text, category,
  * free only, maximum price and its unit. Shared by the search and the
  * category counts, so the counts always match what a search finds.
+ * Text without a single searchable word ("!!!", "-") gives an empty query,
+ * which would match nothing: it filters nothing instead, like blank text.
  */
 const SEARCH_MATCH =
   ' CROSS JOIN (SELECT ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography AS pt) p' +
+  " CROSS JOIN (SELECT websearch_to_tsquery('greek', $4::text)" +
+  "                 || websearch_to_tsquery('english', $4::text) AS query) t" +
   ` WHERE i.status = 'ACTIVE'
       AND ST_DWithin(i.location_public, p.pt, $3::float8)
       AND ($4::text IS NULL
-           OR i.search_vector @@ (websearch_to_tsquery('greek', $4::text)
-                               || websearch_to_tsquery('english', $4::text)))
+           OR numnode(t.query) = 0
+           OR i.search_vector @@ t.query)
       AND ($5::text IS NULL OR i.category = $5::text)
       AND (NOT $6::boolean OR i.free)
       AND ($7::int IS NULL OR i.free OR

@@ -9,9 +9,12 @@ import {
   IsUUID,
   Max,
   MaxLength,
+  Matches,
   Min,
 } from 'class-validator';
 import {
+  TIMESTAMP_OFFSET_MESSAGE,
+  TIMESTAMP_OFFSET_PATTERN,
   BOOKING_LIST_LIMIT_MAX,
   BOOKING_STATUSES,
   type BookingRef,
@@ -33,9 +36,11 @@ export class ItemPeriodDto implements ItemPeriodRequest {
   itemId!: string;
 
   @IsISO8601({ strict: true, strictSeparator: true })
+  @Matches(TIMESTAMP_OFFSET_PATTERN, { message: TIMESTAMP_OFFSET_MESSAGE })
   start!: string;
 
   @IsISO8601({ strict: true, strictSeparator: true })
+  @Matches(TIMESTAMP_OFFSET_PATTERN, { message: TIMESTAMP_OFFSET_MESSAGE })
   end!: string;
 }
 

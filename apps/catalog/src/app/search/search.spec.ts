@@ -297,8 +297,10 @@ describe('Search and public item pages (integration)', () => {
     expect(await q('ladders')).toEqual([ladder]);
     expect(await q('σκάλα folding')).toEqual([ladder]);
     expect(await q('lawnmower')).toEqual([]);
-    // Blank text is no text.
+    // Blank text is no text, and so is text without a single word.
     expect(await q('   ')).toEqual([drill, ladder].sort());
+    expect(await q('!!!')).toEqual([drill, ladder].sort());
+    expect(await q('- & |')).toEqual([drill, ladder].sort());
     // Search syntax is just text, never an error.
     expect(await q('"drill" -ladder OR (')).toEqual(expect.any(Array));
   });

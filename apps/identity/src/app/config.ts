@@ -68,7 +68,7 @@ export class IdentityConfig extends BaseServiceConfig {
   @Max(65535)
   SMTP_PORT = 1025;
 
-  /** TLS from the start (port 465); otherwise STARTTLS when the server offers it. */
+  /** TLS from the start (port 465); otherwise STARTTLS (required once SMTP_USER is set). */
   @Transform(({ value }) =>
     value === undefined ? value : value === true || value === 'true',
   )

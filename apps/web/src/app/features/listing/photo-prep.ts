@@ -50,9 +50,17 @@ export function planUndecodable(file: {
   return 'upload-as-is';
 }
 
-/** After decoding: the photo must be wide enough to be useful. */
-export function checkDecoded(width: number): PhotoProblem | null {
-  return width < PHOTO_MIN_WIDTH_PX ? 'tooSmall' : null;
+/**
+ * After decoding: the photo must still be wide enough once scaled down (a
+ * tall 400 × 4000 photo becomes 205 px wide), or the server refuses it.
+ */
+export function checkDecoded(
+  width: number,
+  height: number,
+): PhotoProblem | null {
+  return scaledSize(width, height).width < PHOTO_MIN_WIDTH_PX
+    ? 'tooSmall'
+    : null;
 }
 
 const JPEG_QUALITY = 0.86;
@@ -74,7 +82,7 @@ export async function preparePhoto(file: File): Promise<PreparedPhoto> {
       : plan;
   }
   try {
-    const problem = checkDecoded(bitmap.width);
+    const problem = checkDecoded(bitmap.width, bitmap.height);
     if (problem) return { ok: false, problem };
     const { width, height } = scaledSize(bitmap.width, bitmap.height);
     const canvas = document.createElement('canvas');
