@@ -7,6 +7,8 @@ import type {
   EmailKind,
   OfferSentV1Payload,
   PaymentFailedV1Payload,
+  PaymentRefundedV1Payload,
+  PaymentSettledV1Payload,
 } from '@borrowbox/contracts';
 
 /**
@@ -29,6 +31,8 @@ export interface EmailData {
   feeCents?: number;
   /** What the renter pays (`payment.failed`). */
   chargeCents?: number;
+  /** Money sent back or paid out (`payment.refunded`, `payment.settled`). */
+  amountCents?: number;
   /** When an accepted booking expires unless paid. */
   payBy?: string;
   expiresAt?: string;
@@ -112,6 +116,43 @@ export function onPaymentFailed(p: PaymentFailedV1Payload): PlannedEmail[] {
       },
     },
   ];
+}
+
+/** payment.refunded.v1: the renter's refund is on its way (ADR-0021). */
+export function onRefunded(p: PaymentRefundedV1Payload): PlannedEmail[] {
+  return [
+    {
+      kind: 'REFUND_ISSUED',
+      recipientId: p.renterId,
+      data: {
+        otherId: p.lenderId,
+        itemTitle: p.itemTitle,
+        bookingId: p.bookingId,
+        amountCents: p.amountCents,
+      },
+    },
+  ];
+}
+
+/** payment.settled.v1: the deposit goes back, the lender is paid (each when not 0). */
+export function onSettled(p: PaymentSettledV1Payload): PlannedEmail[] {
+  const base = { itemTitle: p.itemTitle, bookingId: p.bookingId };
+  const emails: PlannedEmail[] = [];
+  if (p.depositRefundCents > 0) {
+    emails.push({
+      kind: 'DEPOSIT_RETURNED',
+      recipientId: p.renterId,
+      data: { ...base, otherId: p.lenderId, amountCents: p.depositRefundCents },
+    });
+  }
+  if (p.payoutCents > 0) {
+    emails.push({
+      kind: 'PAYOUT_SENT',
+      recipientId: p.lenderId,
+      data: { ...base, otherId: p.renterId, amountCents: p.payoutCents },
+    });
+  }
+  return emails;
 }
 
 /** booking.confirmed.v1: both arrange where and when to meet (ADR-0015). */

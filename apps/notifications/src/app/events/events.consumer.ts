@@ -15,6 +15,8 @@ import {
   ConversationUnreadV1,
   OfferSentV1,
   PaymentFailedV1,
+  PaymentRefundedV1,
+  PaymentSettledV1,
   UserDeletionRequestedV1,
   UserProfileUpdatedV1,
   UserRegisteredV1,
@@ -38,6 +40,8 @@ import {
   onOfferSent,
   onPaid,
   onPaymentFailed,
+  onRefunded,
+  onSettled,
   onRequested,
   onUnread,
 } from '../emails/plan';
@@ -53,6 +57,8 @@ import {
   ExpiredPayload,
   OfferSentPayload,
   PaymentFailedPayload,
+  PaymentRefundedPayload,
+  PaymentSettledPayload,
   ProfilePayload,
   RegisteredPayload,
   UnreadPayload,
@@ -89,6 +95,8 @@ export class EventsConsumer implements OnApplicationBootstrap {
         BookingCancelledV1.routingKey,
         BookingPaidV1.routingKey,
         PaymentFailedV1.routingKey,
+        PaymentRefundedV1.routingKey,
+        PaymentSettledV1.routingKey,
         OfferSentV1.routingKey,
         ConversationUnreadV1.routingKey,
       ],
@@ -139,6 +147,12 @@ export class EventsConsumer implements OnApplicationBootstrap {
         return queue(
           onPaymentFailed(parsePayload(envelope, PaymentFailedPayload)),
         );
+      case PaymentRefundedV1.routingKey:
+        return queue(
+          onRefunded(parsePayload(envelope, PaymentRefundedPayload)),
+        );
+      case PaymentSettledV1.routingKey:
+        return queue(onSettled(parsePayload(envelope, PaymentSettledPayload)));
       case OfferSentV1.routingKey:
         return queue(onOfferSent(parsePayload(envelope, OfferSentPayload)));
       case ConversationUnreadV1.routingKey:

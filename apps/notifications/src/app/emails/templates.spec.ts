@@ -80,6 +80,23 @@ describe('renderNotification', () => {
     expect(el.text).toContain('72,00');
   });
 
+  it.each([
+    ['REFUND_ISSUED', '€70.00', '70,00'],
+    ['DEPOSIT_RETURNED', '€50.00', '50,00'],
+    ['PAYOUT_SENT', '€18.50', '18,50'],
+  ] as const)('shows the amount of %s in both languages', (kind, en, el) => {
+    const amounts = {
+      REFUND_ISSUED: 7000,
+      DEPOSIT_RETURNED: 5000,
+      PAYOUT_SENT: 1850,
+    };
+    const data = { ...input().data, amountCents: amounts[kind] };
+    expect(renderNotification(input({ kind, data })).text).toContain(en);
+    expect(
+      renderNotification(input({ kind, locale: 'el', data })).text,
+    ).toContain(el);
+  });
+
   it('says what failed and until when the renter can try again', () => {
     const email = renderNotification(
       input({

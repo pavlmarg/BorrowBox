@@ -9,6 +9,7 @@ import {
   createEnvelope,
   NotificationsRpc,
   PaymentFailedV1,
+  PaymentSettledV1,
   UserDeletionRequestedV1,
   UserProfileUpdatedV1,
   UserRegisteredV1,
@@ -115,7 +116,7 @@ describe('Notifications (integration)', () => {
 
   it('migrates into the notifications schema', async () => {
     expect(await service.dataSource.showMigrations()).toBe(false);
-    expect(MIGRATIONS).toHaveLength(3);
+    expect(MIGRATIONS).toHaveLength(4);
   });
 
   it('emails the lender a new request in their language, once per event', async () => {
@@ -190,6 +191,28 @@ describe('Notifications (integration)', () => {
     expect(emails).toHaveLength(1);
     expect(emails[0].text).toContain('€72.00');
     expect(await mailpit.emailsTo(lender.email)).toEqual([]);
+  });
+
+  it('tells the renter the deposit is back and the lender they were paid, once per event', async () => {
+    const lender = await person('Lena');
+    const renter = await person('Rafael');
+    const settled = createEnvelope(PaymentSettledV1, {
+      bookingId: randomUUID(),
+      renterId: renter.userId,
+      lenderId: lender.userId,
+      itemTitle: 'Cordless drill',
+      payoutCents: 1850,
+      depositRefundCents: 5000,
+    });
+    await service.receive(settled);
+    await service.receive(settled);
+    await service.sendDue();
+    const [toRenter] = await mailpit.waitForEmails(renter.email);
+    const [toLender] = await mailpit.waitForEmails(lender.email);
+    expect(toRenter.text).toContain('€50.00');
+    expect(toLender.text).toContain('€18.50');
+    expect(await mailpit.emailsTo(renter.email)).toHaveLength(1);
+    expect(await mailpit.emailsTo(lender.email)).toHaveLength(1);
   });
 
   it('waits for a recipient it does not know yet, then sends', async () => {
