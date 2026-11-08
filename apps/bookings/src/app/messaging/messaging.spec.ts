@@ -22,7 +22,10 @@ import {
   startBookings,
   type BookingsHarness,
 } from '../../testing/bookings-harness';
+import { ConfigService } from '@nestjs/config';
+import type { BookingsConfig } from '../config';
 import { ChatMaintenance, REMIND_GAP_MS } from './chat-maintenance';
+import { ChatPublisher, ChatPushes } from './chat-publisher';
 
 const HOUR = 60 * 60 * 1000;
 const at = (hours: number) =>
@@ -310,6 +313,94 @@ describe('Messaging (integration)', () => {
       } finally {
         await subscriber.quit();
       }
+    });
+
+    describe('a fresh publisher (not yet connected)', () => {
+      /** Collects every push on `chat:*` while `run` runs. */
+      async function collect(expected: number, run: () => Promise<void>) {
+        const subscriber = new Redis(redis.url);
+        const channels: string[] = [];
+        try {
+          await subscriber.psubscribe(CHAT_CHANNEL_PREFIX + '*');
+          subscriber.on('pmessage', (_p, channel) => channels.push(channel));
+          await run();
+          const deadline = Date.now() + 5_000;
+          while (channels.length < expected && Date.now() < deadline) {
+            await new Promise((r) => setTimeout(r, 50));
+          }
+          return channels;
+        } finally {
+          await subscriber.quit();
+        }
+      }
+
+      async function twoMessages() {
+        const a = await setup();
+        const b = await setup();
+        const ca = await start(a.renter, a.item.itemId);
+        const cb = await start(b.renter, b.item.itemId);
+        const pushes = [
+          await send(a.renter, ca.id, 'first'),
+          await send(b.renter, cb.id, 'second'),
+        ].map((m) => {
+          const p = new ChatPushes();
+          p.message(m.id);
+          return p;
+        });
+        return { pushes, people: [a.renter, a.lender, b.renter, b.lender] };
+      }
+
+      const freshPublisher = () =>
+        new ChatPublisher(bookings.dataSource, {
+          get: () => redis.url,
+        } as unknown as ConfigService<BookingsConfig, true>);
+
+      it('connects once when its first pushes run at the same time', async () => {
+        const publisher = freshPublisher();
+        const people = [randomUUID(), randomUUID(), randomUUID()];
+        const push: ChatPush = {
+          type: 'read',
+          conversationId: randomUUID(),
+          readerId: randomUUID(),
+          readAt: new Date().toISOString(),
+        };
+        try {
+          const channels = await collect(3, async () => {
+            // Straight to Redis, so nothing spaces the first pushes apart.
+            await Promise.all(people.map((u) => publisher['publish'](u, push)));
+          });
+          expect(channels.sort()).toEqual(
+            people.map((u) => CHAT_CHANNEL_PREFIX + u).sort(),
+          );
+        } finally {
+          await publisher.beforeApplicationShutdown();
+        }
+      });
+
+      it('keeps pushing after one push fails', async () => {
+        const { pushes, people } = await twoMessages();
+        const publisher = freshPublisher();
+        const both = new ChatPushes();
+        both.message(pushes[0].messageIds[0]);
+        both.message(pushes[1].messageIds[0]);
+        const real = publisher['publish'].bind(publisher);
+        jest
+          .spyOn(publisher as unknown as { publish: typeof real }, 'publish')
+          .mockImplementationOnce(() => Promise.reject(new Error('boom')))
+          .mockImplementation(real);
+        try {
+          const channels = await collect(3, () => publisher.flush(both));
+          // Only the first reader's push was lost.
+          expect(channels.sort()).toEqual(
+            people
+              .slice(1)
+              .map((u) => CHAT_CHANNEL_PREFIX + u)
+              .sort(),
+          );
+        } finally {
+          await publisher.beforeApplicationShutdown();
+        }
+      });
     });
 
     it('closes the conversation when the item is deleted', async () => {

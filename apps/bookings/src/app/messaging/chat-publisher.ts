@@ -53,6 +53,7 @@ export class ChatPushes {
 export class ChatPublisher implements BeforeApplicationShutdown {
   private readonly logger = new Logger('ChatPublisher');
   private readonly redis: Redis;
+  private connecting?: Promise<void>;
 
   constructor(
     @Inject(DATA_SOURCE) private readonly dataSource: DataSource,
@@ -66,36 +67,60 @@ export class ChatPublisher implements BeforeApplicationShutdown {
     this.redis.on('error', () => undefined);
   }
 
+  /**
+   * Pushes everything collected. Each change is pushed on its own: one that
+   * fails (Redis down, a read failing) doesn't hold back the others, and
+   * the failures are logged once, counted, without content.
+   */
   async flush(pushes: ChatPushes): Promise<void> {
-    try {
-      const tx = this.dataSource.manager;
-      for (const id of pushes.messageIds) {
+    const tx = this.dataSource.manager;
+    let failed = 0;
+    let firstError: unknown;
+    const attempt = async (push: () => Promise<void>) => {
+      try {
+        await push();
+      } catch (err) {
+        failed++;
+        firstError ??= err;
+      }
+    };
+
+    for (const id of pushes.messageIds) {
+      await attempt(async () => {
         const message = await findMessage(tx, id);
         const c =
           message && (await findConversation(tx, message.conversation_id));
-        if (!message || !c) continue;
+        if (!message || !c) return;
         for (const reader of [c.renter_id, c.lender_id]) {
-          await this.publish(reader, {
-            type: 'message',
-            conversationId: c.id,
-            message: toMessageView(message, reader, c.unlocked),
-          });
+          await attempt(() =>
+            this.publish(reader, {
+              type: 'message',
+              conversationId: c.id,
+              message: toMessageView(message, reader, c.unlocked),
+            }),
+          );
         }
-      }
-      for (const id of pushes.offerIds) {
+      });
+    }
+    for (const id of pushes.offerIds) {
+      await attempt(async () => {
         const offer = await findOffer(tx, id);
-        if (!offer) continue;
+        if (!offer) return;
         for (const reader of [offer.renter_id, offer.lender_id]) {
-          await this.publish(reader, {
-            type: 'offer',
-            conversationId: offer.conversation_id,
-            offer: toOfferView(offer),
-          });
+          await attempt(() =>
+            this.publish(reader, {
+              type: 'offer',
+              conversationId: offer.conversation_id,
+              offer: toOfferView(offer),
+            }),
+          );
         }
-      }
-      for (const read of pushes.reads) {
+      });
+    }
+    for (const read of pushes.reads) {
+      await attempt(async () => {
         const c = await findConversation(tx, read.conversationId);
-        if (!c) continue;
+        if (!c) return;
         const other = c.renter_id === read.readerId ? c.lender_id : c.renter_id;
         await this.publish(other, {
           type: 'read',
@@ -103,16 +128,35 @@ export class ChatPublisher implements BeforeApplicationShutdown {
           readerId: read.readerId,
           readAt: read.readAt.toISOString(),
         });
-      }
-    } catch (err) {
+      });
+    }
+
+    if (failed > 0) {
+      // The error's class and code only: messages can quote values.
+      const err = firstError as { name?: string; code?: string } | undefined;
       this.logger.warn(
-        `Live push failed: ${err instanceof Error ? err.name : 'unknown'}`,
+        `${failed} live push(es) failed: ${err?.name ?? 'unknown'}` +
+          (err?.code ? ` (${err.code})` : ''),
       );
     }
   }
 
+  /**
+   * Connects on first use, once: concurrent first pushes wait for the same
+   * connection (with the offline queue off, a publish while connecting
+   * fails).
+   */
+  private async connected(): Promise<void> {
+    if (this.connecting) return this.connecting;
+    if (this.redis.status !== 'wait') return;
+    this.connecting = this.redis.connect().finally(() => {
+      this.connecting = undefined;
+    });
+    return this.connecting;
+  }
+
   private async publish(userId: string, push: ChatPush): Promise<void> {
-    if (this.redis.status === 'wait') await this.redis.connect();
+    await this.connected();
     await this.redis.publish(
       CHAT_CHANNEL_PREFIX + userId,
       JSON.stringify(push),
