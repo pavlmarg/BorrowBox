@@ -32,6 +32,8 @@ import type { GatewayConfig } from '../config';
 /** New socket connections per user per minute (reconnects after token refreshes are well under this). */
 const CONNECTIONS_PER_MINUTE = 30;
 const MINUTE = 60_000;
+/** How long startup waits for the fan-out subscription before going on without it. */
+const SUBSCRIBE_WAIT_MS = 2_000;
 
 /**
  * Live chat delivery (ADR-0017, W2–W4). Sockets authenticate with the access
@@ -47,6 +49,7 @@ export class ChatGateway
 {
   private readonly logger = new Logger('ChatGateway');
   private subscriber?: Redis;
+  private closing = false;
 
   @WebSocketServer() private readonly server!: Namespace;
 
@@ -59,21 +62,40 @@ export class ChatGateway
 
   async onModuleInit(): Promise<void> {
     // A subscribed connection can't run other commands: its own connection.
+    // It connects (and reconnects) by itself, and the subscribe below waits
+    // in the offline queue for as long as it takes (no per-command retry
+    // limit); once subscribed, ioredis resubscribes after every reconnect.
     this.subscriber = new Redis(this.config.get('REDIS_URL', { infer: true }), {
-      lazyConnect: true,
+      maxRetriesPerRequest: null,
     });
     this.subscriber.on('error', () => undefined);
     this.subscriber.on('pmessage', (_pattern, channel, payload) =>
       this.fanOut(channel, payload),
     );
-    try {
-      await this.subscriber.connect();
-      await this.subscriber.psubscribe(CHAT_CHANNEL_PREFIX + '*');
-    } catch (err) {
-      // ioredis keeps retrying and resubscribes on reconnect.
+    const subscribed = this.subscriber
+      .psubscribe(CHAT_CHANNEL_PREFIX + '*')
+      .then(() => true);
+    // Startup waits a little, never for Redis to come back.
+    let timer: NodeJS.Timeout | undefined;
+    const gaveUp = new Promise<false>((resolve) => {
+      timer = setTimeout(() => resolve(false), SUBSCRIBE_WAIT_MS);
+      timer.unref();
+    });
+    const ready = await Promise.race([subscribed, gaveUp]).catch(() => false);
+    clearTimeout(timer);
+    if (!ready) {
       this.logger.warn(
-        `Chat fan-out not connected yet: ${err instanceof Error ? err.name : 'unknown'}`,
+        'Chat fan-out not subscribed yet: it will be once Redis is reachable',
       );
+      subscribed
+        .then(() => this.logger.log('Chat fan-out subscribed'))
+        .catch((err: unknown) => {
+          // Shutting down rejects the queued subscribe: nothing to report.
+          if (this.closing) return;
+          this.logger.error(
+            `Chat fan-out couldn't subscribe: ${err instanceof Error ? err.name : 'unknown'}`,
+          );
+        });
     }
   }
 
@@ -141,6 +163,7 @@ export class ChatGateway
   }
 
   async onModuleDestroy(): Promise<void> {
+    this.closing = true;
     if (this.subscriber?.status === 'ready') {
       await this.subscriber.quit().catch(() => undefined);
     } else {

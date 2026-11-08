@@ -50,10 +50,19 @@ interface BatchResult {
 }
 
 /**
+ * Advisory-lock namespace of the relay. Advisory locks are database-wide,
+ * so the key is the service's schema: each service has one relay lock.
+ */
+const RELAY_LOCK_NAMESPACE = 9001;
+
+/**
  * Polls `outbox` and publishes unpublished events in insertion order.
  *
- * Rows are claimed with `FOR UPDATE SKIP LOCKED`, so several relay instances
- * can run side by side without publishing the same row twice concurrently.
+ * Each batch first takes the schema's relay lock (transaction-scoped, never
+ * waited for): when several instances of a service run, one publishes at a
+ * time and the others find nothing to do, so events stay in order. Rows are
+ * then locked with plain `FOR UPDATE`: a row locked by another transaction
+ * (e.g. Identity redacting a payload) is waited for, never skipped.
  * A crash between publish and commit republishes the batch, so delivery is
  * at-least-once — consumers dedupe via `handleOnce`.
  *
@@ -106,7 +115,8 @@ export class OutboxRelay {
 
   /**
    * Publishes one batch. Stops at the first failure so later events are not
-   * published ahead of an earlier one. Returns the number published.
+   * published ahead of an earlier one. Returns the number published (0 also
+   * while another instance of the service holds the relay lock).
    */
   async publishPending(): Promise<number> {
     return (await this.publishBatch()).published;
@@ -129,13 +139,19 @@ export class OutboxRelay {
 
   private publishBatch(): Promise<BatchResult> {
     return this.dataSource.transaction(async (tx) => {
+      const [{ locked }]: Array<{ locked: boolean }> = await tx.query(
+        `SELECT pg_try_advisory_xact_lock($1, hashtext(current_schema())) AS locked`,
+        [RELAY_LOCK_NAMESPACE],
+      );
+      if (!locked) return { published: 0, failed: false };
+
       const rows: Array<{ id: string; envelope: EventEnvelope }> =
         await tx.query(
           `SELECT id, envelope FROM outbox
             WHERE published_at IS NULL
             ORDER BY id
             LIMIT $1
-            FOR UPDATE SKIP LOCKED`,
+            FOR UPDATE`,
           [this.batchSize],
         );
 
@@ -213,6 +229,8 @@ export class OutboxRelay {
       }
       consecutiveFailures = result.failed ? consecutiveFailures + 1 : 0;
 
+      // stop() during the batch: don't start a wait it can no longer cut short.
+      if (!this.running) break;
       // A full, clean batch means there is probably more waiting: go again at once.
       if (!result.failed && result.published === this.batchSize) continue;
       await this.sleep(

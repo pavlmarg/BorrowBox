@@ -67,11 +67,15 @@ export function resetPasswordMessage(
   );
 }
 
-/** After a password change or reset. `url` leads to asking for a reset link. */
+/**
+ * After a password change (the other sessions are signed out) or a reset
+ * (every session is). `url` leads to asking for a reset link.
+ */
 export function passwordChangedMessage(
   locale: Locale,
   name: string,
   url: string,
+  how: 'changed' | 'reset',
 ): RenderedEmail {
   return renderEmail(
     locale === 'el'
@@ -79,7 +83,9 @@ export function passwordChangedMessage(
           subject: 'Ο κωδικός σου στο BorrowBox άλλαξε',
           greeting: `Γεια σου ${name},`,
           paragraphs: [
-            'Ο κωδικός του λογαριασμού σου στο BorrowBox μόλις άλλαξε και οι άλλες συσκευές σου αποσυνδέθηκαν.',
+            how === 'reset'
+              ? 'Ο κωδικός του λογαριασμού σου στο BorrowBox μόλις άλλαξε και αποσυνδέθηκες από όλες τις συσκευές.'
+              : 'Ο κωδικός του λογαριασμού σου στο BorrowBox μόλις άλλαξε και οι άλλες συσκευές σου αποσυνδέθηκαν.',
             'Αν δεν ήσουν εσύ, ζήτησε αμέσως νέο κωδικό από τον παρακάτω σύνδεσμο.',
           ],
           action: { label: 'Ζήτησε νέο κωδικό', url },
@@ -89,7 +95,9 @@ export function passwordChangedMessage(
           subject: 'Your BorrowBox password was changed',
           greeting: `Hi ${name},`,
           paragraphs: [
-            'The password of your BorrowBox account was just changed, and your other devices were signed out.',
+            how === 'reset'
+              ? 'The password of your BorrowBox account was just changed, and you were signed out on every device.'
+              : 'The password of your BorrowBox account was just changed, and your other devices were signed out.',
             "If this wasn't you, ask for a new password straight away with the link below.",
           ],
           action: { label: 'Ask for a new password', url },

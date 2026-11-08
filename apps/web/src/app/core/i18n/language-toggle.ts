@@ -9,6 +9,9 @@ import { TranslocoDirective } from '@jsverse/transloco';
 import type { Locale } from '../../api/models';
 import { LanguageService } from './language';
 
+/** Counts instances, for unique SVG ids. */
+let toggles = 0;
+
 /**
  * Compact el/en switch showing the current language's flag; one click
  * switches instantly (no menu). Flags are inline SVG, since Windows doesn't
@@ -36,14 +39,14 @@ import { LanguageService } from './language';
             preserveAspectRatio="xMidYMid slice"
             aria-hidden="true"
           >
-            <clipPath id="bb-uk-clip">
+            <clipPath [attr.id]="clipId">
               <path d="M30,15h30v15zv15h-30zh-30v-15zv-15h30z" />
             </clipPath>
             <path d="M0,0v30h60v-30z" fill="#012169" />
             <path d="M0,0L60,30M60,0L0,30" stroke="#fff" stroke-width="6" />
             <path
               d="M0,0L60,30M60,0L0,30"
-              clip-path="url(#bb-uk-clip)"
+              [attr.clip-path]="'url(#' + clipId + ')'"
               stroke="#C8102E"
               stroke-width="4"
             />
@@ -118,6 +121,8 @@ export class LanguageToggle {
   /** Emits the newly chosen language (the app saves it for signed-in users). */
   readonly changed = output<Locale>();
 
+  /** The toggle is in the bar and in the drawer: SVG ids must be unique. */
+  protected readonly clipId = `bb-uk-clip-${++toggles}`;
   protected readonly current = computed(() => this.language.current());
   protected readonly next = computed<Locale>(() =>
     this.current() === 'el' ? 'en' : 'el',

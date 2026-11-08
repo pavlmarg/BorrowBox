@@ -7,7 +7,7 @@
     "node": ">=22.22.3"
   },
   "scripts": {
-    "infra:up": "docker compose -f infra/docker-compose.yml up -d",
+    "infra:up": "docker compose -f infra/docker-compose.yml up -d --wait",
     "infra:down": "docker compose -f infra/docker-compose.yml down",
     "affected": "nx affected -t lint test build",
     "format": "nx format:write",

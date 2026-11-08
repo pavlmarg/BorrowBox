@@ -41,6 +41,25 @@ describe('renderNotification', () => {
     expect(email.html).toContain('BorrowBox');
   });
 
+  it.each([
+    ['NO_ANSWER', 'en', 'The request for “Drill <b>pro</b>” expired'],
+    ['STARTED', 'en', 'The booking of “Drill <b>pro</b>” expired'],
+    ['NO_ANSWER', 'el', 'Το αίτημα για «Drill <b>pro</b>» έληξε'],
+    ['STARTED', 'el', 'Η κράτηση για «Drill <b>pro</b>» έληξε'],
+  ] as const)(
+    'names an expiry for %s a request or a booking (%s)',
+    (reason, locale, subject) => {
+      const email = renderNotification(
+        input({
+          kind: 'BOOKING_EXPIRED',
+          locale,
+          data: { ...input().data, reason },
+        }),
+      );
+      expect(email.subject).toBe(subject);
+    },
+  );
+
   it('shows Athens time and EUR amounts', () => {
     const email = renderNotification(input());
     expect(email.text).toContain('10:00');

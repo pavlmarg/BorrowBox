@@ -10,6 +10,7 @@ import {
   Query,
   Req,
   Res,
+  UseFilters,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -47,6 +48,7 @@ import { AuthRateLimit, RefreshRateLimit } from '../http/rate-limits';
 import { apiError, type ApiErrorBody } from '../http/api-error';
 import { CorrelationId } from '../http/request-context';
 import { IdentityClient } from '../identity/identity.client';
+import { OAuthRateLimitFilter, oauthCallbackUrl } from './oauth-redirect';
 
 /** Hands the refresh token to the cookie and returns the rest. */
 function toAuthResponse(res: Response, session: AuthSession): AuthResponse {
@@ -65,15 +67,6 @@ function sameString(a: string, b: string): boolean {
   const y = Buffer.from(b);
   return x.length === y.length && timingSafeEqual(x, y);
 }
-
-/** Error codes the web app's /auth/callback page knows how to show. */
-const OAUTH_REDIRECT_ERRORS = new Set([
-  'OAUTH_EXCHANGE_FAILED',
-  'OAUTH_EMAIL_NOT_VERIFIED',
-  'OAUTH_CANCELLED',
-  'RATE_LIMITED',
-  'SERVICE_UNAVAILABLE',
-]);
 
 @ApiTags('auth')
 @ApiResponse({
@@ -270,6 +263,7 @@ export class AuthController {
   /** Browser navigation (not XHR): redirects to Google's consent screen. */
   @Get('google')
   @AuthRateLimit()
+  @UseFilters(OAuthRateLimitFilter)
   @ApiOperation({
     summary: 'Start Google sign-in (navigate the browser here)',
   })
@@ -300,6 +294,7 @@ export class AuthController {
   /** Google redirects here; we redirect on to the web app's /auth/callback. */
   @Get('google/callback')
   @AuthRateLimit()
+  @UseFilters(OAuthRateLimitFilter)
   @ApiExcludeEndpoint()
   async googleCallback(
     @Query('code') code: unknown,
@@ -356,18 +351,12 @@ export class AuthController {
 
   /** The web app then calls POST /auth/refresh; no token ever travels in a URL. */
   private backToWeb(res: Response, errorCode?: string): void {
-    const url = new URL(
-      '/auth/callback',
-      this.config.get('WEB_APP_URL', { infer: true }),
+    res.redirect(
+      HttpStatus.FOUND,
+      oauthCallbackUrl(
+        this.config.get('WEB_APP_URL', { infer: true }),
+        errorCode,
+      ),
     );
-    if (errorCode) {
-      url.searchParams.set(
-        'error',
-        OAUTH_REDIRECT_ERRORS.has(errorCode)
-          ? errorCode
-          : 'OAUTH_EXCHANGE_FAILED',
-      );
-    }
-    res.redirect(HttpStatus.FOUND, url.toString());
   }
 }

@@ -15,7 +15,7 @@ import {
   type KnownErrorCode,
 } from '../../core/api-errors';
 import { AuthStore } from '../../core/auth/auth.store';
-import { takeReturnUrl } from '../../core/auth/return-url';
+import { DEFAULT_AFTER_LOGIN, takeReturnUrl } from '../../core/auth/return-url';
 import { AuthScene } from './auth-scene';
 import { GoogleButton } from './google-button';
 
@@ -60,10 +60,18 @@ import { GoogleButton } from './google-button';
             <p class="message">{{ t(errorKey(code)) }}</p>
           </div>
           <div class="actions">
-            <bb-google-button label="auth.callback.tryAgain" />
-            <a mat-flat-button class="back" routerLink="/auth/login">{{
-              t('auth.callback.backToLogin')
-            }}</a>
+            <!-- Both keep the page the sign-in started from. -->
+            <bb-google-button
+              label="auth.callback.tryAgain"
+              [returnUrl]="returnUrl()"
+            />
+            <a
+              mat-flat-button
+              class="back"
+              routerLink="/auth/login"
+              [queryParams]="{ returnUrl: returnUrl() }"
+              >{{ t('auth.callback.backToLogin') }}</a
+            >
           </div>
         } @else {
           <div class="working" role="status">
@@ -181,10 +189,13 @@ export class AuthCallbackPage implements OnInit {
   private readonly auth = inject(AuthStore);
   private readonly router = inject(Router);
   protected readonly failure = signal<KnownErrorCode | null>(null);
+  /** Where the sign-in started; taken from storage once, kept for a retry. */
+  protected readonly returnUrl = signal(DEFAULT_AFTER_LOGIN);
   protected readonly errorKey = errorKey;
 
   async ngOnInit(): Promise<void> {
     const returnUrl = takeReturnUrl();
+    this.returnUrl.set(returnUrl);
     if (this.error()) {
       this.failure.set(
         knownCodeOr(this.error() ?? null, 'OAUTH_EXCHANGE_FAILED'),

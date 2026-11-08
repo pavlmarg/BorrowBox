@@ -4,8 +4,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
-  ParseUUIDPipe,
   Post,
   Query,
   UseGuards,
@@ -20,6 +18,7 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@borrowbox/auth';
 import { BookingsRpc } from '@borrowbox/contracts';
+import { UuidParam } from '../http/params';
 import { ApiErrorResponse } from '../api.dto';
 import { BookingRequestRateLimit } from '../http/rate-limits';
 import { AccessToken, CorrelationId } from '../http/request-context';
@@ -34,8 +33,8 @@ import {
 } from './bookings.api';
 import { BookingsClient } from './bookings.client';
 
-const itemId = () => Param('itemId', ParseUUIDPipe);
-const bookingId = () => Param('bookingId', ParseUUIDPipe);
+const itemId = () => UuidParam('itemId');
+const bookingId = () => UuidParam('bookingId');
 
 /** Public booking queries on an item page: no sign-in, nothing about people. */
 @ApiTags('bookings')

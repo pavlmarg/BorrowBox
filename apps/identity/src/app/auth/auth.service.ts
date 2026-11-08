@@ -156,8 +156,12 @@ export class AuthService {
         case 'expired':
           return { kind: 'invalid' } as const;
         case 'rotate':
+        case 'reissue':
+          // A reissue keeps the first rotation time, so the leeway can't be
+          // stretched by retrying again and again.
           await tx.query(
-            `UPDATE refresh_tokens SET rotated_at = $2 WHERE id = $1`,
+            `UPDATE refresh_tokens SET rotated_at = coalesce(rotated_at, $2)
+              WHERE id = $1`,
             [row.id, now],
           );
           return {

@@ -155,7 +155,7 @@ describe('outbox (Postgres integration)', () => {
       expect((await outboxRows())[1].last_error).toBeNull();
     });
 
-    it('never publishes a row twice when relays run concurrently', async () => {
+    it('publishes in order and never twice when relays run concurrently', async () => {
       const events = Array.from({ length: 40 }, (_, i) => newEvent(`i-${i}`));
       for (const e of events) await createItem(e);
 
@@ -182,8 +182,34 @@ describe('outbox (Postgres integration)', () => {
         drain(makeRelay()),
       ]);
 
-      expect(published).toHaveLength(40);
-      expect(new Set(published).size).toBe(40);
+      // One instance publishes at a time (the relay lock), so order holds.
+      expect(published).toEqual(events.map((e) => e.eventId));
+    });
+
+    it('stop() during a batch returns without waiting out the poll interval', async () => {
+      await createItem(newEvent('slow'));
+      let release!: () => void;
+      const gate = new Promise<void>((r) => (release = r));
+      let entered!: () => void;
+      const inBatch = new Promise<void>((r) => (entered = r));
+      const relay = new OutboxRelay({
+        dataSource: ds,
+        pollIntervalMs: 60_000,
+        logger: silent,
+        publish: async () => {
+          entered();
+          await gate;
+        },
+      });
+      relay.start();
+      await inBatch;
+
+      const started = Date.now();
+      const stopped = relay.stop();
+      release();
+      await stopped;
+      expect(Date.now() - started).toBeLessThan(5_000);
+      expect((await outboxRows())[0].published_at).not.toBeNull();
     });
 
     it('start/stop polls in the background', async () => {

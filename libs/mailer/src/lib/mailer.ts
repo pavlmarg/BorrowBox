@@ -4,7 +4,11 @@ export interface MailerConfig {
   /** SMTP host; undefined disables sending (see `createMailer`). */
   host?: string;
   port: number;
-  /** TLS from the start (port 465). Otherwise STARTTLS is used when offered. */
+  /**
+   * TLS from the start (port 465). Otherwise STARTTLS: required when `user`
+   * is set (so a downgraded connection never carries the password), used
+   * when offered without credentials (Mailpit in dev).
+   */
   secure: boolean;
   user?: string;
   password?: string;
@@ -20,7 +24,9 @@ export interface EmailMessage {
 }
 
 export interface Mailer {
-  /** Resolves once the SMTP server accepted the message. */
+  /** False without an SMTP host: `send` then skips the message. */
+  readonly enabled: boolean;
+  /** Resolves once the SMTP server accepted the message (or skipped it, when disabled). */
   send(message: EmailMessage): Promise<void>;
   close(): void;
 }
@@ -39,6 +45,7 @@ export function createMailer(
 ): Mailer {
   if (!config.host) {
     return {
+      enabled: false,
       send: async () => {
         logger.warn('Email sending is disabled (no SMTP host); skipped');
       },
@@ -50,6 +57,7 @@ export function createMailer(
     host: config.host,
     port: config.port,
     secure: config.secure,
+    requireTLS: !config.secure && config.user !== undefined,
     auth:
       config.user !== undefined
         ? { user: config.user, pass: config.password ?? '' }
@@ -60,6 +68,7 @@ export function createMailer(
   });
 
   return {
+    enabled: true,
     send: async (message) => {
       try {
         await transport.sendMail({ from: config.from, ...message });

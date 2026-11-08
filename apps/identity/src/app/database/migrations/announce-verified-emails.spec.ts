@@ -25,6 +25,11 @@ describe('IdentityAnnounceVerifiedEmails migration (integration)', () => {
   });
 
   it('emits one user.email_verified.v1 per live verified account', async () => {
+    // Inserted out of order: the events follow the verification time.
+    const [later] = await db.query(
+      `INSERT INTO users (email, display_name, email_verified_at)
+       VALUES ('w@example.com', 'W', '2026-10-02T09:00:00.000Z') RETURNING id`,
+    );
     const [verified] = await db.query(
       `INSERT INTO users (email, display_name, email_verified_at)
        VALUES ('v@example.com', 'V', '2026-10-01T10:00:00.123Z') RETURNING id`,
@@ -45,9 +50,16 @@ describe('IdentityAnnounceVerifiedEmails migration (integration)', () => {
     }
 
     const rows = await db.query(
-      `SELECT event_id, routing_key, envelope FROM outbox`,
+      `SELECT event_id, routing_key, envelope FROM outbox ORDER BY id`,
     );
-    expect(rows).toHaveLength(1);
+    expect(rows).toHaveLength(2);
+    // Each event has its own id (the outbox's unique index enforces it too).
+    expect(rows[0].event_id).not.toBe(rows[1].event_id);
+    expect(rows[1].envelope).toMatchObject({
+      eventId: rows[1].event_id,
+      occurredAt: '2026-10-02T09:00:00.000Z',
+      payload: { userId: later.id },
+    });
     expect(rows[0].routing_key).toBe('user.email_verified.v1');
     expect(rows[0].envelope).toEqual({
       eventId: rows[0].event_id,

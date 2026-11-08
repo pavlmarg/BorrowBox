@@ -249,9 +249,32 @@ describe('Identity password auth (integration)', () => {
       expect(rows[1].rotated_at).toBeNull();
     });
 
+    it('within 30 s of a rotation, answers a retried refresh in the same family', async () => {
+      const first = await register(newUser());
+      const second = await refresh(first.refreshToken);
+      // The answer was lost; the client retries with the token it still has.
+      const retried = await refresh(first.refreshToken);
+
+      expect(retried.refreshToken).not.toBe(second.refreshToken);
+      expect(retried.refreshTokenExpiresAt).toBe(first.refreshTokenExpiresAt);
+      const families = await identity.dataSource.query(
+        `SELECT DISTINCT family_id FROM refresh_tokens
+          WHERE token_hash = ANY($1) AND revoked_at IS NULL`,
+        [[first, second, retried].map((s) => hashRefreshToken(s.refreshToken))],
+      );
+      expect(families).toHaveLength(1);
+      await expect(refresh(retried.refreshToken)).resolves.toBeDefined();
+    });
+
     it('on reuse of a rotated token, revokes the whole family', async () => {
       const first = await register(newUser());
       const second = await refresh(first.refreshToken);
+      // Past the leeway for lost answers.
+      await identity.dataSource.query(
+        `UPDATE refresh_tokens SET rotated_at = rotated_at - interval '1 minute'
+          WHERE token_hash = $1`,
+        [hashRefreshToken(first.refreshToken)],
+      );
 
       // Attacker (or a stale copy) replays the old token.
       expect((await failure(refresh(first.refreshToken))).code).toBe(

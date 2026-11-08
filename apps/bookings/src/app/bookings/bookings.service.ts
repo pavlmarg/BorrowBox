@@ -125,9 +125,13 @@ export class BookingsService {
 
       const existing = await findBooking(tx, dto.bookingId);
       if (existing) {
+        // Only a true repeat (same renter, item and period) is answered
+        // with the earlier booking; anything else reuses the id by mistake.
         if (
           existing.renter_id === user.userId &&
-          existing.item_id === dto.itemId
+          existing.item_id === dto.itemId &&
+          existing.start.getTime() === new Date(dto.start).getTime() &&
+          existing.end.getTime() === new Date(dto.end).getTime()
         ) {
           return existing;
         }

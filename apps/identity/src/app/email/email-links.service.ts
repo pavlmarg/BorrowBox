@@ -82,7 +82,7 @@ export class EmailLinksService {
     });
     if (to) {
       this.mailer.later('a password-changed notice', () =>
-        this.mailer.sendPasswordChanged(to),
+        this.mailer.sendPasswordChanged(to, 'reset'),
       );
     }
   }
