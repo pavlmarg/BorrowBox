@@ -40,12 +40,13 @@ describe('renderEmail', () => {
 });
 
 describe('createMailer', () => {
-  it('skips sending without an SMTP host', async () => {
+  it('skips sending without an SMTP host, and says it is disabled', async () => {
     const warn = jest.fn();
     const mailer = createMailer(
       { port: 25, secure: false, from: 'x@example.com' },
       { warn },
     );
+    expect(mailer.enabled).toBe(false);
     await mailer.send({
       to: 'a@example.com',
       subject: 's',
@@ -83,6 +84,29 @@ describe('createMailer', () => {
       const [email] = await mailpit.waitForEmails('maria@example.com');
       expect(email.subject).toBe('Γεια');
       expect(email.text).toContain('Καλώς ήρθες.');
+    });
+
+    it('never sends credentials over a connection without TLS', async () => {
+      // Mailpit offers no STARTTLS: with a user set, the mailer must refuse.
+      const mailer = createMailer({
+        host: mailpit.smtpHost,
+        port: mailpit.smtpPort,
+        secure: false,
+        user: 'borrowbox',
+        password: 'not-sent',
+        from: 'no-reply@borrowbox.test',
+      });
+      expect(mailer.enabled).toBe(true);
+      await expect(
+        mailer.send({
+          to: 'plain@example.com',
+          subject: 's',
+          text: 't',
+          html: 'h',
+        }),
+      ).rejects.toThrow(/^SMTP send failed \([A-Z]+\)$/);
+      mailer.close();
+      expect(await mailpit.emailsTo('plain@example.com')).toHaveLength(0);
     });
 
     it('fails without quoting the recipient when the server is unreachable', async () => {
