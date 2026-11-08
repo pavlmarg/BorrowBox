@@ -1,8 +1,9 @@
-import type {
-  ConversationView,
-  MessageView,
-  OfferStatus,
-  OfferView,
+import {
+  bookingFees,
+  type ConversationView,
+  type MessageView,
+  type OfferStatus,
+  type OfferView,
 } from '@borrowbox/contracts';
 import { maskContacts } from './masking';
 import type {
@@ -27,6 +28,7 @@ export function offerStatus(o: OfferRow, now = new Date()): OfferStatus {
 }
 
 export function toOfferView(o: OfferRow, now = new Date()): OfferView {
+  const fees = bookingFees(o.rent_cents, o.deposit_cents);
   return {
     id: o.id,
     conversationId: o.conversation_id,
@@ -35,7 +37,9 @@ export function toOfferView(o: OfferRow, now = new Date()): OfferView {
     end: o.end.toISOString(),
     rentCents: o.rent_cents,
     depositCents: o.deposit_cents,
-    totalCents: o.rent_cents + o.deposit_cents,
+    // As the renter would pay if they booked it now (ADR-0020).
+    feeCents: fees.renterFeeCents,
+    totalCents: fees.chargeCents,
     listRentCents: o.list_rent_cents,
     status: offerStatus(o, now),
     expiresAt: o.expires_at.toISOString(),

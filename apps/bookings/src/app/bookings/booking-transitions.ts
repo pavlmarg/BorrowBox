@@ -5,7 +5,9 @@ import {
   BookingConfirmedV1,
   BookingDeclinedV1,
   BookingExpiredV1,
+  BookingPaidV1,
   createEnvelope,
+  PAYMENT_WINDOW_HOURS,
   type BookingCancelReason,
   type BookingDeclineReason,
   type BookingExpireReason,
@@ -21,14 +23,16 @@ import {
   findBooking,
   lockOverlappingRequests,
   setBookingStatus,
+  setPayBy,
   toSnapshot,
   type BookingRow,
 } from './bookings.repository';
 
-/** The status changes Phase 3 makes, each with its event and reason. */
+/** The status changes Bookings makes, each with its event and reason. */
 export type BookingMove =
   | { to: 'ACCEPTED' }
   | { to: 'CONFIRMED' }
+  | { to: 'PAID' }
   | { to: 'DECLINED'; reason: BookingDeclineReason }
   | { to: 'EXPIRED'; reason: BookingExpireReason }
   | { to: 'CANCELLED'; reason: BookingCancelReason };
@@ -38,6 +42,7 @@ export type Cause = { correlationId: string } | { causedBy: EventEnvelope };
 const LINES: Record<BookingMove['to'], SystemMessageCode> = {
   ACCEPTED: 'BOOKING_ACCEPTED',
   CONFIRMED: 'BOOKING_CONFIRMED',
+  PAID: 'BOOKING_PAID',
   DECLINED: 'BOOKING_DECLINED',
   EXPIRED: 'BOOKING_EXPIRED',
   CANCELLED: 'BOOKING_CANCELLED',
@@ -63,17 +68,40 @@ export async function moveBooking(
   await setBookingStatus(tx, booking.id, move.to, reason);
 
   const snapshot = toSnapshot(booking);
+  // Waiting for payment: Payments and Notifications need the pay-by time.
+  if (move.to === 'ACCEPTED' && booking.pay_by) {
+    snapshot.payBy = booking.pay_by.toISOString();
+  }
   const options: CreateEnvelopeOptions = cause ?? {};
   await addToOutbox(tx, envelopeFor(move, snapshot, options));
   await addBookingLine(tx, booking, LINES[move.to], pushes);
   return (await findBooking(tx, booking.id)) as BookingRow;
 }
 
+/** True if accepting the booking means the renter pays something. */
+export function hasSomethingToPay(b: {
+  rent_cents: number;
+  deposit_cents: number;
+}): boolean {
+  return b.rent_cents + b.deposit_cents > 0;
+}
+
+/** When an accepted booking must be paid: 24 hours from now, or its start if sooner. */
+export function payByFor(start: Date, now = new Date()): Date {
+  return new Date(
+    Math.min(
+      now.getTime() + PAYMENT_WINDOW_HOURS * 60 * 60 * 1000,
+      start.getTime(),
+    ),
+  );
+}
+
 /**
  * Accepts a locked `REQUESTED` booking: `CONFIRMED` if there's nothing to
- * pay, else `ACCEPTED`, and declines the item's other overlapping requests
- * (ADR-0015). The caller holds the item's booking lock. A double booking
- * fails on the exclusion constraint (23P01).
+ * pay, else `ACCEPTED` with a pay-by time (ADR-0019), and declines the
+ * item's other overlapping requests (ADR-0015). The caller holds the item's
+ * booking lock and has checked that the lender can be paid. A double
+ * booking fails on the exclusion constraint (23P01).
  */
 export async function acceptBooking(
   tx: EntityManager,
@@ -81,7 +109,11 @@ export async function acceptBooking(
   cause: Cause,
   pushes: ChatPushes | null,
 ): Promise<BookingRow> {
-  const free = booking.rent_cents + booking.deposit_cents === 0;
+  const free = !hasSomethingToPay(booking);
+  if (!free) {
+    await setPayBy(tx, booking.id, payByFor(booking.start));
+    booking = (await findBooking(tx, booking.id)) as BookingRow;
+  }
   const accepted = await moveBooking(
     tx,
     booking,
@@ -118,6 +150,8 @@ function envelopeFor(
       return createEnvelope(BookingAcceptedV1, snapshot, options);
     case 'CONFIRMED':
       return createEnvelope(BookingConfirmedV1, snapshot, options);
+    case 'PAID':
+      return createEnvelope(BookingPaidV1, snapshot, options);
     case 'DECLINED':
       return createEnvelope(
         BookingDeclinedV1,

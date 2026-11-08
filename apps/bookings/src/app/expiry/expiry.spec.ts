@@ -53,7 +53,7 @@ describe('Booking expiry (integration)', () => {
     await Promise.all([pg?.stop(), rabbit?.stop(), redis?.stop()]);
   });
 
-  async function setup(free = false) {
+  async function setup(free = false, startInHours = 30) {
     const lender = await bookings.addUser();
     const renter = await bookings.addUser();
     const item = await bookings.addItem(
@@ -65,8 +65,8 @@ describe('Booking expiry (integration)', () => {
       {
         bookingId: randomUUID(),
         itemId: item.itemId,
-        start: at(30),
-        end: at(32),
+        start: at(startInHours),
+        end: at(startInHours + 2),
       },
       { accessToken: await bookings.tokenFor(renter) },
     );
@@ -126,21 +126,41 @@ describe('Booking expiry (integration)', () => {
     expect((await status(booking.id)).status).toBe('CONFIRMED');
   });
 
-  it('expires an accepted booking still unpaid at its start (Q8)', async () => {
+  it('expires an accepted booking unpaid 24 hours after the acceptance (ADR-0019)', async () => {
     const { lender, booking } = await setup();
-    await accept(lender, booking.id);
-    const start = new Date(booking.start);
+    const before = Date.now();
+    const accepted: BookingView = await accept(lender, booking.id);
+    const payBy = new Date(accepted.payBy as string);
+    // The start is 30 hours away: 24 hours to pay.
+    expect(payBy.getTime()).toBeGreaterThanOrEqual(before + 24 * HOUR);
+    expect(payBy.getTime()).toBeLessThanOrEqual(Date.now() + 24 * HOUR);
     expect(
-      await queue.queue.getJob(`expire-${booking.id}-${start.getTime()}`),
+      await queue.queue.getJob(`expire-${booking.id}-${payBy.getTime()}`),
     ).toBeDefined();
-    expect(await expiry.expire(booking.id, new Date(start.getTime() - 1))).toBe(
+    expect(await expiry.expire(booking.id, new Date(payBy.getTime() - 1))).toBe(
       false,
     );
-    expect(await expiry.expire(booking.id, start)).toBe(true);
+    expect(await expiry.expire(booking.id, payBy)).toBe(true);
     expect(await status(booking.id)).toEqual({
       status: 'EXPIRED',
-      reason: 'STARTED',
+      reason: 'PAYMENT_TIMEOUT',
     });
+  });
+
+  it('gives an accepted booking until its start to be paid, when that is sooner', async () => {
+    const { lender, booking } = await setup(false, 5);
+    const accepted: BookingView = await accept(lender, booking.id);
+    expect(accepted.payBy).toBe(booking.start);
+  });
+
+  it('never expires a paid booking', async () => {
+    const { lender, booking } = await setup();
+    const accepted: BookingView = await accept(lender, booking.id);
+    await bookings.pay(booking.id, accepted.price.totalCents);
+    expect(
+      await expiry.expire(booking.id, new Date(Date.now() + 48 * HOUR)),
+    ).toBe(false);
+    expect(await status(booking.id)).toEqual({ status: 'PAID', reason: null });
   });
 
   it('runs a due job through the worker', async () => {

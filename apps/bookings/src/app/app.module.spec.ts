@@ -77,7 +77,7 @@ describe('Bookings AppModule (integration)', () => {
     }
     // Idempotent: nothing left to run.
     expect(await bookings.dataSource.showMigrations()).toBe(false);
-    expect(MIGRATIONS).toHaveLength(3);
+    expect(MIGRATIONS).toHaveLength(4);
   });
 
   describe('database guards', () => {
@@ -93,8 +93,8 @@ describe('Bookings AppModule (integration)', () => {
       await bookings.dataSource.query(
         `INSERT INTO bookings (id, item_id, lender_id, renter_id, item_title,
                                pricing, units, rent_cents, deposit_cents,
-                               period, status)
-         VALUES ($1, $2, $3, $4, 'Drill', '{"free": true}', '{}', 0, 0,
+                               fee_cents, lender_fee_cents, period, status)
+         VALUES ($1, $2, $3, $4, 'Drill', '{"free": true}', '{}', 0, 0, 0, 0,
                  $5::tstzrange, $6)`,
         [id, item, lenderId, randomUUID(), period, status],
       );

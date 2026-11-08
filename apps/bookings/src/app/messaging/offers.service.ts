@@ -6,6 +6,7 @@ import {
   BOOKING_ANSWER_HOURS,
   BOOKING_MIN_LEAD_HOURS,
   BookingRequestedV1,
+  bookingFees,
   createEnvelope,
   OFFER_VALID_HOURS,
   OfferSentV1,
@@ -14,7 +15,10 @@ import {
 } from '@borrowbox/contracts';
 import { addToOutbox } from '@borrowbox/outbox';
 import { DATA_SOURCE } from '@borrowbox/service-kit';
-import { acceptBooking } from '../bookings/booking-transitions';
+import {
+  acceptBooking,
+  hasSomethingToPay,
+} from '../bookings/booking-transitions';
 import {
   findBooking,
   insertBooking,
@@ -28,7 +32,11 @@ import { checkPeriod } from '../bookings/period';
 import { rentFor } from '../bookings/pricing';
 import { ExpiryQueue } from '../expiry/expiry-queue';
 import { findItem } from '../read-models/items.repository';
-import { findUser, lockUserBookings } from '../read-models/users.repository';
+import {
+  canBePaid,
+  findUser,
+  lockUserBookings,
+} from '../read-models/users.repository';
 import { ChatPublisher, ChatPushes } from './chat-publisher';
 import { MessagingError } from './messaging-errors';
 import type { BookOfferDto, SendOfferDto } from './messaging.dto';
@@ -116,6 +124,16 @@ export class OffersService {
           'PRICE_ABOVE_LIST',
           "An offer can't be more than the listed price",
         );
+      }
+      // Booking it accepts it at once: something to pay needs payouts (ADR-0019).
+      if (
+        hasSomethingToPay({
+          rent_cents: dto.rentCents,
+          deposit_cents: item.deposit_cents,
+        }) &&
+        !(await canBePaid(tx, c.lender_id))
+      ) {
+        throw payoutsNotSetUp('Set up payouts before offering a paid booking');
       }
 
       const old = await lockOpenOffer(tx, c.id);
@@ -274,6 +292,8 @@ export class OffersService {
           throw slotTaken();
         }
 
+        // The fee is on the offer's price (ADR-0019), fixed now (ADR-0020).
+        const fees = bookingFees(offer.rent_cents, offer.deposit_cents);
         await insertBooking(tx, {
           id: dto.bookingId,
           itemId: item.item_id,
@@ -284,6 +304,8 @@ export class OffersService {
           units: rentFor(item.pricing, period.hours).units,
           rentCents: offer.rent_cents,
           depositCents: offer.deposit_cents,
+          feeCents: fees.renterFeeCents,
+          lenderFeeCents: fees.lenderFeeCents,
           start: period.start,
           end: period.end,
           expiresAt: new Date(
@@ -301,6 +323,13 @@ export class OffersService {
             correlationId,
           }),
         );
+        // Restricted since the offer was sent: the booking can't go ahead.
+        if (
+          hasSomethingToPay(requested) &&
+          !(await canBePaid(tx, requested.lender_id))
+        ) {
+          throw payoutsNotSetUp("The lender can't take payments yet");
+        }
         const accepted = await acceptBooking(
           tx,
           requested,
@@ -318,8 +347,8 @@ export class OffersService {
       throw err;
     }
     await this.chat.flush(pushes);
-    if (booking.status === 'ACCEPTED') {
-      await this.expiry.checkAt(booking.id, booking.start);
+    if (booking.status === 'ACCEPTED' && booking.pay_by) {
+      await this.expiry.checkAt(booking.id, booking.pay_by);
     }
     return toView(booking, user.userId);
   }
@@ -353,4 +382,8 @@ function invalidState(message: string): MessagingError {
 
 function slotTaken(): MessagingError {
   return new MessagingError('SLOT_TAKEN', 'This time is already booked');
+}
+
+function payoutsNotSetUp(message: string): MessagingError {
+  return new MessagingError('PAYOUTS_NOT_SET_UP', message);
 }

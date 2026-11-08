@@ -27,6 +27,11 @@ export interface BookingRow {
   reason: BookingCloseReason | null;
   expires_at: Date | null;
   offer_id: string | null;
+  /** The renter's fee and the lender's deposit fee, fixed at request (ADR-0020). */
+  fee_cents: number;
+  lender_fee_cents: number;
+  /** While ACCEPTED: when it expires unless paid. */
+  pay_by: Date | null;
   created_at: Date;
   updated_at: Date;
   renter_name: string | null;
@@ -43,6 +48,8 @@ export interface NewBooking {
   units: PriceUnits;
   rentCents: number;
   depositCents: number;
+  feeCents: number;
+  lenderFeeCents: number;
   start: Date;
   end: Date;
   expiresAt: Date;
@@ -54,7 +61,8 @@ const SELECT_BOOKINGS = `
   SELECT b.id, b.item_id, b.lender_id, b.renter_id, b.item_title, b.pricing,
          b.units, b.rent_cents, b.deposit_cents,
          lower(b.period) AS start, upper(b.period) AS "end",
-         b.status, b.reason, b.expires_at, b.offer_id, b.created_at,
+         b.status, b.reason, b.expires_at, b.offer_id, b.fee_cents,
+         b.lender_fee_cents, b.pay_by, b.created_at,
          b.updated_at,
          r.display_name AS renter_name, l.display_name AS lender_name
     FROM bookings b
@@ -63,7 +71,8 @@ const SELECT_BOOKINGS = `
 
 /** Statuses that hold the item's period, as a Postgres array literal parameter. */
 const HOLDING: string[] = [...BOOKING_HOLDING_STATUSES];
-const OPEN: string[] = [...OPEN_STATUSES];
+/** What an item's deletion or an account's erasure cancels: open and paid bookings. */
+const TO_CANCEL_ON_DELETION: string[] = [...OPEN_STATUSES, 'PAID'];
 
 export async function insertBooking(
   tx: EntityManager,
@@ -72,9 +81,10 @@ export async function insertBooking(
   await tx.query(
     `INSERT INTO bookings (id, item_id, lender_id, renter_id, item_title,
                            pricing, units, rent_cents, deposit_cents, period,
-                           status, expires_at, offer_id)
+                           status, expires_at, offer_id, fee_cents,
+                           lender_fee_cents)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
-             tstzrange($10, $11, '[)'), 'REQUESTED', $12, $13)`,
+             tstzrange($10, $11, '[)'), 'REQUESTED', $12, $13, $14, $15)`,
     [
       b.id,
       b.itemId,
@@ -89,6 +99,8 @@ export async function insertBooking(
       b.end,
       b.expiresAt,
       b.offerId ?? null,
+      b.feeCents,
+      b.lenderFeeCents,
     ],
   );
 }
@@ -136,7 +148,8 @@ export async function setBookingStatus(
   await tx.query(
     `UPDATE bookings
         SET status = $2, reason = $3, updated_at = now(),
-            expires_at = CASE WHEN $2 = 'REQUESTED' THEN expires_at END
+            expires_at = CASE WHEN $2 = 'REQUESTED' THEN expires_at END,
+            pay_by = CASE WHEN $2 = 'ACCEPTED' THEN pay_by END
       WHERE id = $1`,
     [id, status, reason],
   );
@@ -161,8 +174,23 @@ export async function lockOverlappingRequests(
   return rows.map((r) => r.id);
 }
 
-/** Open bookings (`REQUESTED`, `ACCEPTED`, `CONFIRMED`) matching `where`, locked. */
-export async function lockOpenBookings(
+/**
+ * Sets when an accepted booking expires unless paid. Called just before it
+ * moves to ACCEPTED, so the `booking.accepted` event carries it.
+ */
+export async function setPayBy(
+  tx: EntityManager,
+  id: string,
+  payBy: Date,
+): Promise<void> {
+  await tx.query(`UPDATE bookings SET pay_by = $2 WHERE id = $1`, [id, payBy]);
+}
+
+/**
+ * What an item's deletion or an account's erasure cancels, matching
+ * `where`, locked: open bookings and paid ones (refunded by Payments).
+ */
+export async function lockBookingsToCancel(
   tx: EntityManager,
   where: { itemId: string } | { userId: string },
 ): Promise<string[]> {
@@ -174,7 +202,7 @@ export async function lockOpenBookings(
       : `SELECT id FROM bookings
           WHERE (renter_id = $1 OR lender_id = $1) AND status = ANY($2::text[])
           ORDER BY id FOR UPDATE`,
-    ['itemId' in where ? where.itemId : where.userId, OPEN],
+    ['itemId' in where ? where.itemId : where.userId, TO_CANCEL_ON_DELETION],
   );
   return rows.map((r) => r.id);
 }
@@ -293,7 +321,7 @@ export async function listDueExpiries(
   const rows: Array<{ id: string }> = await tx.query(
     `SELECT id FROM bookings WHERE status = 'REQUESTED' AND expires_at <= now()
      UNION
-     SELECT id FROM bookings WHERE status = 'ACCEPTED' AND lower(period) <= now()
+     SELECT id FROM bookings WHERE status = 'ACCEPTED' AND pay_by <= now()
      LIMIT $1::int`,
     [limit],
   );
@@ -312,6 +340,8 @@ export function toSnapshot(row: BookingRow): BookingSnapshotV1 {
     rentCents: row.rent_cents,
     depositCents: row.deposit_cents,
     ...(row.offer_id ? { offerId: row.offer_id } : {}),
+    feeCents: row.fee_cents,
+    lenderFeeCents: row.lender_fee_cents,
   };
 }
 
@@ -330,7 +360,10 @@ export function toView(row: BookingRow, userId: string): BookingView {
     price: {
       rentCents: row.rent_cents,
       depositCents: row.deposit_cents,
-      totalCents: row.rent_cents + row.deposit_cents,
+      feeCents: row.fee_cents,
+      totalCents: row.rent_cents + row.deposit_cents + row.fee_cents,
+      lenderFeeCents: row.lender_fee_cents,
+      payoutCents: row.rent_cents - row.lender_fee_cents,
       units: row.units,
       offerId: row.offer_id,
     },
@@ -340,6 +373,8 @@ export function toView(row: BookingRow, userId: string): BookingView {
       row.status === 'REQUESTED' && row.expires_at
         ? row.expires_at.toISOString()
         : null,
+    payBy:
+      row.status === 'ACCEPTED' && row.pay_by ? row.pay_by.toISOString() : null,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   };

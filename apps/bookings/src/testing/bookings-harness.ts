@@ -8,6 +8,8 @@ import {
   ItemCreatedV1,
   ItemDeletedV1,
   ItemUpdatedV1,
+  PaymentAccountReadyV1,
+  PaymentCapturedV1,
   UserDeletionRequestedV1,
   UserEmailVerifiedV1,
   UserRegisteredV1,
@@ -23,6 +25,7 @@ import {
   type ServiceHarness,
   type TestKeys,
 } from '@borrowbox/service-kit/testing';
+import { PaymentEventsConsumer } from '../app/bookings/payment-events.consumer';
 import { ItemEventsConsumer } from '../app/read-models/item-events.consumer';
 import { UserEventsConsumer } from '../app/read-models/user-events.consumer';
 
@@ -36,8 +39,17 @@ export interface BookingsHarness extends ServiceHarness<BookingsServiceContract>
   tokenFor(userId: string): Promise<string>;
   /** Hands an event straight to Bookings' consumer (no broker). */
   receive(envelope: EventEnvelope): Promise<void>;
-  /** A user Bookings knows by name, with a verified email unless told otherwise. */
-  addUser(options?: { name?: string; verified?: boolean }): Promise<string>;
+  /**
+   * A user Bookings knows by name, with a verified email and payouts set up
+   * (so they can accept paid bookings) unless told otherwise.
+   */
+  addUser(options?: {
+    name?: string;
+    verified?: boolean;
+    payable?: boolean;
+  }): Promise<string>;
+  /** Plays Payments: the renter paid `bookingId` (rent + deposit + fee). */
+  pay(bookingId: string, amountCents: number): Promise<void>;
   /** A bookable item (ACTIVE unless told otherwise) of `lenderId`. */
   addItem(
     lenderId: string,
@@ -78,11 +90,14 @@ export async function startBookings(urls: {
   });
   const items = harness.app.get(ItemEventsConsumer);
   const users = harness.app.get(UserEventsConsumer);
+  const payments = harness.app.get(PaymentEventsConsumer);
 
   const receive = async (envelope: EventEnvelope) => {
     const routingKey = `${envelope.type}.v${envelope.version}`;
     if (envelope.type.startsWith('item.')) {
       await items.handle(envelope, routingKey);
+    } else if (envelope.type.startsWith('payment.')) {
+      await payments.handle(envelope, routingKey);
     } else {
       await users.handle(envelope, routingKey);
     }
@@ -94,7 +109,11 @@ export async function startBookings(urls: {
     tokenFor: async (userId) =>
       (await signer.sign({ userId, sessionId: randomUUID() })).token,
     receive,
-    addUser: async ({ name = 'Maria', verified = true } = {}) => {
+    addUser: async ({
+      name = 'Maria',
+      verified = true,
+      payable = true,
+    } = {}) => {
       const userId = randomUUID();
       await receive(
         createEnvelope(UserRegisteredV1, {
@@ -107,8 +126,13 @@ export async function startBookings(urls: {
       if (verified) {
         await receive(createEnvelope(UserEmailVerifiedV1, { userId }));
       }
+      if (payable) {
+        await receive(createEnvelope(PaymentAccountReadyV1, { userId }));
+      }
       return userId;
     },
+    pay: (bookingId, amountCents) =>
+      receive(createEnvelope(PaymentCapturedV1, { bookingId, amountCents })),
     addItem: async (lenderId, overrides = {}) => {
       const item: ItemSnapshotV1 = {
         itemId: randomUUID(),

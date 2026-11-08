@@ -21,7 +21,7 @@ import {
 import { cancelBookings } from '../bookings/booking-transitions';
 import {
   lockItemBookings,
-  lockOpenBookings,
+  lockBookingsToCancel,
 } from '../bookings/bookings.repository';
 import { ChatPublisher, ChatPushes } from '../messaging/chat-publisher';
 import { lockOpenOffers } from '../messaging/messaging.repository';
@@ -83,7 +83,7 @@ export class ItemEventsConsumer implements OnApplicationBootstrap {
             // Waits for requests in flight (they hold the item row).
             await markItemDeleted(tx, itemId, lenderId, envelope.occurredAt);
             const offers = await lockOpenOffers(tx, { itemId });
-            const ids = await lockOpenBookings(tx, { itemId });
+            const ids = await lockBookingsToCancel(tx, { itemId });
             await cancelBookings(tx, ids, 'ITEM_DELETED', envelope, pushes);
             await withdrawOffers(
               tx,

@@ -6,6 +6,7 @@ import {
   BOOKING_LIST_LIMIT_DEFAULT,
   BOOKING_OPEN_REQUESTS_MAX,
   BookingRequestedV1,
+  bookingFees,
   createEnvelope,
   type BookingView,
   type BookingsDataExport,
@@ -19,9 +20,17 @@ import { ExpiryQueue } from '../expiry/expiry-queue';
 import { ChatPublisher, ChatPushes } from '../messaging/chat-publisher';
 import { addBookingLine } from '../messaging/system-messages';
 import { findItem, type ItemRow } from '../read-models/items.repository';
-import { findUser, lockUserBookings } from '../read-models/users.repository';
+import {
+  canBePaid,
+  findUser,
+  lockUserBookings,
+} from '../read-models/users.repository';
 import { BookingsError } from '../rpc/rpc-errors';
-import { acceptBooking, moveBooking } from './booking-transitions';
+import {
+  acceptBooking,
+  hasSomethingToPay,
+  moveBooking,
+} from './booking-transitions';
 import type {
   ItemPeriodDto,
   ListBookingsDto,
@@ -81,13 +90,17 @@ export class BookingsService {
     if (!item || item.status !== 'ACTIVE') throw ITEM_NOT_FOUND();
     const period = checkPeriod(dto.start, dto.end, new Date(), limitsOf(item));
     const rent = rentFor(item.pricing, period.hours);
+    const fees = bookingFees(rent.rentCents, item.deposit_cents);
     return {
       itemId: item.item_id,
       start: period.start.toISOString(),
       end: period.end.toISOString(),
       rentCents: rent.rentCents,
       depositCents: item.deposit_cents,
-      totalCents: rent.rentCents + item.deposit_cents,
+      feeCents: fees.renterFeeCents,
+      totalCents: fees.chargeCents,
+      lenderFeeCents: fees.lenderFeeCents,
+      payoutCents: fees.payoutCents,
       units: rent.units,
     };
   }
@@ -162,6 +175,8 @@ export class BookingsService {
       const period = checkPeriod(dto.start, dto.end, now, limitsOf(item));
       await this.assertCanRequest(tx, user, item, period);
       const rent: Rent = rentFor(item.pricing, period.hours);
+      // Fixed now, like the rent: what the renter is shown is what they pay.
+      const fees = bookingFees(rent.rentCents, item.deposit_cents);
 
       await insertBooking(tx, {
         id: dto.bookingId,
@@ -173,6 +188,8 @@ export class BookingsService {
         units: rent.units,
         rentCents: rent.rentCents,
         depositCents: item.deposit_cents,
+        feeCents: fees.renterFeeCents,
+        lenderFeeCents: fees.lenderFeeCents,
         start: period.start,
         end: period.end,
         expiresAt: new Date(
@@ -201,8 +218,9 @@ export class BookingsService {
 
   /**
    * The lender accepts: `CONFIRMED` if there's nothing to pay, else
-   * `ACCEPTED` (payment comes with Phase 4). Declines the item's other
-   * requests that overlap it, in the same transaction.
+   * `ACCEPTED`, to be paid by its pay-by time; that needs the lender's
+   * payouts set up (ADR-0019). Declines the item's other requests that
+   * overlap it, in the same transaction.
    */
   async accept(
     user: AuthUser,
@@ -228,6 +246,12 @@ export class BookingsService {
           throw invalidState('Only a request can be accepted');
         }
         assertNotDue(row);
+        if (hasSomethingToPay(row) && !(await canBePaid(tx, row.lender_id))) {
+          throw new BookingsError(
+            'PAYOUTS_NOT_SET_UP',
+            'Set up payouts before accepting a paid booking',
+          );
+        }
         return acceptBooking(tx, row, { correlationId }, pushes);
       });
     } catch (err) {
@@ -237,9 +261,9 @@ export class BookingsService {
       throw err;
     }
     await this.chat.flush(pushes);
-    if (booking.status === 'ACCEPTED') {
-      // Unpaid at its start, it expires (until Payments adds a timeout).
-      await this.expiry.checkAt(booking.id, booking.start);
+    if (booking.status === 'ACCEPTED' && booking.pay_by) {
+      // Unpaid by then, it expires (PAYMENT_TIMEOUT).
+      await this.expiry.checkAt(booking.id, booking.pay_by);
     }
     return toView(booking, user.userId);
   }
@@ -276,8 +300,8 @@ export class BookingsService {
 
   /**
    * The renter withdraws a request; either side cancels an accepted or
-   * confirmed booking before it starts. Paid bookings follow the refund
-   * policy (Phase 4).
+   * confirmed booking before it starts. Cancelling a paid booking comes
+   * with the refund policy (Phase 4, PR C).
    */
   async cancel(
     user: AuthUser,
