@@ -1,5 +1,6 @@
 import type { BookingSnapshotV1 } from '@borrowbox/contracts';
 import {
+  ERASURE_EMAIL_DELAY_MS,
   onAccepted,
   onCancelled,
   onConfirmed,
@@ -73,6 +74,18 @@ describe('which booking emails go to whom (N1)', () => {
     ],
   ] as const)('a cancellation by %s reaches %p', (reason, expected) => {
     expect(who(onCancelled({ ...booking, reason }))).toEqual(expected);
+  });
+
+  it("delays an erasure's cancellations until the erasure is processed", () => {
+    for (const email of onCancelled({
+      ...booking,
+      reason: 'ACCOUNT_DELETED',
+    })) {
+      expect(email.delayMs).toBe(ERASURE_EMAIL_DELAY_MS);
+    }
+    for (const email of onCancelled({ ...booking, reason: 'RENTER' })) {
+      expect(email.delayMs).toBeUndefined();
+    }
   });
 
   it('never stores names or text, only ids, times and amounts', () => {

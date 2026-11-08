@@ -18,8 +18,9 @@ export async function queueEmails(
 ): Promise<void> {
   for (const e of emails) {
     await tx.query(
-      `INSERT INTO email_jobs (kind, recipient_id, data) VALUES ($1, $2, $3)`,
-      [e.kind, e.recipientId, JSON.stringify(e.data)],
+      `INSERT INTO email_jobs (kind, recipient_id, data, next_attempt_at)
+       VALUES ($1, $2, $3, now() + make_interval(secs => $4::float8 / 1000))`,
+      [e.kind, e.recipientId, JSON.stringify(e.data), e.delayMs ?? 0],
     );
   }
 }

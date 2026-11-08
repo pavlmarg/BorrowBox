@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { ConfigService } from '@nestjs/config';
 import {
+  BookingCancelledV1,
   BookingConfirmedV1,
   BookingRequestedV1,
   ConversationUnreadV1,
@@ -11,6 +13,7 @@ import {
   type BookingSnapshotV1,
   type EventEnvelope,
 } from '@borrowbox/contracts';
+import { createMailer } from '@borrowbox/mailer';
 import { EventBus, type MessagingLogger } from '@borrowbox/messaging';
 import {
   startMailpit,
@@ -24,6 +27,7 @@ import {
   startNotifications,
   type NotificationsHarness,
 } from '../testing/notifications-harness';
+import { EmailSender } from './emails/email-sender';
 import { EVENTS_QUEUE } from './events/events.consumer';
 import { MIGRATIONS } from './database/database.module';
 
@@ -253,5 +257,76 @@ describe('Notifications (integration)', () => {
         sentAt: expect.any(String),
       }),
     ]);
+  });
+
+  it("queues an erasure's cancellations 10 minutes ahead", async () => {
+    const lender = await person('Lena');
+    const renter = await person('Rafael');
+    const b = booking(lender.userId, renter.userId);
+    await service.receive(
+      createEnvelope(BookingCancelledV1, { ...b, reason: 'ACCOUNT_DELETED' }),
+    );
+    const jobs = await service.dataSource.query(
+      `SELECT extract(epoch FROM next_attempt_at - created_at)::int AS delay
+         FROM email_jobs WHERE data->>'bookingId' = $1`,
+      [b.bookingId],
+    );
+    expect(jobs).toEqual([{ delay: 600 }, { delay: 600 }]);
+    expect(await service.sendDue()).toBe(0);
+  });
+
+  describe('a sender that can’t send', () => {
+    const jobOf = async (bookingId: string) =>
+      (
+        await service.dataSource.query(
+          `SELECT status, attempts, next_attempt_at > now() AS later
+             FROM email_jobs WHERE data->>'bookingId' = $1`,
+          [bookingId],
+        )
+      )[0];
+
+    it('never counts an email as sent while sending is disabled', async () => {
+      const lender = await person('Lena');
+      const renter = await person('Rafael');
+      const b = booking(lender.userId, renter.userId);
+      await service.receive(createEnvelope(BookingRequestedV1, b));
+
+      const disabled = new EmailSender(
+        service.dataSource,
+        createMailer(
+          { port: 25, secure: false, from: 'x@example.com' },
+          { warn: () => undefined },
+        ),
+        service.app.get(ConfigService),
+      );
+      expect(await disabled.sendDue()).toBe(0);
+      // A failed attempt, retried later: setting the host recovers it.
+      expect(await jobOf(b.bookingId)).toEqual({
+        status: 'PENDING',
+        attempts: 1,
+        later: true,
+      });
+      expect(await mailpit.emailsTo(lender.email)).toEqual([]);
+    });
+
+    it('drops a job that can’t be rendered instead of retrying it forever', async () => {
+      const lender = await person('Lena');
+      const bookingId = randomUUID();
+      await service.dataSource.query(
+        `INSERT INTO email_jobs (kind, recipient_id, data)
+         VALUES ('BOOKING_REQUESTED', $1, $2)`,
+        [
+          lender.userId,
+          JSON.stringify({
+            otherId: randomUUID(),
+            itemTitle: 'Drill',
+            bookingId,
+            start: 'not a time',
+          }),
+        ],
+      );
+      await service.sendDue();
+      expect(await jobOf(bookingId)).toMatchObject({ status: 'DROPPED' });
+    });
   });
 });

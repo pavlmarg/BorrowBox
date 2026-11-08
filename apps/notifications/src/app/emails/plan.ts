@@ -33,7 +33,16 @@ export interface PlannedEmail {
   kind: EmailKind;
   recipientId: string;
   data: EmailData;
+  /** Not sent before this much time has passed (default: at once). */
+  delayMs?: number;
 }
+
+/**
+ * An erasure's cancellations wait this long, so Notifications has processed
+ * the same `user.deletion_requested` first and the erased person's copy is
+ * dropped instead of sent (the events can arrive in either order).
+ */
+export const ERASURE_EMAIL_DELAY_MS = 10 * 60 * 1000;
 
 type Booking = BookingSnapshotV1;
 
@@ -102,11 +111,12 @@ export function onCancelled(b: BookingCancelledV1Payload): PlannedEmail[] {
     case 'ITEM_DELETED':
       return [toRenter('BOOKING_CANCELLED', b, b.reason)];
     case 'ACCOUNT_DELETED':
-      // The erased person is forgotten, so only the other one gets it.
+      // Either side may be the erased one: both are planned, and the erased
+      // person's copy is dropped once they're forgotten (hence the delay).
       return [
         toRenter('BOOKING_CANCELLED', b, b.reason),
         toLender('BOOKING_CANCELLED', b, b.reason),
-      ];
+      ].map((e) => ({ ...e, delayMs: ERASURE_EMAIL_DELAY_MS }));
   }
 }
 
