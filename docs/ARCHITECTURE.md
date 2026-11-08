@@ -70,10 +70,10 @@ flowchart TB
 | **Gateway** | nothing (stateless) | – | Redis pub/sub (fan-out to sockets) |
 | **Identity** | users, credentials, refresh tokens, email tokens, verification status; sends its own account-security emails | `user.registered`, `user.profile_updated`, `user.email_verified`, `user.verified` (ID check), `user.deletion_requested` | – |
 | **Catalog** | items, categories, photos, location | `item.created`, `item.updated`, `item.deleted` | `user.registered`, `.profile_updated` (lender names), `.email_verified` (to publish), `.deletion_requested`, `booking.accepted` / `.confirmed` (featured items), `review.created` (item rating) |
-| **Bookings** | bookings, availability, handoffs, condition photos | `booking.requested`, `.accepted`, `.confirmed`, `.paid`, `.declined`, `.expired`, `.cancelled`, `.picked_up`, `.returned`, `.completed`, `.disputed` | `item.*`, `user.registered`, `.profile_updated` (names), `.email_verified` (to book), `.deletion_requested`, `payment.account_ready` / `.account_restricted` (payable lenders), `payment.captured`, `payment.failed` |
-| **Payments** | Stripe connected accounts, payments, transfers, refunds, `stripe_events` | `payment.account_ready`, `payment.account_restricted`, `payment.captured`, `payment.failed`, `payment.settled` | `user.email_verified`, `.deletion_requested`, `booking.accepted`, `.cancelled`, `.completed`, `.disputed`, `dispute.resolved` |
+| **Bookings** | bookings, availability, handoffs, condition photos | `booking.requested`, `.accepted`, `.confirmed`, `.paid`, `.declined`, `.expired`, `.cancelled`, `.picked_up`, `.returned`, `.completed`, `.disputed` | `item.*`, `user.registered`, `.profile_updated` (names), `.email_verified` (to book), `.deletion_requested`, `payment.account_ready` / `.account_restricted` (payable lenders), `payment.captured` |
+| **Payments** | Stripe connected accounts, payments, transfers, refunds, `stripe_events` | `payment.account_ready`, `payment.account_restricted`, `payment.captured`, `payment.failed`, `payment.settled` | `user.email_verified`, `.deletion_requested`, `booking.accepted`, `.paid`, `.expired`, `.cancelled`, `.completed`, `.disputed`, `dispute.resolved` |
 | **Messaging** (a module of Bookings for now, [ADR-0017](adr/0017-in-app-chat.md)) | conversations, messages, price offers, reports | `message.sent`, `conversation.unread`, `offer.sent`, `offer.withdrawn` | booking changes (system lines, in-process), `item.deleted`, `user.deletion_requested` |
-| **Notifications** | recipients (from `user.*` events), email jobs; later preferences, push subscriptions, in-app inbox | – | `user.registered`, `.profile_updated`, `.deletion_requested`, `booking.*`, `offer.sent`, `conversation.unread` |
+| **Notifications** | recipients (from `user.*` events), email jobs; later preferences, push subscriptions, in-app inbox | – | `user.registered`, `.profile_updated`, `.deletion_requested`, `booking.*`, `payment.failed`, `offer.sent`, `conversation.unread` |
 | **Reviews / Trust** | reviews, trust scores | `review.created` | `booking.completed`, `user.verified`, `booking.disputed` |
 
 **Media** is a shared library, not a service. It issues presigned upload URLs into a private uploads bucket, and runs a BullMQ worker (inside the owning service) that strips all metadata with `sharp` and writes resized versions to a separate public-read bucket. Only processed photos are served. Stripping EXIF matters because photo GPS data would leak home locations. See [ADR-0009](adr/0009-photo-pipeline.md).
@@ -269,7 +269,10 @@ sequenceDiagram
     B-->>N: booking.requested
     N-->>L: "New request"
     L->>B: accept
-    B-->>P: booking.accepted
+    B-->>P: booking.accepted (fees, pay-by time)
+    B-->>N: booking.accepted
+    N-->>R: "Pay by …"
+    R->>P: start paying
     P->>S: create PaymentIntent (rent + deposit + fee)
     R->>S: pay (SCA / 3DS)
     S->>P: webhook payment_intent.succeeded
@@ -308,8 +311,8 @@ This proves both people were physically present with the item, so neither side c
 See [ADR-0003](adr/0003-stripe-separate-charges-transfers.md).
 
 - **Lenders** onboard as **Express connected accounts**. Stripe handles KYC, payouts to IBAN, SCA and DAC7 data collection. An account is ready when its `transfers` capability is active (the one separate charges and transfers need): becoming ready emits `payment.account_ready`, losing it `payment.account_restricted` ([ADR-0019](adr/0019-payments-fees-and-policies.md)).
-- **Checkout:** one PaymentIntent on the platform account for `rent + deposit + service fee`, with `transfer_group = booking_<id>`.
-- **Settlement** on `booking.completed`: `Transfer(rent − platform commission)` to the lender, then `Refund(deposit)` to the renter.
+- **Checkout:** one PaymentIntent on the platform account for `rent + deposit + service fee`, with `transfer_group = booking_<id>`, created when the renter starts paying. The fee always covers Stripe's cost ([ADR-0020](adr/0020-booking-fees.md)).
+- **Settlement** on `booking.completed`: `Transfer(rent − lender's deposit fee)` to the lender ([ADR-0020](adr/0020-booking-fees.md)), then `Refund(deposit)` to the renter.
 - **Damage claim:** an admin decides the amount. Payments transfers that part of the deposit to the lender and refunds the rest.
 - **Cancellation policy:** full refund more than 24 h before the start, rent minus 50% after that (configurable).
 - **Webhooks:** raw body signature verification, stored in `payments.stripe_events` (unique on the Stripe event id) and processed asynchronously.

@@ -1,6 +1,6 @@
 # ADR-0019: Payments: lender onboarding, fees, payment timeout and refunds
 
-**Status:** Accepted. Builds on [ADR-0003](0003-stripe-separate-charges-transfers.md). Settles what [ADR-0010](0010-flexible-pricing.md) (Stripe's minimum charge), [ADR-0015](0015-booking-model.md) (payment timeout, cancelling a paid booking) and [ADR-0018](0018-price-offers.md) (the fee on an offer price) left to Phase 4.
+**Status:** Accepted; the service-fee rule is replaced by [ADR-0020](0020-booking-fees.md). Builds on [ADR-0003](0003-stripe-separate-charges-transfers.md). Settles what [ADR-0010](0010-flexible-pricing.md) (Stripe's minimum charge), [ADR-0015](0015-booking-model.md) (payment timeout, cancelling a paid booking) and [ADR-0018](0018-price-offers.md) (the fee on an offer price) left to Phase 4.
 
 ## Context
 ADR-0003 fixes the shape of the money flow: lenders are Stripe Express connected accounts; the renter pays one PaymentIntent (rent + deposit + service fee) on the platform account; on completion the platform transfers the rent to the lender and refunds the deposit. It leaves open what the platform charges, what happens when nobody pays or someone cancels, how lenders are set up, and how Stripe's webhooks reach the services. Phase 4 builds the backend first (onboarding, then checkout, then refunds and settlement), and the PWA's screens for Phases 3 and 4 follow together.
@@ -21,10 +21,10 @@ ADR-0003 fixes the shape of the money flow: lenders are Stripe Express connected
 - **Stored by id, processed later:** Payments stores the event id, type and the object it's about (unique on the id, so resends are no-ops), never the payload, and answers at once. A worker processes events with retries and backoff. Processing **fetches the object's current state from Stripe**, so events arriving out of order or late can't roll anything back.
 
 ### Money (PRs B and C)
-- **Service fee:** the renter pays 10% of the rent, at least €0.50, whenever anything is charged. The lender's commission is 0% at launch. Both are configuration.
-- **Stripe's €0.50 minimum** is therefore always met: any charge includes at least the €0.50 fee.
+- **Service fee:** replaced by [ADR-0020](0020-booking-fees.md): the renter's fee also covers Stripe's cost, and the lender pays for their deposit. Stripe's €0.50 minimum is still always met.
 - **Offers:** the fee is computed on the booking's stored rent, so on the offer price when there was one.
 - **Paying:** after the lender accepts, the renter has until 24 hours after the acceptance or the booking's start, whichever is sooner. Then `ACCEPTED → EXPIRED` with reason `PAYMENT_TIMEOUT`. A failed payment leaves the booking `ACCEPTED`; the renter is emailed and can try again until then.
+- **Checkout (PR B):** one card PaymentIntent per booking, created when the renter starts paying (bookings never paid never reach Stripe) and charged at once; cards only, because methods that settle over days would outlive the pay-by time. Paying can't start in the last 10 minutes. A booking that closes unpaid has its PaymentIntent cancelled; a payment that still succeeds for a closed booking is refunded in full.
 - **Cancelling a paid booking:**
   - the renter, more than 24 hours before the start: everything is refunded, the fee included;
   - the renter, within 24 hours of the start: the deposit and half the rent are refunded, the lender is paid the other half, and the platform keeps the fee;
@@ -47,5 +47,5 @@ Examples (amounts in integer cents):
 - A free item with a deposit costs the renter €0.50 on top: the PWA must show the fee before requesting.
 - Webhook processing costs one Stripe API call per event, in exchange for never trusting stale or reordered payloads and never storing Stripe's personal data.
 - Locally both webhook routes share the signing secret `stripe listen` prints; in a deployment each endpoint has its own.
-- Still open, decided in PR B: how 10% of the rent is rounded to whole cents.
+- How the fee is rounded: settled by [ADR-0020](0020-booking-fees.md).
 - ⚠️ Before a real launch (as ADR-0003): confirm the flow of funds with Stripe or counsel, and the legal retention period for payment records in Greece.
