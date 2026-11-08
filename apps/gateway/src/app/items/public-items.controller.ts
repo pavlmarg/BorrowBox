@@ -4,8 +4,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
-  ParseUUIDPipe,
   Post,
 } from '@nestjs/common';
 import {
@@ -15,6 +13,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CatalogRpc } from '@borrowbox/contracts';
+import { UuidParam } from '../http/params';
 import { ApiErrorResponse } from '../api.dto';
 import { CatalogClient } from '../catalog/catalog.client';
 import { SuggestRateLimit } from '../http/rate-limits';
@@ -123,7 +122,7 @@ export class PublicItemsController {
     description: 'NOT_FOUND',
   })
   get(
-    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @UuidParam('itemId') itemId: string,
     @CorrelationId() correlationId: string,
   ): Promise<PublicItemDetailResponse> {
     return this.catalog.call(
@@ -144,7 +143,7 @@ export class PublicItemsController {
     description: 'NOT_FOUND',
   })
   similar(
-    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @UuidParam('itemId') itemId: string,
     @CorrelationId() correlationId: string,
   ): Promise<SimilarItemsResponse> {
     return this.catalog.call(CatalogRpc.similar, { itemId }, { correlationId });

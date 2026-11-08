@@ -4,8 +4,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
-  ParseUUIDPipe,
   Post,
   Query,
   UseGuards,
@@ -21,6 +19,7 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@borrowbox/auth';
 import { MessagingRpc } from '@borrowbox/contracts';
+import { UuidParam } from '../http/params';
 import { ApiErrorResponse } from '../api.dto';
 import { BookingViewResponse } from '../bookings/bookings.api';
 import { MessagingClient } from '../bookings/bookings.client';
@@ -46,7 +45,7 @@ import {
   UnreadCountResponse,
 } from './messaging.api';
 
-const uuid = (name: string) => Param(name, ParseUUIDPipe);
+const uuid = (name: string) => UuidParam(name);
 
 /**
  * In-app chat and price offers (ADR-0017, ADR-0018). Sending happens here;

@@ -109,7 +109,7 @@ flowchart TB
   - Offers: `POST /api/conversations/:id/offers`, `POST /api/offers/:id/withdraw`, `POST /api/offers/:id/book`.
   - `INVALID_PERIOD` is `400`, `EMAIL_NOT_VERIFIED` `403`, and the state and limit refusals (`SLOT_TAKEN`, `DUPLICATE_REQUEST`, `REQUEST_LIMIT_REACHED`, `OWN_ITEM`, `ITEM_UNAVAILABLE`, `INVALID_STATE`, `CONVERSATION_CLOSED`, `OFFER_UNAVAILABLE`, `PRICE_ABOVE_LIST`) `409`.
   - Per user, on top of the per-IP limits: 30 booking requests (and offer bookings) per hour, 30 messages (and offers) per minute, 20 new conversations per day.
-- **Live chat:** Socket.IO on the gateway's server, namespace `/chat`. The access token goes in the handshake (`auth.token`), the Origin must be on the CORS allow-list, and each socket joins its user's room; it is disconnected when the token expires and reconnects with a fresh one. Every gateway instance subscribes to Redis `chat:*` and emits to its own sockets. Clients only listen: sending is REST.
+- **Live chat:** Socket.IO on the gateway's server, namespace `/chat`. The access token goes in the handshake (`auth.token`), the Origin must be on the CORS allow-list, and each socket joins its user's room; it is disconnected when the token expires and reconnects with a fresh one. Every gateway instance subscribes to Redis `chat:*` (also when Redis only comes up after the gateway) and emits to its own sockets. Clients only listen: sending is REST.
 - **Cookies:**
   - The refresh token is set only as `bb_refresh` (httpOnly, Secure, SameSite=Strict, `Path=/api/auth`) and never appears in a response body.
   - Google sign-in keeps its state, nonce and PKCE verifier in a signed, 10-minute `bb_oauth` cookie. It is SameSite=Lax because Google's redirect back is a cross-site navigation.
@@ -118,6 +118,7 @@ flowchart TB
   - Redis-backed rate limits per IP: 10/min for login, register, Google, email links and password changes, 30/min for refresh, 300/min for search-as-you-type, 120/min otherwise.
   - While Redis is unreachable, each gateway instance counts in memory instead, so the limits stay in force and the API keeps answering. It switches back to Redis by itself once Redis recovers.
   - Every error has the shape `{ statusCode, code, message }` and never echoes the request body.
+  - A malformed id in a URL is `400 VALIDATION_FAILED`, naming the parameter. Past the rate limit, Google sign-in's browser routes redirect back to the web app with `?error=RATE_LIMITED` instead of answering JSON.
 - **OpenAPI:** `apps/gateway/openapi.json` is committed and regenerated with `nx run gateway:openapi`. A test fails if it drifts from the code. The PWA's API client is generated from it with `nx run web:api-client`.
 
 ### Identity

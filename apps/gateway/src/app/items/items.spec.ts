@@ -187,11 +187,11 @@ describe('Catalog routes (integration)', () => {
 
     it('rejects a malformed id without calling Catalog', async () => {
       const res = await gw.http().get('/api/items/not-a-uuid').expect(400);
-      // Nest's own checks answer generically, never echoing the input.
+      // Like an invalid body field: the parameter's name, never its value.
       expect(res.body).toEqual({
         statusCode: 400,
-        code: 'MALFORMED_REQUEST',
-        message: 'Malformed request',
+        code: 'VALIDATION_FAILED',
+        message: 'Invalid fields: itemId',
       });
       expect(catalog.calls).toHaveLength(0);
     });
