@@ -9,7 +9,9 @@ import {
   StripeUnavailableError,
   type AccountFlags,
   type PaymentIntentState,
+  type ListedAccount,
   type PaymentIntentStatus,
+  type RefundState,
   type StripeApi,
   type StripeLink,
   type VerifiedEvent,
@@ -46,6 +48,23 @@ export class FakeStripe implements StripeApi {
   >();
   /** Runs while Stripe "creates" a PaymentIntent. */
   whileCreatingIntent?: () => Promise<void>;
+  /** Refunds made, by id. */
+  readonly refunds = new Map<
+    string,
+    { state: RefundState; paymentIntentId: string; amountCents: number }
+  >();
+  /** Transfers made, in order. */
+  readonly transfers: Array<{
+    id: string;
+    amountCents: number;
+    destinationAccountId: string;
+    sourceChargeId: string;
+    bookingId: string;
+  }> = [];
+  /** How new refunds start out (a bank may take days: PENDING). */
+  refundStatus: RefundState['status'] = 'SUCCEEDED';
+  /** Accounts Stripe has that Payments didn't make through `createAccount` (orphans). */
+  readonly extraAccounts: ListedAccount[] = [];
   private readonly byIdempotencyKey = new Map<string, string>();
   private readonly sdk = new SdkStripeApi('sk_test_fake');
   private readonly stripe = new Stripe('sk_test_fake');
@@ -74,7 +93,13 @@ export class FakeStripe implements StripeApi {
   ): void {
     const found = this.intents.get(id);
     if (!found) throw new Error(`unknown PaymentIntent ${id}`);
-    found.state = { ...found.state, status, lastAttemptFailed };
+    found.state = {
+      ...found.state,
+      status,
+      lastAttemptFailed,
+      latestChargeId:
+        status === 'succeeded' ? `ch_for_${id}` : found.state.latestChargeId,
+    };
   }
 
   /** A `Stripe-Signature` header for `payload`, signed with `secret`. */
@@ -162,6 +187,7 @@ export class FakeStripe implements StripeApi {
         amountCents: input.amountCents,
         lastAttemptFailed: false,
         clientSecret: `${id}_secret_test`,
+        latestChargeId: null,
       },
     });
     return this.retrievePaymentIntent(id);
@@ -192,6 +218,87 @@ export class FakeStripe implements StripeApi {
     }
     this.setIntent(id, 'canceled');
     return this.retrievePaymentIntent(id);
+  }
+
+  /** Plays the bank: a pending refund arrives (or fails). */
+  setRefund(id: string, status: RefundState['status']): void {
+    const found = this.refunds.get(id);
+    if (!found) throw new Error(`unknown refund ${id}`);
+    found.state = { ...found.state, status };
+  }
+
+  async createRefund(input: {
+    paymentIntentId: string;
+    amountCents: number;
+    bookingId: string;
+    idempotencyKey: string;
+  }): Promise<RefundState> {
+    this.check();
+    const known = this.byIdempotencyKey.get(input.idempotencyKey);
+    if (known) return this.retrieveRefund(known);
+    const intent = await this.retrievePaymentIntent(input.paymentIntentId);
+    const refunded = [...this.refunds.values()]
+      .filter((r) => r.paymentIntentId === input.paymentIntentId)
+      .reduce((sum, r) => sum + r.amountCents, 0);
+    // Like Stripe: never more than what was charged.
+    if (
+      intent.status !== 'succeeded' ||
+      refunded + input.amountCents > intent.amountCents
+    ) {
+      throw new StripeRequestError({
+        type: 'StripeInvalidRequestError',
+        code: 'charge_already_refunded',
+        statusCode: 400,
+      });
+    }
+    const id = `re_test${this.next++}`;
+    this.byIdempotencyKey.set(input.idempotencyKey, id);
+    this.refunds.set(id, {
+      state: { id, status: this.refundStatus },
+      paymentIntentId: input.paymentIntentId,
+      amountCents: input.amountCents,
+    });
+    return this.retrieveRefund(id);
+  }
+
+  async retrieveRefund(id: string): Promise<RefundState> {
+    this.check();
+    const found = this.refunds.get(id);
+    if (!found) throw new Error(`unknown refund ${id}`);
+    return { ...found.state };
+  }
+
+  async createTransfer(input: {
+    amountCents: number;
+    destinationAccountId: string;
+    bookingId: string;
+    sourceChargeId: string;
+    idempotencyKey: string;
+  }): Promise<{ id: string }> {
+    this.check();
+    const known = this.byIdempotencyKey.get(input.idempotencyKey);
+    if (known) return { id: known };
+    const id = `tr_test${this.next++}`;
+    this.byIdempotencyKey.set(input.idempotencyKey, id);
+    this.transfers.push({
+      id,
+      amountCents: input.amountCents,
+      destinationAccountId: input.destinationAccountId,
+      sourceChargeId: input.sourceChargeId,
+      bookingId: input.bookingId,
+    });
+    return { id };
+  }
+
+  async listConnectedAccounts(): Promise<ListedAccount[]> {
+    this.check();
+    const ours = this.created
+      .filter((a) => this.accounts.has(a.id))
+      .map((a) => ({ id: a.id, userId: a.userId }));
+    return [
+      ...ours,
+      ...this.extraAccounts.filter((a) => !this.deleted.includes(a.id)),
+    ];
   }
 
   verifyWebhook(

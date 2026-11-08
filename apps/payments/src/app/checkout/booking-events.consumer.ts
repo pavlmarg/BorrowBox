@@ -16,6 +16,8 @@ import type { DataSource } from 'typeorm';
 import {
   BookingAcceptedV1,
   BookingCancelledV1,
+  BookingCompletedV1,
+  BookingDisputedV1,
   BookingExpiredV1,
   BookingPaidV1,
   ITEM_TITLE_MAX_LENGTH,
@@ -30,7 +32,13 @@ import {
   InvalidEventError,
   parsePayload,
 } from '@borrowbox/service-kit';
-import { saveBooking, type BookingPaymentState } from './bookings.repository';
+import {
+  findBooking,
+  saveBooking,
+  type BookingPaymentState,
+  type PaymentBookingRow,
+} from './bookings.repository';
+import { causeOf, planCancellation, planSettlement } from './money-movements';
 import { lockPaymentByBooking, updatePayment } from './payments.repository';
 
 /** Also the consumer name in `processed_events`. */
@@ -50,6 +58,9 @@ class BookingPayload implements BookingSnapshotV1 {
   @IsOptional() @IsInt() @Min(0) feeCents?: number;
   @IsOptional() @IsInt() @Min(0) lenderFeeCents?: number;
   @IsOptional() @IsISO8601({ strict: true }) payBy?: string;
+  // booking.expired / .cancelled
+  @IsOptional() @IsString() @MaxLength(40) reason?: string;
+  @IsOptional() @IsUUID() erasedUserId?: string;
 }
 
 const STATE_BY_ROUTING_KEY: Record<string, BookingPaymentState> = {
@@ -57,14 +68,20 @@ const STATE_BY_ROUTING_KEY: Record<string, BookingPaymentState> = {
   [BookingPaidV1.routingKey]: 'PAID',
   [BookingExpiredV1.routingKey]: 'CLOSED',
   [BookingCancelledV1.routingKey]: 'CLOSED',
+  [BookingDisputedV1.routingKey]: 'DISPUTED',
+  [BookingCompletedV1.routingKey]: 'COMPLETED',
 };
 
 /**
- * Bookings' events (ADR-0019): which bookings wait for payment, are paid
- * or closed. When a booking closes:
- * - an unpaid PaymentIntent is cancelled at Stripe (by the worker), so the
- *   renter can't pay a booking that no longer exists;
- * - a payment that already succeeded is due a refund (PR C).
+ * Bookings' events (ADR-0019, ADR-0021): which bookings wait for payment,
+ * are paid, disputed, completed or closed. Money is planned in the same
+ * transaction, only when the booking's state really moves:
+ * - closed unpaid: its PaymentIntent is cancelled at Stripe (by the
+ *   worker), so the renter can't pay a booking that no longer exists;
+ * - closed after the payment succeeded: its refund (and any share for the
+ *   lender) by the refund rules;
+ * - completed: the lender's transfer and the deposit's refund;
+ * - disputed: nothing until the dispute is resolved (the admin area).
  * Database only: Stripe is called by the worker.
  */
 @Injectable()
@@ -92,12 +109,32 @@ export class BookingEventsConsumer implements OnApplicationBootstrap {
       BOOKING_EVENTS_QUEUE,
       envelope,
       async (tx) => {
-        await saveBooking(tx, booking, state);
-        if (state !== 'CLOSED') return;
+        const close =
+          state === 'CLOSED'
+            ? {
+                occurredAt: envelope.occurredAt,
+                reason: booking.reason ?? 'UNKNOWN',
+                ...(booking.erasedUserId
+                  ? { erasedUserId: booking.erasedUserId }
+                  : {}),
+              }
+            : null;
+        const moved = await saveBooking(tx, booking, state, close);
+        if (!moved || (state !== 'CLOSED' && state !== 'COMPLETED')) return;
         const payment = await lockPaymentByBooking(tx, booking.bookingId);
         if (!payment) return;
+        const saved = (await findBooking(
+          tx,
+          booking.bookingId,
+        )) as PaymentBookingRow;
+        if (state === 'COMPLETED') {
+          if (payment.status === 'SUCCEEDED') {
+            await planSettlement(tx, payment, saved);
+          }
+          return;
+        }
         if (payment.status === 'SUCCEEDED') {
-          await updatePayment(tx, payment.id, { status: 'NEEDS_REFUND' });
+          await planCancellation(tx, payment, saved, causeOf(saved));
         } else if (
           payment.status === 'REQUIRES_PAYMENT' ||
           payment.status === 'PROCESSING'

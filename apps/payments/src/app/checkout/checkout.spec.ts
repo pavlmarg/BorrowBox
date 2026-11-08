@@ -267,11 +267,15 @@ describe('Checkout (integration)', () => {
     await service.runDue(); // the cancel is refused: Stripe has the money
     await stripeSays('payment_intent.succeeded', intent);
 
+    // Never captured; refunded in full in the same run (ADR-0021).
     expect(await payment(b)).toMatchObject({
-      status: 'NEEDS_REFUND',
+      status: 'REFUNDED',
       paidAt: expect.any(String),
+      refundedCents: 7200,
     });
-    expect((await outbox(b.bookingId)).map((e) => e.type)).toEqual([]);
+    expect((await outbox(b.bookingId)).map((e) => e.type)).toEqual([
+      'payment.refunded',
+    ]);
     expect(errors.mock.calls.map((c) => String(c[0])).join(' | ')).toContain(
       'refund due',
     );

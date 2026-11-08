@@ -54,6 +54,22 @@ export interface PaymentIntentState {
   lastAttemptFailed: boolean;
   /** For the renter's browser only: never logged or stored. */
   clientSecret: string;
+  /** The charge a successful payment made (transfers are paid from it). */
+  latestChargeId: string | null;
+}
+
+/** A refund's state, reduced to what Payments acts on. */
+export interface RefundState {
+  id: string;
+  /** PENDING: accepted, on its way to the card; FAILED: it won't arrive. */
+  status: 'PENDING' | 'SUCCEEDED' | 'FAILED';
+}
+
+/** A connected account as listed by Stripe: only our own carry a user id. */
+export interface ListedAccount {
+  id: string;
+  /** `metadata.userId`, set when Payments created it (A2); null for others. */
+  userId: string | null;
 }
 
 /**
@@ -89,6 +105,27 @@ export interface StripeApi {
   retrievePaymentIntent(id: string): Promise<PaymentIntentState>;
   /** Cancels a PaymentIntent that hasn't succeeded; returns its state after. */
   cancelPaymentIntent(id: string): Promise<PaymentIntentState>;
+  /** Refunds `amountCents` of a payment; the same `idempotencyKey` returns the same refund. */
+  createRefund(input: {
+    paymentIntentId: string;
+    amountCents: number;
+    bookingId: string;
+    idempotencyKey: string;
+  }): Promise<RefundState>;
+  retrieveRefund(id: string): Promise<RefundState>;
+  /**
+   * Transfers `amountCents` to a connected account, paid from the booking's
+   * charge (`sourceChargeId`); the same `idempotencyKey` returns the same transfer.
+   */
+  createTransfer(input: {
+    amountCents: number;
+    destinationAccountId: string;
+    bookingId: string;
+    sourceChargeId: string;
+    idempotencyKey: string;
+  }): Promise<{ id: string }>;
+  /** Every connected account of the platform (for the daily reconciliation). */
+  listConnectedAccounts(): Promise<ListedAccount[]>;
   /** Throws `InvalidSignatureError` unless Stripe signed `payload` with `secret`. */
   verifyWebhook(
     payload: string,
@@ -299,6 +336,77 @@ export class SdkStripeApi implements StripeApi {
     );
   }
 
+  async createRefund({
+    paymentIntentId,
+    amountCents,
+    bookingId,
+    idempotencyKey,
+  }: {
+    paymentIntentId: string;
+    amountCents: number;
+    bookingId: string;
+    idempotencyKey: string;
+  }): Promise<RefundState> {
+    const refund = await call(() =>
+      this.stripe.refunds.create(
+        {
+          payment_intent: paymentIntentId,
+          amount: amountCents,
+          metadata: { bookingId },
+        },
+        { idempotencyKey },
+      ),
+    );
+    return toRefundState(refund);
+  }
+
+  async retrieveRefund(id: string): Promise<RefundState> {
+    return toRefundState(await call(() => this.stripe.refunds.retrieve(id)));
+  }
+
+  async createTransfer({
+    amountCents,
+    destinationAccountId,
+    bookingId,
+    sourceChargeId,
+    idempotencyKey,
+  }: {
+    amountCents: number;
+    destinationAccountId: string;
+    bookingId: string;
+    sourceChargeId: string;
+    idempotencyKey: string;
+  }): Promise<{ id: string }> {
+    const transfer = await call(() =>
+      this.stripe.transfers.create(
+        {
+          amount: amountCents,
+          currency: 'eur',
+          destination: destinationAccountId,
+          // Settlement by booking (ADR-0003), from the renter's charge, so
+          // it doesn't wait for the platform's balance to settle.
+          transfer_group: `booking_${bookingId}`,
+          source_transaction: sourceChargeId,
+          metadata: { bookingId },
+        },
+        { idempotencyKey },
+      ),
+    );
+    return { id: transfer.id };
+  }
+
+  async listConnectedAccounts(): Promise<ListedAccount[]> {
+    const accounts = await call(() =>
+      this.stripe.accounts.list({ limit: 100 }).autoPagingToArray({
+        limit: 10_000,
+      }),
+    );
+    return accounts.map((a) => ({
+      id: a.id,
+      userId: typeof a.metadata?.userId === 'string' ? a.metadata.userId : null,
+    }));
+  }
+
   verifyWebhook(
     payload: string,
     signature: string,
@@ -338,6 +446,22 @@ function toIntentState(intent: Stripe.PaymentIntent): PaymentIntentState {
     amountCents: intent.amount,
     lastAttemptFailed: intent.last_payment_error != null,
     clientSecret: intent.client_secret,
+    latestChargeId:
+      typeof intent.latest_charge === 'string'
+        ? intent.latest_charge
+        : (intent.latest_charge?.id ?? null),
+  };
+}
+
+function toRefundState(refund: Stripe.Refund): RefundState {
+  return {
+    id: refund.id,
+    status:
+      refund.status === 'succeeded'
+        ? 'SUCCEEDED'
+        : refund.status === 'failed' || refund.status === 'canceled'
+          ? 'FAILED'
+          : 'PENDING',
   };
 }
 

@@ -8,7 +8,12 @@ import {
 import { addToOutbox } from '@borrowbox/outbox';
 import type { PaymentIntentState } from '../stripe/stripe-api';
 import type { PaymentBookingRow } from './bookings.repository';
-import { updatePayment, type PaymentRow } from './payments.repository';
+import { planCancellation } from './money-movements';
+import {
+  findPaymentByBooking,
+  updatePayment,
+  type PaymentRow,
+} from './payments.repository';
 
 const logger = new Logger('Payments');
 
@@ -26,7 +31,7 @@ export class AmountMismatchError extends Error {
  * caller's transaction with the payment row locked. Events go to the
  * outbox in the same transaction:
  * - succeeded: `payment.captured`; or, if the booking had already closed,
- *   NEEDS_REFUND (refunded in full, PR C) and an error log;
+ *   a full refund is planned (ADR-0021) and logged as an error;
  * - a failed attempt (`payment_intent.payment_failed`): `payment.failed`,
  *   so the renter is told; they may try again until the pay-by time;
  * - processing / canceled: recorded.
@@ -42,8 +47,13 @@ export async function applyIntentState(
   if (intent.amountCents !== payment.amount_cents) {
     throw new AmountMismatchError(payment.id);
   }
+  // Paid already: whatever came after (refunded, settled) is never undone
+  // by a late or repeated webhook.
   const settled =
-    payment.status === 'SUCCEEDED' || payment.status === 'NEEDS_REFUND';
+    payment.status === 'SUCCEEDED' ||
+    payment.status === 'NEEDS_REFUND' ||
+    payment.status === 'REFUNDED' ||
+    payment.status === 'SETTLED';
 
   switch (intent.status) {
     case 'succeeded': {
@@ -57,7 +67,16 @@ export async function applyIntentState(
           paid: true,
           lastAttemptFailed: false,
           cancelPending: false,
+          chargeId: intent.latestChargeId,
         });
+        if (booking) {
+          await planCancellation(
+            tx,
+            (await findPaymentByBooking(tx, payment.booking_id)) as PaymentRow,
+            booking,
+            { by: 'LATE_PAYMENT' },
+          );
+        }
         return;
       }
       await updatePayment(tx, payment.id, {
@@ -65,6 +84,7 @@ export async function applyIntentState(
         paid: true,
         lastAttemptFailed: false,
         cancelPending: false,
+        chargeId: intent.latestChargeId,
       });
       await addToOutbox(
         tx,
