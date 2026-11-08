@@ -105,6 +105,10 @@ export type { ConversationsControllerWithdrawOffer$Params as ConversationsContro
 export { conversationsControllerWithdrawOffer as conversationsControllerWithdrawOffer } from './fn/messages/conversations-controller-withdraw-offer';
 export type { ConversationsControllerBookOffer$Params as ConversationsControllerBookOffer$Params } from './fn/messages/conversations-controller-book-offer';
 export { conversationsControllerBookOffer as conversationsControllerBookOffer } from './fn/messages/conversations-controller-book-offer';
+export type { CheckoutControllerGet$Params as CheckoutControllerGet$Params } from './fn/payments/checkout-controller-get';
+export { checkoutControllerGet as checkoutControllerGet } from './fn/payments/checkout-controller-get';
+export type { CheckoutControllerStart$Params as CheckoutControllerStart$Params } from './fn/payments/checkout-controller-start';
+export { checkoutControllerStart as checkoutControllerStart } from './fn/payments/checkout-controller-start';
 export type { PayoutsControllerGet$Params as PayoutsControllerGet$Params } from './fn/payouts/payouts-controller-get';
 export { payoutsControllerGet as payoutsControllerGet } from './fn/payouts/payouts-controller-get';
 export type { PayoutsControllerStartOnboarding$Params as PayoutsControllerStartOnboarding$Params } from './fn/payouts/payouts-controller-start-onboarding';

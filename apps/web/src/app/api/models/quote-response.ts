@@ -5,12 +5,27 @@ import { PriceUnitsResponse } from '../models/price-units-response';
 export interface QuoteResponse {
   depositCents: number;
   end: string;
+
+  /**
+   * The renter's service fee on top (ADR-0020)
+   */
+  feeCents: number;
   itemId: string;
+
+  /**
+   * Taken from the lender's rent for the deposit's cost (ADR-0020)
+   */
+  lenderFeeCents: number;
+
+  /**
+   * What the lender receives once the booking completes
+   */
+  payoutCents: number;
   rentCents: number;
   start: string;
 
   /**
-   * rent + deposit
+   * What the renter pays: rent + deposit + fee
    */
   totalCents: number;
 

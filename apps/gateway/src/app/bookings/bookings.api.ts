@@ -129,7 +129,19 @@ export class QuoteResponse {
   @ApiProperty({ format: 'date-time' }) end!: string;
   @ApiProperty() rentCents!: number;
   @ApiProperty() depositCents!: number;
-  @ApiProperty({ description: 'rent + deposit' }) totalCents!: number;
+  @ApiProperty({ description: "The renter's service fee on top (ADR-0020)" })
+  feeCents!: number;
+  @ApiProperty({ description: 'What the renter pays: rent + deposit + fee' })
+  totalCents!: number;
+  @ApiProperty({
+    description:
+      "Taken from the lender's rent for the deposit's cost (ADR-0020)",
+  })
+  lenderFeeCents!: number;
+  @ApiProperty({
+    description: 'What the lender receives once the booking completes',
+  })
+  payoutCents!: number;
   @ApiProperty({
     type: PriceUnitsResponse,
     description: 'The cheapest combination of the offered units',
@@ -140,7 +152,19 @@ export class QuoteResponse {
 export class BookingPriceResponse {
   @ApiProperty() rentCents!: number;
   @ApiProperty() depositCents!: number;
-  @ApiProperty() totalCents!: number;
+  @ApiProperty({ description: "The renter's service fee on top (ADR-0020)" })
+  feeCents!: number;
+  @ApiProperty({ description: 'What the renter pays: rent + deposit + fee' })
+  totalCents!: number;
+  @ApiProperty({
+    description:
+      "Taken from the lender's rent for the deposit's cost (ADR-0020)",
+  })
+  lenderFeeCents!: number;
+  @ApiProperty({
+    description: 'What the lender receives once the booking completes',
+  })
+  payoutCents!: number;
   @ApiProperty({ type: PriceUnitsResponse }) units!: PriceUnitsResponse;
   @ApiProperty({
     format: 'uuid',
@@ -202,6 +226,13 @@ export class BookingViewResponse {
     description: 'While REQUESTED: when it expires without an answer',
   })
   expiresAt!: string | null;
+  @ApiProperty({
+    format: 'date-time',
+    nullable: true,
+    type: String,
+    description: 'While ACCEPTED: when it expires unless paid (ADR-0019)',
+  })
+  payBy!: string | null;
   @ApiProperty({ format: 'date-time' }) createdAt!: string;
   @ApiProperty({ format: 'date-time' }) updatedAt!: string;
 }

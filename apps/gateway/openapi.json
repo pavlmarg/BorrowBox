@@ -3374,6 +3374,147 @@
         ]
       }
     },
+    "/api/bookings/{bookingId}/payment": {
+      "post": {
+        "description": "Returns the amounts, the pay-by time and a client secret for Stripe's payment form. The outcome arrives by webhook: poll GET or wait for the booking to become PAID.",
+        "operationId": "CheckoutController_start",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND (unknown booking, or not mine to pay)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE (paid, processing or closed), PAYMENT_WINDOW_CLOSED (under 10 minutes to the pay-by time)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (10 per minute)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PROVIDER_UNAVAILABLE (Stripe), SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Start (or come back to) paying my accepted booking",
+        "tags": [
+          "payments"
+        ]
+      },
+      "get": {
+        "operationId": "CheckoutController_get",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentViewResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND (unknown booking, or not mine to pay)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "My booking's payment: status and amounts",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
     "/api/me/payouts": {
       "get": {
         "operationId": "PayoutsController_get",
@@ -4321,8 +4462,21 @@
           "depositCents": {
             "type": "number"
           },
+          "feeCents": {
+            "type": "number",
+            "description": "The renter's service fee on top (ADR-0020)"
+          },
           "totalCents": {
-            "type": "number"
+            "type": "number",
+            "description": "What the renter pays: rent + deposit + fee"
+          },
+          "lenderFeeCents": {
+            "type": "number",
+            "description": "Taken from the lender's rent for the deposit's cost (ADR-0020)"
+          },
+          "payoutCents": {
+            "type": "number",
+            "description": "What the lender receives once the booking completes"
           },
           "units": {
             "$ref": "#/components/schemas/PriceUnitsResponse"
@@ -4337,7 +4491,10 @@
         "required": [
           "rentCents",
           "depositCents",
+          "feeCents",
           "totalCents",
+          "lenderFeeCents",
+          "payoutCents",
           "units",
           "offerId"
         ]
@@ -4351,7 +4508,8 @@
           "ITEM_DELETED",
           "ACCOUNT_DELETED",
           "NO_ANSWER",
-          "STARTED"
+          "STARTED",
+          "PAYMENT_TIMEOUT"
         ]
       },
       "BookingViewResponse": {
@@ -4422,6 +4580,12 @@
             "nullable": true,
             "description": "While REQUESTED: when it expires without an answer"
           },
+          "payBy": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "While ACCEPTED: when it expires unless paid (ADR-0019)"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -4445,6 +4609,7 @@
           "pricing",
           "reason",
           "expiresAt",
+          "payBy",
           "createdAt",
           "updatedAt"
         ]
@@ -4593,8 +4758,13 @@
           "depositCents": {
             "type": "number"
           },
+          "feeCents": {
+            "type": "number",
+            "description": "The renter's service fee (ADR-0020)"
+          },
           "totalCents": {
-            "type": "number"
+            "type": "number",
+            "description": "What the renter would pay: rent + deposit + fee"
           },
           "listRentCents": {
             "type": "number",
@@ -4629,6 +4799,7 @@
           "end",
           "rentCents",
           "depositCents",
+          "feeCents",
           "totalCents",
           "listRentCents",
           "status",
@@ -4738,6 +4909,8 @@
           "BOOKING_REQUESTED",
           "BOOKING_ACCEPTED",
           "BOOKING_CONFIRMED",
+          "BOOKING_PAID",
+          "PAYMENT_FAILED",
           "BOOKING_DECLINED",
           "BOOKING_EXPIRED",
           "BOOKING_CANCELLED",
@@ -4850,6 +5023,51 @@
           "createdAt"
         ]
       },
+      "PaymentStatus": {
+        "type": "string",
+        "enum": [
+          "REQUIRES_PAYMENT",
+          "PROCESSING",
+          "SUCCEEDED",
+          "CANCELLED",
+          "NEEDS_REFUND"
+        ]
+      },
+      "ExportedPayment": {
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentStatus"
+              }
+            ]
+          },
+          "chargeCents": {
+            "type": "number"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "paidAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "bookingId",
+          "status",
+          "chargeCents",
+          "createdAt",
+          "paidAt"
+        ]
+      },
       "PaymentsDataExportResponse": {
         "type": "object",
         "properties": {
@@ -4865,11 +5083,18 @@
                 "$ref": "#/components/schemas/ExportedPayoutAccount"
               }
             ]
+          },
+          "payments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExportedPayment"
+            }
           }
         },
         "required": [
           "exportedAt",
-          "payoutAccount"
+          "payoutAccount",
+          "payments"
         ]
       },
       "DataExportResponse": {
@@ -5630,9 +5855,21 @@
           "depositCents": {
             "type": "number"
           },
+          "feeCents": {
+            "type": "number",
+            "description": "The renter's service fee on top (ADR-0020)"
+          },
           "totalCents": {
             "type": "number",
-            "description": "rent + deposit"
+            "description": "What the renter pays: rent + deposit + fee"
+          },
+          "lenderFeeCents": {
+            "type": "number",
+            "description": "Taken from the lender's rent for the deposit's cost (ADR-0020)"
+          },
+          "payoutCents": {
+            "type": "number",
+            "description": "What the lender receives once the booking completes"
           },
           "units": {
             "description": "The cheapest combination of the offered units",
@@ -5649,7 +5886,10 @@
           "end",
           "rentCents",
           "depositCents",
+          "feeCents",
           "totalCents",
+          "lenderFeeCents",
+          "payoutCents",
           "units"
         ]
       },
@@ -5747,6 +5987,7 @@
           "BOOKING_REQUESTED",
           "BOOKING_ACCEPTED",
           "BOOKING_CONFIRMED",
+          "BOOKING_PAID",
           "BOOKING_DECLINED",
           "BOOKING_CANCELLED",
           "BOOKING_EXPIRED",
@@ -6045,6 +6286,125 @@
         },
         "required": [
           "bookingId"
+        ]
+      },
+      "CheckoutResponse": {
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "description": "REQUIRES_PAYMENT (also after a failed attempt), PROCESSING, SUCCEEDED, CANCELLED (the booking closed unpaid), NEEDS_REFUND (paid, but the booking closed)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentStatus"
+              }
+            ]
+          },
+          "rentCents": {
+            "type": "number"
+          },
+          "depositCents": {
+            "type": "number"
+          },
+          "feeCents": {
+            "type": "number",
+            "description": "The service fee (ADR-0020)"
+          },
+          "chargeCents": {
+            "type": "number",
+            "description": "What the renter pays: rent + deposit + fee"
+          },
+          "payBy": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "When the booking expires unless paid"
+          },
+          "lastAttemptFailed": {
+            "type": "boolean",
+            "description": "The last attempt failed; the renter may try again"
+          },
+          "paidAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "clientSecret": {
+            "type": "string",
+            "description": "For Stripe's payment form in this browser only: never log, store or share it"
+          }
+        },
+        "required": [
+          "bookingId",
+          "status",
+          "rentCents",
+          "depositCents",
+          "feeCents",
+          "chargeCents",
+          "payBy",
+          "lastAttemptFailed",
+          "paidAt",
+          "clientSecret"
+        ]
+      },
+      "PaymentViewResponse": {
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "description": "REQUIRES_PAYMENT (also after a failed attempt), PROCESSING, SUCCEEDED, CANCELLED (the booking closed unpaid), NEEDS_REFUND (paid, but the booking closed)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentStatus"
+              }
+            ]
+          },
+          "rentCents": {
+            "type": "number"
+          },
+          "depositCents": {
+            "type": "number"
+          },
+          "feeCents": {
+            "type": "number",
+            "description": "The service fee (ADR-0020)"
+          },
+          "chargeCents": {
+            "type": "number",
+            "description": "What the renter pays: rent + deposit + fee"
+          },
+          "payBy": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "When the booking expires unless paid"
+          },
+          "lastAttemptFailed": {
+            "type": "boolean",
+            "description": "The last attempt failed; the renter may try again"
+          },
+          "paidAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "bookingId",
+          "status",
+          "rentCents",
+          "depositCents",
+          "feeCents",
+          "chargeCents",
+          "payBy",
+          "lastAttemptFailed",
+          "paidAt"
         ]
       },
       "PayoutAccountResponse": {

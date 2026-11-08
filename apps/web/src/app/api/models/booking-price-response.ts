@@ -6,10 +6,29 @@ export interface BookingPriceResponse {
   depositCents: number;
 
   /**
+   * The renter's service fee on top (ADR-0020)
+   */
+  feeCents: number;
+
+  /**
+   * Taken from the lender's rent for the deposit's cost (ADR-0020)
+   */
+  lenderFeeCents: number;
+
+  /**
    * Set when the price came from the lender's offer (ADR-0018)
    */
   offerId: string | null;
+
+  /**
+   * What the lender receives once the booking completes
+   */
+  payoutCents: number;
   rentCents: number;
+
+  /**
+   * What the renter pays: rent + deposit + fee
+   */
   totalCents: number;
   units: PriceUnitsResponse;
 }

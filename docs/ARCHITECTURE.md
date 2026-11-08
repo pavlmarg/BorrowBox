@@ -111,8 +111,9 @@ flowchart TB
   - Per user, on top of the per-IP limits: 30 booking requests (and offer bookings) per hour, 30 messages (and offers) per minute, 20 new conversations per day.
 - Phase 4 endpoints (Payments, [ADR-0019](adr/0019-payments-fees-and-policies.md)):
   - Signed in: `GET /api/me/payouts` (status), `POST /api/me/payouts/onboarding` and `/dashboard` (each returns a single-use Stripe link; 10 per minute).
+  - The renter, signed in: `POST /api/bookings/:id/payment` (start or come back to paying: amounts, pay-by time and the client secret for Stripe's form; 10 per minute) and `GET` (the payment's status).
   - Stripe only: `POST /api/webhooks/stripe` (platform events) and `/api/webhooks/stripe-connect` (connected accounts). The raw body (`rawBody`, within the 100 kB limit) and the `Stripe-Signature` header go to Payments, which verifies them; no rate limit, not in the OpenAPI spec.
-  - `PAYOUTS_NOT_SET_UP` is `409`, `INVALID_SIGNATURE` `400`, and `PROVIDER_UNAVAILABLE` (Stripe didn't answer) `503`. Onboarding waits up to 46 s and the dashboard 25.5 s, derived in `libs/contracts` from Payments' Stripe timeouts and the SDK's sleep before a retry.
+  - `PAYOUTS_NOT_SET_UP` (also from Bookings and Messaging), `INVALID_STATE` and `PAYMENT_WINDOW_CLOSED` are `409`, Payments' `NOT_FOUND` `404`, `INVALID_SIGNATURE` `400`, and `PROVIDER_UNAVAILABLE` (Stripe didn't answer) `503`. Onboarding waits up to 46 s and the dashboard 25.5 s, derived in `libs/contracts` from Payments' Stripe timeouts and the SDK's sleep before a retry.
 - **Live chat:** Socket.IO on the gateway's server, namespace `/chat`. The access token goes in the handshake (`auth.token`), the Origin must be on the CORS allow-list, and each socket joins its user's room; it is disconnected when the token expires and reconnects with a fresh one. Every gateway instance subscribes to Redis `chat:*` (also when Redis only comes up after the gateway) and emits to its own sockets. Clients only listen: sending is REST.
 - **Cookies:**
   - The refresh token is set only as `bb_refresh` (httpOnly, Secure, SameSite=Strict, `Path=/api/auth`) and never appears in a response body.

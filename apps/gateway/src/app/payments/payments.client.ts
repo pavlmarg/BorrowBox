@@ -17,6 +17,9 @@ const STATUS: Record<PaymentsErrorCode, HttpStatus> = {
   UNAUTHENTICATED: HttpStatus.UNAUTHORIZED,
   EMAIL_NOT_VERIFIED: HttpStatus.FORBIDDEN,
   PAYOUTS_NOT_SET_UP: HttpStatus.CONFLICT,
+  NOT_FOUND: HttpStatus.NOT_FOUND,
+  INVALID_STATE: HttpStatus.CONFLICT,
+  PAYMENT_WINDOW_CLOSED: HttpStatus.CONFLICT,
   INVALID_SIGNATURE: HttpStatus.BAD_REQUEST,
   PROVIDER_UNAVAILABLE: HttpStatus.SERVICE_UNAVAILABLE,
   INTERNAL: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -45,6 +48,9 @@ export class PaymentsClient extends ServiceClient<
         ),
         [PaymentsRpc.dashboardLink]: stripeCallTimeoutMs(
           PAYMENTS_STRIPE_REQUESTS[PaymentsRpc.dashboardLink] ?? 1,
+        ),
+        [PaymentsRpc.startCheckout]: stripeCallTimeoutMs(
+          PAYMENTS_STRIPE_REQUESTS[PaymentsRpc.startCheckout] ?? 1,
         ),
       },
     });

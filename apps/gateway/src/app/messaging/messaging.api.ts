@@ -145,7 +145,12 @@ export class OfferViewResponse {
   @ApiProperty({ format: 'date-time' }) end!: string;
   @ApiProperty() rentCents!: number;
   @ApiProperty() depositCents!: number;
-  @ApiProperty() totalCents!: number;
+  @ApiProperty({ description: "The renter's service fee (ADR-0020)" })
+  feeCents!: number;
+  @ApiProperty({
+    description: 'What the renter would pay: rent + deposit + fee',
+  })
+  totalCents!: number;
   @ApiProperty({ description: 'What the rate card charges for the period' })
   listRentCents!: number;
   @ApiProperty({ enum: OFFER_STATUSES, enumName: 'OfferStatus' })

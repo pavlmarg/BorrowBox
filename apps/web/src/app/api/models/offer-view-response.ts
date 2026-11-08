@@ -9,6 +9,11 @@ export interface OfferViewResponse {
   depositCents: number;
   end: string;
   expiresAt: string;
+
+  /**
+   * The renter's service fee (ADR-0020)
+   */
+  feeCents: number;
   id: string;
   itemId: string;
 
@@ -19,5 +24,9 @@ export interface OfferViewResponse {
   rentCents: number;
   start: string;
   status: OfferStatus;
+
+  /**
+   * What the renter would pay: rent + deposit + fee
+   */
   totalCents: number;
 }
