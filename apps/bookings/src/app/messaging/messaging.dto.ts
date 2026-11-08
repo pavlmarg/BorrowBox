@@ -6,12 +6,15 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   Max,
   MaxLength,
   Min,
   registerDecorator,
 } from 'class-validator';
 import {
+  TIMESTAMP_OFFSET_MESSAGE,
+  TIMESTAMP_OFFSET_PATTERN,
   CONVERSATIONS_PAGE_MAX,
   MESSAGE_TEXT_MAX_LENGTH,
   MESSAGES_PAGE_MAX,
@@ -116,9 +119,11 @@ export class SendOfferDto
   offerId!: string;
 
   @IsISO8601({ strict: true, strictSeparator: true })
+  @Matches(TIMESTAMP_OFFSET_PATTERN, { message: TIMESTAMP_OFFSET_MESSAGE })
   start!: string;
 
   @IsISO8601({ strict: true, strictSeparator: true })
+  @Matches(TIMESTAMP_OFFSET_PATTERN, { message: TIMESTAMP_OFFSET_MESSAGE })
   end!: string;
 
   /** Checked against the rate card in OffersService; this only bounds it. */

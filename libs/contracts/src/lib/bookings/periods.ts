@@ -18,6 +18,16 @@ export const BOOKING_OPEN_REQUESTS_MAX = 10;
 
 const HOUR_MS = 60 * 60 * 1000;
 
+/**
+ * A period's start and end must name their offset (`Z` or `±hh:mm`): ISO
+ * 8601 allows leaving it out, and such a time would be read in whatever
+ * time zone the server runs in. Checked next to `IsISO8601` by the gateway
+ * and by Bookings.
+ */
+export const TIMESTAMP_OFFSET_PATTERN = /(?:Z|[+-]\d{2}:?\d{2})$/i;
+export const TIMESTAMP_OFFSET_MESSAGE =
+  '$property must include a time zone offset (Z or ±hh:mm)';
+
 /** True if `date` is exactly on a UTC hour (and so on an Athens hour too). */
 export function isWholeHour(date: Date): boolean {
   return date.getTime() % HOUR_MS === 0;

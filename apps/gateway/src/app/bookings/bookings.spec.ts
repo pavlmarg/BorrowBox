@@ -83,6 +83,12 @@ describe('Booking and chat routes (integration)', () => {
         .get(`/api/items/${ITEM}/quote`)
         .query({ start: 'tomorrow', end: END })
         .expect(400);
+      // A time without an offset would be read in the server's time zone.
+      await gw
+        .http()
+        .get(`/api/items/${ITEM}/quote`)
+        .query({ start: '2026-11-02T10:00:00', end: END })
+        .expect(400);
       expect(bookings.calls).toEqual([]);
     });
 
