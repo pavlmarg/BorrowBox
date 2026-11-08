@@ -248,8 +248,8 @@ export interface FeaturedItemsRequest {
 }
 
 /**
- * At most `FEATURED_ITEMS_MAX`. For now the most recently published items
- * within the radius; Phase 3 ranks them by bookings instead.
+ * At most `FEATURED_ITEMS_MAX` visible items within the radius: the most
+ * often booked in the last 90 days first, then the most recently published.
  */
 export interface FeaturedItemsResponse {
   items: PublicItemSummary[];

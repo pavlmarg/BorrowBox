@@ -5,7 +5,7 @@ import { PublicItemSummaryResponse } from '../models/public-item-summary-respons
 export interface FeaturedItemsResponse {
 
   /**
-   * Up to 10; newest first for now
+   * Up to 10; the most often booked in the last 90 days first, then the newest
    */
   items: Array<PublicItemSummaryResponse>;
 }
