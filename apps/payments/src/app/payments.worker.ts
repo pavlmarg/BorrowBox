@@ -14,7 +14,11 @@ import {
   retryDeletionLater,
   type DeletionJob,
 } from './accounts/accounts.repository';
-import { STRIPE_API, type StripeApi } from './stripe/stripe-api';
+import {
+  STRIPE_API,
+  StripeCallError,
+  type StripeApi,
+} from './stripe/stripe-api';
 import {
   claimDueEvents,
   markProcessed,
@@ -39,6 +43,8 @@ const MAX_EVENT_ATTEMPTS = 30;
  * erasure may still be saving the id (it takes under a minute).
  */
 const WAIT_FOR_STRIPE_ID_MS = 10 * 60 * 1000;
+/** A Stripe account deletion failing this many times is logged as an error. */
+const DELETION_ALERT_ATTEMPTS = 10;
 const PRUNE_EVERY_MS = 60 * 60 * 1000;
 /** Processed events are kept this long to recognise Stripe's resends (it retries for 3 days). */
 export const KEEP_STRIPE_EVENTS_DAYS = 30;
@@ -46,7 +52,7 @@ export const KEEP_STRIPE_EVENTS_DAYS = 30;
 /**
  * Payments' background work: processes stored Stripe events (P9, A3) and
  * deletes erased lenders' Stripe accounts (A7). Both retry with backoff.
- * Logs carry ids and error names only, never Stripe data.
+ * Logs carry ids and what identifies an error, never Stripe data.
  */
 @Injectable()
 export class PaymentsWorker
@@ -118,7 +124,7 @@ export class PaymentsWorker
       }
       await markProcessed(tx, event.event_id);
     } catch (err) {
-      const reason = err instanceof Error ? err.name : 'unknown';
+      const reason = describe(err);
       if (event.attempts + 1 >= MAX_EVENT_ATTEMPTS) {
         this.logger.error(
           `Dropping Stripe event ${event.event_id} (${event.type}) after ${event.attempts + 1} attempts: ${reason}`,
@@ -138,7 +144,8 @@ export class PaymentsWorker
     if (!job.stripe_account_id) {
       const age = now.getTime() - new Date(job.deleted_at).getTime();
       if (age < WAIT_FOR_STRIPE_ID_MS) {
-        await retryDeletionLater(tx, job.id, 60_000);
+        // Waiting, not failing: doesn't count as an attempt.
+        await retryDeletionLater(tx, job.id, 60_000, false);
       } else {
         await markStripeDeleted(tx, job.id);
       }
@@ -151,11 +158,19 @@ export class PaymentsWorker
         `Deleted Stripe account of erased lender (row ${job.id})`,
       );
     } catch (err) {
-      this.logger.warn(
-        `Deleting Stripe account (row ${job.id}) failed (attempt ${job.deletion_attempts + 1}): ${err instanceof Error ? err.name : 'unknown'}`,
+      const attempt = job.deletion_attempts + 1;
+      const message = `Deleting Stripe account (row ${job.id}) failed (attempt ${attempt}): ${describe(err)}`;
+      // Kept trying: the account must go (GDPR), however long it takes.
+      // After a while it's more likely a refusal than an outage: someone
+      // should look (e.g. the account was deleted another way).
+      if (attempt >= DELETION_ALERT_ATTEMPTS) this.logger.error(message);
+      else this.logger.warn(message);
+      await retryDeletionLater(
+        tx,
+        job.id,
+        backoff(job.deletion_attempts),
+        true,
       );
-      // Kept trying: the account must go (GDPR), however long Stripe is down.
-      await retryDeletionLater(tx, job.id, backoff(job.deletion_attempts));
     }
   }
 
@@ -181,6 +196,15 @@ export class PaymentsWorker
     clearInterval(this.pruneTimer);
     await this.running?.catch(() => undefined);
   }
+}
+
+/**
+ * For logs: a Stripe failure's class, code, status and request id; for
+ * anything else its class only (messages can echo data).
+ */
+function describe(err: unknown): string {
+  if (err instanceof StripeCallError) return `${err.name} (${err.message})`;
+  return err instanceof Error ? err.name : 'unknown';
 }
 
 /** 1 min, 2, 4, … up to an hour. */

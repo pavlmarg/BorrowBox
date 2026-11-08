@@ -84,6 +84,10 @@ export class PayoutsService {
       );
       await setStripeAccountId(this.dataSource.manager, row.id, accountId);
     }
+    // An erasure that came in while Stripe was answering wins: the worker
+    // deletes the Stripe account (the id is saved), and no link goes out.
+    const current = await findAccountByUser(this.dataSource.manager, userId);
+    if (current?.deleted_at) throw unauthenticated();
 
     const page = `${this.webBaseUrl}${PAYOUTS_PAGE}`;
     const link = await viaStripe(() =>

@@ -45,13 +45,27 @@ export const STRIPE_HTTP_ATTEMPTS = 2;
 const STRIPE_CALL_MARGIN_MS = 5_000;
 
 /**
+ * The longest the Stripe SDK sleeps before its retries of one request: 0.5 s
+ * before the first, doubling, at most 5 s each (stripe-node's backoff).
+ */
+export function stripeRetrySleepMs(attempts = STRIPE_HTTP_ATTEMPTS): number {
+  let total = 0;
+  for (let retry = 1; retry < attempts; retry++) {
+    total += Math.min(500 * 2 ** (retry - 1), 5_000);
+  }
+  return total;
+}
+
+/**
  * How long the gateway waits for a Payments call that makes up to
- * `requests` Stripe requests: longer than everything Payments may wait, so
- * a slow Stripe never makes the gateway report a failure Payments completes.
+ * `requests` Stripe requests: longer than everything Payments may wait
+ * (every attempt timing out, plus the SDK's sleeps between them), so a slow
+ * Stripe never makes the gateway report a failure Payments completes.
  */
 export function stripeCallTimeoutMs(requests: number): number {
   return (
-    STRIPE_HTTP_TIMEOUT_MS * STRIPE_HTTP_ATTEMPTS * requests +
+    (STRIPE_HTTP_TIMEOUT_MS * STRIPE_HTTP_ATTEMPTS + stripeRetrySleepMs()) *
+      requests +
     STRIPE_CALL_MARGIN_MS
   );
 }

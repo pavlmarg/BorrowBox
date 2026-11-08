@@ -60,12 +60,67 @@ export interface StripeApi {
   ): VerifiedEvent;
 }
 
-/** Stripe didn't answer, or failed on its side: nothing happened, try again. */
-export class StripeUnavailableError extends Error {
-  constructor(cause: string) {
-    super(`Stripe unavailable: ${cause}`);
-    this.name = 'StripeUnavailableError';
+/**
+ * What may be logged about a failed Stripe call. Never Stripe's message:
+ * it can echo request data.
+ */
+export interface StripeFailure {
+  /** The SDK's error class, e.g. `StripeConnectionError`. */
+  type: string;
+  /** Stripe's error code, e.g. `resource_missing`. */
+  code?: string;
+  statusCode?: number;
+  /** Stripe's request id (`req_…`), to look the call up in its dashboard. */
+  requestId?: string;
+}
+
+/** A failed Stripe call. Its message holds only the `StripeFailure` fields. */
+export abstract class StripeCallError extends Error {
+  protected constructor(
+    name: string,
+    readonly failure: StripeFailure,
+  ) {
+    super(describeFailure(failure));
+    this.name = name;
   }
+}
+
+/**
+ * Stripe didn't answer, failed on its side, limited the rate, or is still
+ * busy with the same idempotent request: nothing changed, try again.
+ */
+export class StripeUnavailableError extends StripeCallError {
+  constructor(failure: StripeFailure) {
+    super('StripeUnavailableError', failure);
+  }
+}
+
+/**
+ * Stripe refused the request (authentication, permission, invalid
+ * request): a bug or a configuration problem that retrying won't fix.
+ */
+export class StripeRequestError extends StripeCallError {
+  constructor(failure: StripeFailure) {
+    super('StripeRequestError', failure);
+  }
+}
+
+/** Stripe has no such object (`resource_missing`), e.g. an account already deleted. */
+export class StripeObjectMissingError extends StripeCallError {
+  constructor(failure: StripeFailure) {
+    super('StripeObjectMissingError', failure);
+  }
+}
+
+function describeFailure(f: StripeFailure): string {
+  return [
+    f.type,
+    f.code && `code=${f.code}`,
+    f.statusCode && `status=${f.statusCode}`,
+    f.requestId && `request=${f.requestId}`,
+  ]
+    .filter(Boolean)
+    .join(' ');
 }
 
 export class InvalidSignatureError extends Error {
@@ -131,7 +186,9 @@ export class SdkStripeApi implements StripeApi {
     try {
       await call(() => this.stripe.accounts.del(accountId));
     } catch (err) {
-      if (err instanceof AccountMissingError) return;
+      // Only Stripe's own "no such account" counts as gone (decided with
+      // the user, 2026-11-08); e.g. a permission error could be a bad key.
+      if (err instanceof StripeObjectMissingError) return;
       throw err;
     }
   }
@@ -178,32 +235,40 @@ export class SdkStripeApi implements StripeApi {
   }
 }
 
-/** Stripe says the account doesn't exist (e.g. already deleted). */
-class AccountMissingError extends Error {}
-
-/**
- * Runs one SDK call. Stripe's error messages can echo request data, so only
- * the error's type travels on, never its message.
- */
+/** Runs one SDK call; a Stripe error leaves as a `StripeCallError`. */
 async function call<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (err) {
-    if (err instanceof Stripe.errors.StripeError) {
-      if (
-        err instanceof Stripe.errors.StripeInvalidRequestError &&
-        err.code === 'resource_missing'
-      ) {
-        throw new AccountMissingError();
-      }
-      if (
-        err instanceof Stripe.errors.StripeConnectionError ||
-        err instanceof Stripe.errors.StripeAPIError ||
-        err instanceof Stripe.errors.StripeRateLimitError
-      ) {
-        throw new StripeUnavailableError(err.type);
-      }
-    }
-    throw err;
+    throw toStripeCallError(err);
   }
+}
+
+/**
+ * Wraps an SDK error in one of ours, keeping only what may be logged.
+ * Anything else (not from Stripe) is returned as it is.
+ */
+export function toStripeCallError(err: unknown): unknown {
+  if (!(err instanceof Stripe.errors.StripeError)) return err;
+  const failure: StripeFailure = {
+    type: err.type,
+    ...(err.code ? { code: err.code } : {}),
+    ...(err.statusCode ? { statusCode: err.statusCode } : {}),
+    ...(err.requestId ? { requestId: err.requestId } : {}),
+  };
+  if (
+    err instanceof Stripe.errors.StripeInvalidRequestError &&
+    err.code === 'resource_missing'
+  ) {
+    return new StripeObjectMissingError(failure);
+  }
+  if (
+    err instanceof Stripe.errors.StripeConnectionError ||
+    err instanceof Stripe.errors.StripeAPIError ||
+    err instanceof Stripe.errors.StripeRateLimitError ||
+    err instanceof Stripe.errors.StripeIdempotencyError
+  ) {
+    return new StripeUnavailableError(failure);
+  }
+  return new StripeRequestError(failure);
 }

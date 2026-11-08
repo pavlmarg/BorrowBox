@@ -4,6 +4,8 @@
 import Stripe from 'stripe';
 import {
   SdkStripeApi,
+  StripeObjectMissingError,
+  StripeRequestError,
   StripeUnavailableError,
   type AccountFlags,
   type StripeApi,
@@ -27,8 +29,14 @@ export class FakeStripe implements StripeApi {
   /** What each created account was sent (to check nothing personal goes). */
   readonly created: Array<{ id: string; userId: string; country: string }> = [];
   readonly deleted: string[] = [];
+  /** Every account fetched, in order (to check when Stripe is called at all). */
+  readonly retrieved: string[] = [];
   /** While true, every call fails as if Stripe were unreachable. */
   down = false;
+  /** While true, every call is refused as if the key lacked permission. */
+  refusing = false;
+  /** Runs while Stripe "creates" an account (to play something happening meanwhile). */
+  whileCreating?: () => Promise<void>;
   private readonly byIdempotencyKey = new Map<string, string>();
   private readonly sdk = new SdkStripeApi('sk_test_fake');
   private readonly stripe = new Stripe('sk_test_fake');
@@ -52,6 +60,7 @@ export class FakeStripe implements StripeApi {
     idempotencyKey: string;
   }): Promise<string> {
     this.check();
+    await this.whileCreating?.();
     const known = this.byIdempotencyKey.get(input.idempotencyKey);
     if (known) return known;
     const id = `acct_test${this.next++}`;
@@ -63,8 +72,16 @@ export class FakeStripe implements StripeApi {
 
   async retrieveAccount(accountId: string): Promise<AccountFlags> {
     this.check();
+    this.retrieved.push(accountId);
     const flags = this.accounts.get(accountId);
-    if (!flags) throw new Error(`unknown account ${accountId}`);
+    if (!flags) {
+      throw new StripeObjectMissingError({
+        type: 'StripeInvalidRequestError',
+        code: 'resource_missing',
+        statusCode: 404,
+        requestId: 'req_test_missing',
+      });
+    }
     return { ...flags };
   }
 
@@ -107,6 +124,15 @@ export class FakeStripe implements StripeApi {
   }
 
   private check(): void {
-    if (this.down) throw new StripeUnavailableError('test');
+    if (this.down) {
+      throw new StripeUnavailableError({ type: 'StripeConnectionError' });
+    }
+    if (this.refusing) {
+      throw new StripeRequestError({
+        type: 'StripePermissionError',
+        statusCode: 403,
+        requestId: 'req_test_refused',
+      });
+    }
   }
 }

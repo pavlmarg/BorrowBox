@@ -6,7 +6,11 @@ import {
 } from '@borrowbox/contracts';
 import { addToOutbox } from '@borrowbox/outbox';
 import type { StripeApi } from '../stripe/stripe-api';
-import { lockAccountByStripeId, saveFlags } from './accounts.repository';
+import {
+  findAccountByStripeId,
+  lockAccountByStripeId,
+  saveFlags,
+} from './accounts.repository';
 import { readinessChange } from './payout-status';
 
 /**
@@ -16,7 +20,8 @@ import { readinessChange } from './payout-status';
  * the outbox, in one transaction.
  *
  * Returns false for an account Payments doesn't know (made elsewhere, e.g.
- * in Stripe's dashboard) or one whose owner was erased: nothing to do.
+ * in Stripe's dashboard) or one whose owner was erased: nothing to do, and
+ * Stripe isn't asked (an erased lender's account may already be gone).
  */
 export async function syncAccount(
   dataSource: DataSource,
@@ -24,8 +29,14 @@ export async function syncAccount(
   stripeAccountId: string,
   correlationId: string,
 ): Promise<boolean> {
+  const known = await findAccountByStripeId(
+    dataSource.manager,
+    stripeAccountId,
+  );
+  if (!known || known.deleted_at) return false;
   const flags = await stripe.retrieveAccount(stripeAccountId);
   return dataSource.transaction(async (tx) => {
+    // Checked again under the lock: an erasure may have come in meanwhile.
     const row = await lockAccountByStripeId(tx, stripeAccountId);
     if (!row || row.deleted_at) return false;
     const ready = flags.transfersActive;

@@ -112,7 +112,7 @@ flowchart TB
 - Phase 4 endpoints (Payments, [ADR-0019](adr/0019-payments-fees-and-policies.md)):
   - Signed in: `GET /api/me/payouts` (status), `POST /api/me/payouts/onboarding` and `/dashboard` (each returns a single-use Stripe link; 10 per minute).
   - Stripe only: `POST /api/webhooks/stripe` (platform events) and `/api/webhooks/stripe-connect` (connected accounts). The raw body (`rawBody`, within the 100 kB limit) and the `Stripe-Signature` header go to Payments, which verifies them; no rate limit, not in the OpenAPI spec.
-  - `PAYOUTS_NOT_SET_UP` is `409`, `INVALID_SIGNATURE` `400`, and `PROVIDER_UNAVAILABLE` (Stripe didn't answer) `503`. Onboarding waits up to 45 s and the dashboard 25 s, derived from Payments' Stripe timeouts in `libs/contracts`.
+  - `PAYOUTS_NOT_SET_UP` is `409`, `INVALID_SIGNATURE` `400`, and `PROVIDER_UNAVAILABLE` (Stripe didn't answer) `503`. Onboarding waits up to 46 s and the dashboard 25.5 s, derived in `libs/contracts` from Payments' Stripe timeouts and the SDK's sleep before a retry.
 - **Live chat:** Socket.IO on the gateway's server, namespace `/chat`. The access token goes in the handshake (`auth.token`), the Origin must be on the CORS allow-list, and each socket joins its user's room; it is disconnected when the token expires and reconnects with a fresh one. Every gateway instance subscribes to Redis `chat:*` and emits to its own sockets. Clients only listen: sending is REST.
 - **Cookies:**
   - The refresh token is set only as `bb_refresh` (httpOnly, Secure, SameSite=Strict, `Path=/api/auth`) and never appears in a response body.
@@ -198,8 +198,9 @@ flowchart TB
 ### Payments
 See §6 and [ADR-0019](adr/0019-payments-fees-and-policies.md). Stripe test mode only: a live key stops the service from starting.
 - **Lender onboarding:** the first "Set up payouts" creates the lender's Express account (country `GR`, `transfers` only, our user id as metadata, nothing personal) and returns a link to Stripe's onboarding, which leads back to `/settings/payouts`. It needs a verified email (from `user.email_verified`). The row is written before Stripe is called and its id is Stripe's idempotency key, so retries never create a second account.
-- **Webhooks:** stored by Stripe's event id (type and object id only, never the payload) and processed by a worker that fetches the object's current state from Stripe, with retries and backoff. Processed events are pruned after 30 days.
-- **Erasure:** `user.deletion_requested` closes the lender's account (their still-valid tokens are refused) and the worker deletes the Stripe account, retrying until it succeeds. The row stays.
+- **Webhooks:** stored by Stripe's event id (type and object id only, never the payload) and processed by a worker that fetches the object's current state from Stripe, with retries and backoff. Events about accounts Payments doesn't know, or whose lender was erased, are skipped without asking Stripe. Processed events are pruned after 30 days.
+- **Erasure:** `user.deletion_requested` closes the lender's account (their still-valid tokens are refused) and the worker deletes the Stripe account, retrying until it succeeds; only Stripe's "no such account" counts as already gone, and from the 10th failed attempt each failure is logged as an error. An onboarding call overlapping the erasure hands out no link. The row stays.
+- **Stripe errors:** logged with the error's class, Stripe's code, the HTTP status and Stripe's request id, never Stripe's message (it can echo request data). For a user's request, Stripe unreachable is `PROVIDER_UNAVAILABLE` and Stripe refusing the call is `INTERNAL`.
 - **GDPR:** the export has the payout account (Stripe account id, status, dates).
 - Checkout, refunds and settlement come with the next Phase 4 PRs.
 

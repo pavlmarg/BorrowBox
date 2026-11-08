@@ -51,6 +51,18 @@ export async function findAccountByUser(
   return row ?? null;
 }
 
+/** The row of a Stripe account, without locking it. */
+export async function findAccountByStripeId(
+  tx: EntityManager,
+  stripeAccountId: string,
+): Promise<AccountRow | null> {
+  const [row] = await tx.query(
+    `SELECT * FROM connected_accounts WHERE stripe_account_id = $1`,
+    [stripeAccountId],
+  );
+  return row ?? null;
+}
+
 /** Locks the row until the transaction ends (webhook processing). */
 export async function lockAccountByStripeId(
   tx: EntityManager,
@@ -178,17 +190,18 @@ export async function markStripeDeleted(
   );
 }
 
-/** Tries the Stripe deletion again after `delayMs`, counting a failed attempt. */
+/** Tries the Stripe deletion again after `delayMs`; counts a failed attempt when `failed`. */
 export async function retryDeletionLater(
   tx: EntityManager,
   id: string,
   delayMs: number,
+  failed: boolean,
 ): Promise<void> {
   await tx.query(
     `UPDATE connected_accounts
         SET next_deletion_at = now() + make_interval(secs => $2::float8 / 1000),
-            deletion_attempts = deletion_attempts + 1
+            deletion_attempts = deletion_attempts + CASE WHEN $3 THEN 1 ELSE 0 END
       WHERE id = $1`,
-    [id, delayMs],
+    [id, delayMs, failed],
   );
 }

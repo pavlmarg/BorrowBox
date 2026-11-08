@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { Logger } from '@nestjs/common';
 import {
   createEnvelope,
   PaymentsRpc,
@@ -44,7 +45,11 @@ describe('Payments (integration)', () => {
 
   beforeEach(() => {
     service.stripe.down = false;
+    service.stripe.refusing = false;
+    service.stripe.whileCreating = undefined;
   });
+
+  afterEach(() => jest.restoreAllMocks());
 
   /** A user Payments knows as verified, and their access token. */
   async function lender(verified = true) {
@@ -137,6 +142,34 @@ describe('Payments (integration)', () => {
       expect(
         service.stripe.created.filter((a) => a.userId === userId),
       ).toHaveLength(1);
+    });
+
+    it('answers INTERNAL when Stripe refuses the call, logging what identifies it', async () => {
+      const { accessToken } = await lender();
+      const errors = jest.spyOn(Logger.prototype, 'error');
+      service.stripe.refusing = true;
+      await expect(onboard(accessToken)).rejects.toMatchObject({
+        code: 'INTERNAL',
+      });
+      const logged = errors.mock.calls.map((c) => String(c[0])).join(' | ');
+      expect(logged).toContain('StripeRequestError');
+      expect(logged).toContain('StripePermissionError');
+      expect(logged).toContain('status=403');
+      expect(logged).toContain('request=req_test_refused');
+    });
+
+    it('hands out no link when the account is erased while Stripe creates it', async () => {
+      const { userId, accessToken } = await lender();
+      service.stripe.whileCreating = () =>
+        service.receive(createEnvelope(UserDeletionRequestedV1, { userId }));
+      await expect(onboard(accessToken)).rejects.toMatchObject({
+        code: 'UNAUTHENTICATED',
+      });
+      // The id was saved, so the worker deletes the new Stripe account.
+      const accountId = await accountIdOf(userId);
+      expect(accountId).toMatch(/^acct_test/);
+      await service.runDue();
+      expect(service.stripe.deleted).toContain(accountId);
     });
 
     it('shows INCOMPLETE once started, NOT_STARTED before', async () => {
@@ -259,6 +292,28 @@ describe('Payments (integration)', () => {
       ]);
     });
 
+    it('skips events about unknown or erased accounts without asking Stripe', async () => {
+      const { userId, accessToken } = await lender();
+      await onboard(accessToken);
+      const erased = await accountIdOf(userId);
+      await service.receive(
+        createEnvelope(UserDeletionRequestedV1, { userId }),
+      );
+      await service.runDue(); // deletes it at Stripe
+
+      for (const accountId of ['acct_made_elsewhere', erased]) {
+        await accountUpdated(accountId);
+        const [event] = await service.dataSource.query(
+          `SELECT processed_at, attempts FROM stripe_events
+            WHERE account_id = $1`,
+          [accountId],
+        );
+        expect(event.processed_at).not.toBeNull();
+        expect(event.attempts).toBe(0);
+        expect(service.stripe.retrieved).not.toContain(accountId);
+      }
+    });
+
     it('retries an event while Stripe is unreachable', async () => {
       const { userId, accessToken } = await lender();
       await onboard(accessToken);
@@ -334,6 +389,33 @@ describe('Payments (integration)', () => {
       expect(row.deletion_attempts).toBe(1);
     });
 
+    it('logs a deletion as an error once it has failed 10 times', async () => {
+      const { userId, accessToken } = await lender();
+      await onboard(accessToken);
+      await service.receive(
+        createEnvelope(UserDeletionRequestedV1, { userId }),
+      );
+      await service.dataSource.query(
+        `UPDATE connected_accounts SET deletion_attempts = 9 WHERE user_id = $1`,
+        [userId],
+      );
+      const errors = jest.spyOn(Logger.prototype, 'error');
+      service.stripe.refusing = true;
+      await service.runDue();
+
+      const logged = errors.mock.calls.map((c) => String(c[0])).join(' | ');
+      expect(logged).toContain('(attempt 10)');
+      expect(logged).toContain('StripeRequestError');
+      expect(logged).toContain('request=req_test_refused');
+      const [row] = await service.dataSource.query(
+        `SELECT stripe_deleted_at, deletion_attempts FROM connected_accounts
+          WHERE user_id = $1`,
+        [userId],
+      );
+      // Still kept trying: the account must go.
+      expect(row).toEqual({ stripe_deleted_at: null, deletion_attempts: 10 });
+    });
+
     it('waits for a Stripe id that may still be saved, then gives up', async () => {
       const userId = randomUUID();
       await service.dataSource.query(
@@ -346,10 +428,15 @@ describe('Payments (integration)', () => {
 
       await service.runDue();
       const stillWaiting = await service.dataSource.query(
-        `SELECT stripe_deleted_at FROM connected_accounts WHERE user_id = $1`,
+        `SELECT stripe_deleted_at, deletion_attempts FROM connected_accounts
+          WHERE user_id = $1`,
         [userId],
       );
-      expect(stillWaiting[0].stripe_deleted_at).toBeNull();
+      // Waiting isn't failing: no attempt counted.
+      expect(stillWaiting[0]).toEqual({
+        stripe_deleted_at: null,
+        deletion_attempts: 0,
+      });
 
       await service.dataSource.query(
         `UPDATE connected_accounts SET next_deletion_at = now() WHERE user_id = $1`,
