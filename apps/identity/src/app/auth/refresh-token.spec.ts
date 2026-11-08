@@ -36,12 +36,36 @@ describe('decideRefresh', () => {
     expect(decideRefresh(live, now)).toBe('rotate');
   });
 
-  it('treats a rotated or revoked token as reuse, even if expired', () => {
-    expect(decideRefresh({ ...live, rotated_at: now }, now)).toBe('reuse');
+  const rotatedAgo = (ms: number) => new Date(now.getTime() - ms);
+
+  it('treats a revoked token, or one rotated 30 s ago or more, as reuse, even if expired', () => {
     expect(decideRefresh({ ...live, revoked_at: now }, now)).toBe('reuse');
     expect(
-      decideRefresh({ ...live, rotated_at: now, expires_at: new Date(0) }, now),
+      decideRefresh({ ...live, rotated_at: now, revoked_at: now }, now),
     ).toBe('reuse');
+    expect(
+      decideRefresh({ ...live, rotated_at: rotatedAgo(30_000) }, now),
+    ).toBe('reuse');
+    expect(
+      decideRefresh(
+        { ...live, rotated_at: rotatedAgo(60_000), expires_at: new Date(0) },
+        now,
+      ),
+    ).toBe('reuse');
+  });
+
+  it('reissues a token rotated less than 30 s ago (a lost answer, retried)', () => {
+    expect(decideRefresh({ ...live, rotated_at: now }, now)).toBe('reissue');
+    expect(
+      decideRefresh({ ...live, rotated_at: rotatedAgo(29_999) }, now),
+    ).toBe('reissue');
+    // Still bounded by the session's lifetime and the account.
+    expect(
+      decideRefresh({ ...live, rotated_at: now, expires_at: now }, now),
+    ).toBe('expired');
+    expect(
+      decideRefresh({ ...live, rotated_at: now, user_deleted_at: now }, now),
+    ).toBe('expired');
   });
 
   it('expires at expires_at exactly', () => {

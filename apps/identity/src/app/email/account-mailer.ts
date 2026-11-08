@@ -99,11 +99,11 @@ export class AccountMailer implements OnApplicationShutdown {
     });
   }
 
-  sendPasswordChanged(to: Recipient): Promise<void> {
+  sendPasswordChanged(to: Recipient, how: 'changed' | 'reset'): Promise<void> {
     const url = `${this.webBaseUrl}/auth/forgot-password`;
     return this.mailer.send({
       to: to.email,
-      ...passwordChangedMessage(to.locale, to.name, url),
+      ...passwordChangedMessage(to.locale, to.name, url, how),
     });
   }
 }

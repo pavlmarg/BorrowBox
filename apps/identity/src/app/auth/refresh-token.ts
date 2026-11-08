@@ -25,10 +25,20 @@ export interface StoredRefreshToken {
   user_deleted_at: Date | null;
 }
 
+/**
+ * A token rotated this recently may be presented again without counting as
+ * reuse: the answer to the first refresh can be lost on the way (a dropped
+ * mobile connection), and the client then retries with the token it still
+ * has. Within this window a thief replaying a copy isn't caught either.
+ */
+export const REFRESH_REUSE_LEEWAY_MS = 30_000;
+
 export type RefreshDecision =
   /** Valid: mark it rotated and issue the next token in the same family. */
   | 'rotate'
-  /** Already rotated or revoked: a copy is in someone else's hands. Revoke the family. */
+  /** Rotated within the leeway: issue another token in the same family. */
+  | 'reissue'
+  /** Revoked, or rotated earlier: a copy is in someone else's hands. Revoke the family. */
   | 'reuse'
   /** Past the session lifetime, or the account is gone. */
   | 'expired';
@@ -37,8 +47,14 @@ export function decideRefresh(
   token: StoredRefreshToken,
   now: Date,
 ): RefreshDecision {
-  if (token.rotated_at !== null || token.revoked_at !== null) return 'reuse';
+  if (token.revoked_at !== null) return 'reuse';
+  if (
+    token.rotated_at !== null &&
+    now.getTime() - token.rotated_at.getTime() >= REFRESH_REUSE_LEEWAY_MS
+  ) {
+    return 'reuse';
+  }
   if (token.user_deleted_at !== null) return 'expired';
   if (token.expires_at.getTime() <= now.getTime()) return 'expired';
-  return 'rotate';
+  return token.rotated_at === null ? 'rotate' : 'reissue';
 }

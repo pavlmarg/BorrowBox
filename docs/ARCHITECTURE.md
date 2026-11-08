@@ -132,7 +132,7 @@ flowchart TB
 - **Refresh token:**
   - An opaque 256-bit value, stored only as a SHA-256 hash.
   - Each use rotates it within its family, and the family expires 30 days after sign-in; rotation never extends it.
-  - Presenting a rotated or revoked token revokes the whole family (reuse detection).
+  - Presenting a revoked token, or one rotated 30 seconds ago or more, revokes the whole family (reuse detection). Within those 30 seconds a retry gets another token in the same family, so a lost answer doesn't sign the user out.
 - **Google sign-in (OIDC):**
   - Authorization code + PKCE + nonce, exchanged by Identity (`openid-client`). Accounts are matched on Google's `sub`, never on the email alone.
   - A verified Google email **auto-links** to an existing account with that email.
