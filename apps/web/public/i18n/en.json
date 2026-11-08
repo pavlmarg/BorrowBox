@@ -126,7 +126,11 @@
     "INVALID_STATE": "That can’t be done right now. Please refresh the page and try again.",
     "NOT_PUBLISHABLE": "To publish, an item needs a location and at least one photo.",
     "ITEM_LIMIT_REACHED": "You’ve reached the item limit. Delete one to add another.",
-    "PHOTO_LIMIT_REACHED": "You’ve reached the photo limit for this item."
+    "PHOTO_LIMIT_REACHED": "You’ve reached the photo limit for this item.",
+    "EMAIL_NOT_VERIFIED": "Confirm your email address first, with the link we sent you.",
+    "FORBIDDEN": "You can’t do that.",
+    "PAYLOAD_TOO_LARGE": "That’s too much to send at once.",
+    "UNKNOWN": "That didn’t work. Please try again."
   },
   "catalog": {
     "categories": {

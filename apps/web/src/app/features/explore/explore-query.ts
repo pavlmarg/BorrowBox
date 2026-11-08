@@ -42,7 +42,10 @@ export function filtersFromQuery(params: Params): ExploreFilters {
   const text = (key: string) =>
     typeof params[key] === 'string' ? (params[key] as string) : undefined;
 
-  const q = (text('q') ?? '').trim().slice(0, SEARCH_QUERY_MAX_LENGTH);
+  // Cut by characters (as the server counts them), never inside an emoji.
+  const q = [...(text('q') ?? '').trim()]
+    .slice(0, SEARCH_QUERY_MAX_LENGTH)
+    .join('');
   const category = text('category');
   const radius = Number(text('radius'));
   const max = Number(text('max'));

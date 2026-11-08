@@ -33,6 +33,7 @@ import {
   matchesPasswordValidator,
   passwordValidator,
 } from './password.validator';
+import { emailAddress, maxCharacters } from '../../shared/forms/validators';
 
 @Component({
   selector: 'bb-register-page',
@@ -68,7 +69,6 @@ import {
               matInput
               formControlName="displayName"
               autocomplete="nickname"
-              [maxlength]="displayNameMax"
             />
             @if (form.controls.displayName.invalid) {
               <mat-error>{{ t('validation.displayName') }}</mat-error>
@@ -247,14 +247,13 @@ export class RegisterPage {
   private readonly router = inject(Router);
   private readonly language = inject(LanguageService);
 
-  protected readonly displayNameMax = DISPLAY_NAME_MAX_LENGTH;
   protected readonly passwordMax = PASSWORD_MAX_LENGTH;
   protected readonly form = inject(NonNullableFormBuilder).group({
     displayName: [
       '',
       [
         Validators.required,
-        Validators.maxLength(DISPLAY_NAME_MAX_LENGTH),
+        maxCharacters(DISPLAY_NAME_MAX_LENGTH),
         Validators.pattern(/\S/),
       ],
     ],
@@ -262,7 +261,7 @@ export class RegisterPage {
       '',
       [
         Validators.required,
-        Validators.email,
+        emailAddress,
         Validators.maxLength(EMAIL_MAX_LENGTH),
       ],
     ],

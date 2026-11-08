@@ -34,6 +34,7 @@ import {
   type DeleteAccountDialogResult,
 } from './delete-account.dialog';
 import { ProfileStore } from './profile.store';
+import { maxCharacters } from '../../shared/forms/validators';
 
 @Component({
   selector: 'bb-settings-page',
@@ -112,7 +113,6 @@ import { ProfileStore } from './profile.store';
                     matInput
                     formControlName="displayName"
                     autocomplete="nickname"
-                    [maxlength]="displayNameMax"
                   />
                   @if (form.controls.displayName.invalid) {
                     <mat-error>{{ t('validation.displayName') }}</mat-error>
@@ -237,14 +237,13 @@ export class SettingsPage implements OnInit {
   private readonly router = inject(Router);
 
   protected readonly languages = LANGUAGES;
-  protected readonly displayNameMax = DISPLAY_NAME_MAX_LENGTH;
   protected readonly errorKey = errorKey;
   protected readonly form = inject(NonNullableFormBuilder).group({
     displayName: [
       '',
       [
         Validators.required,
-        Validators.maxLength(DISPLAY_NAME_MAX_LENGTH),
+        maxCharacters(DISPLAY_NAME_MAX_LENGTH),
         Validators.pattern(/\S/),
       ],
     ],

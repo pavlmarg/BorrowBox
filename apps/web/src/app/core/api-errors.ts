@@ -18,10 +18,15 @@ export const KNOWN_ERROR_CODES = [
   'NOT_PUBLISHABLE',
   'ITEM_LIMIT_REACHED',
   'PHOTO_LIMIT_REACHED',
+  'EMAIL_NOT_VERIFIED',
+  'FORBIDDEN',
+  'PAYLOAD_TOO_LARGE',
   'RATE_LIMITED',
   'SERVICE_UNAVAILABLE',
   'INTERNAL',
   'NETWORK',
+  /** Ours: a client error whose code has no message yet. */
+  'UNKNOWN',
 ] as const;
 export type KnownErrorCode = (typeof KNOWN_ERROR_CODES)[number];
 
@@ -35,7 +40,8 @@ export function errorCode(error: unknown): KnownErrorCode {
     if (error.status === 0) return 'NETWORK';
     const code = (error.error as Partial<ApiErrorResponse> | null)?.code;
     if (isKnown(code)) return code;
-    return error.status >= 500 ? 'INTERNAL' : 'VALIDATION_FAILED';
+    // Not "check the highlighted fields": nothing may be highlighted.
+    return error.status >= 500 ? 'INTERNAL' : 'UNKNOWN';
   }
   return 'INTERNAL';
 }

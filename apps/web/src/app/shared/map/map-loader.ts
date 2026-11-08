@@ -15,11 +15,24 @@ export const MAP_LIBRE = new InjectionToken<() => Promise<MapLibre>>(
     providedIn: 'root',
     factory: () => {
       const document = inject(DOCUMENT);
-      let loading: Promise<MapLibre> | undefined;
-      return () => (loading ??= loadMapLibre(document));
+      return retryableOnce(() => loadMapLibre(document));
     },
   },
 );
+
+/**
+ * Runs `load` once and shares its result. A failure (offline, a chunk that
+ * didn't download) is forgotten, so the next map tries again instead of
+ * staying unavailable until the page is reloaded.
+ */
+export function retryableOnce<T>(load: () => Promise<T>): () => Promise<T> {
+  let loading: Promise<T> | undefined;
+  return () =>
+    (loading ??= load().catch((err: unknown) => {
+      loading = undefined;
+      throw err;
+    }));
+}
 
 const VENDOR = '/vendor/maplibre';
 
