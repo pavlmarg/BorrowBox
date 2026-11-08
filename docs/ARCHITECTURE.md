@@ -204,7 +204,11 @@ See §6 and [ADR-0019](adr/0019-payments-fees-and-policies.md). Stripe test mode
 - **Erasure:** `user.deletion_requested` closes the lender's account (their still-valid tokens are refused) and the worker deletes the Stripe account, retrying until it succeeds; only Stripe's "no such account" counts as already gone, and from the 10th failed attempt each failure is logged as an error. An onboarding call overlapping the erasure hands out no link. The row stays.
 - **Stripe errors:** logged with the error's class, Stripe's code, the HTTP status and Stripe's request id, never Stripe's message (it can echo request data). For a user's request, Stripe unreachable is `PROVIDER_UNAVAILABLE` and Stripe refusing the call is `INTERNAL`.
 - **GDPR:** the export has the payout account (Stripe account id, status, dates).
-- Checkout, refunds and settlement come with the next Phase 4 PRs.
+- **Checkout** ([ADR-0019](adr/0019-payments-fees-and-policies.md), [ADR-0020](adr/0020-booking-fees.md)): Payments keeps the bookings it takes money for from `booking.*` events (a closed booking stays closed, whatever order they arrive in). When the renter starts paying, it creates one card PaymentIntent per booking for rent + deposit + fee (charged at once, `transfer_group = booking_<id>`, only the booking id as metadata, our row's id as idempotency key) and returns its client secret to the renter only; it's never stored or logged. Paying can't start in the last 10 minutes before the pay-by time.
+- **Outcome:** the PaymentIntent webhooks are processed like the others, from Stripe's current state: success writes `payment.captured`, a failed attempt `payment.failed` (the renter may try again). When a booking closes unpaid, the worker cancels its PaymentIntent; a payment that still succeeds for a closed booking, or a paid booking that is cancelled, is marked `NEEDS_REFUND` for PR C's refunds.
+- **Backfill:** `nx run payments:republish-accounts` re-announces the payable lenders for services started later (Bookings).
+- **GDPR:** the export also lists the renter's payments (amounts and dates, no card details).
+- Refunds and settlement come with the next Phase 4 PR.
 
 ### Messaging
 See [ADR-0017](adr/0017-in-app-chat.md) and [ADR-0018](adr/0018-price-offers.md). A module of `apps/bookings`, with tables in the `bookings` schema, until its contracts settle.

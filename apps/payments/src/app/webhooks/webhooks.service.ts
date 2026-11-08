@@ -17,7 +17,13 @@ import { insertEvent } from './stripe-events.repository';
 
 /** The Stripe event types Payments acts on, per endpoint. */
 export const HANDLED_EVENT_TYPES: Record<WebhookSource, readonly string[]> = {
-  platform: [],
+  // The renters' payments (ADR-0019); each is re-read from Stripe when processed.
+  platform: [
+    'payment_intent.succeeded',
+    'payment_intent.payment_failed',
+    'payment_intent.processing',
+    'payment_intent.canceled',
+  ],
   connect: ['account.updated'],
 };
 

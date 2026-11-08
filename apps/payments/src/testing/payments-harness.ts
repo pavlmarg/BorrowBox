@@ -15,6 +15,7 @@ import {
   startServiceHarness,
   type ServiceHarness,
 } from '@borrowbox/service-kit/testing';
+import { BookingEventsConsumer } from '../app/checkout/booking-events.consumer';
 import { PaymentsWorker } from '../app/payments.worker';
 import { STRIPE_API } from '../app/stripe/stripe-api';
 import { UserEventsConsumer } from '../app/users/user-events.consumer';
@@ -32,7 +33,12 @@ export interface PaymentsHarness extends ServiceHarness<PaymentsRpcContract> {
   /** Sends Stripe's webhook as the gateway forwards it, signed unless `signature` is given. */
   webhook(
     source: WebhookSource,
-    event: { id: string; type: string; account?: string },
+    event: {
+      id: string;
+      type: string;
+      account?: string;
+      data?: { object: { id: string } };
+    },
     signature?: string,
   ): Promise<void>;
   /** Runs the worker once, now. */
@@ -70,14 +76,19 @@ export async function startPayments(urls: {
     keyId: keys.keyId,
   });
   const consumer = harness.app.get(UserEventsConsumer);
+  const bookingEvents = harness.app.get(BookingEventsConsumer);
   const worker = harness.app.get(PaymentsWorker);
   return {
     ...harness,
     stripe,
     tokenFor: async (userId) =>
       (await signer.sign({ userId, sessionId: randomUUID() })).token,
-    receive: (envelope) =>
-      consumer.handle(envelope, `${envelope.type}.v${envelope.version}`),
+    receive: (envelope) => {
+      const routingKey = `${envelope.type}.v${envelope.version}`;
+      return envelope.type.startsWith('booking.')
+        ? bookingEvents.handle(envelope, routingKey)
+        : consumer.handle(envelope, routingKey);
+    },
     webhook: (source, event, signature) => {
       const payload = JSON.stringify({ object: 'event', ...event });
       const secret =

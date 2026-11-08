@@ -1,12 +1,15 @@
 import { Controller, Inject, UseGuards } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import { IsIn, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsNotEmpty, IsString, IsUUID, MaxLength } from 'class-validator';
 import type { DataSource } from 'typeorm';
 import { CurrentUser, RpcJwtAuthGuard, type AuthUser } from '@borrowbox/auth';
 import {
   PaymentsRpc,
   WEBHOOK_BODY_MAX_BYTES,
   WEBHOOK_SOURCES,
+  type BookingPaymentRequest,
+  type CheckoutView,
+  type PaymentView,
   type PaymentsDataExport,
   type PayoutAccountView,
   type ReceiveWebhookRequest,
@@ -16,6 +19,8 @@ import {
 import { DATA_SOURCE } from '@borrowbox/service-kit';
 import { findAccountByUser } from './accounts/accounts.repository';
 import { PayoutsService, toView } from './accounts/payouts.service';
+import { CheckoutService } from './checkout/checkout.service';
+import { listPaymentsOf } from './checkout/payments.repository';
 import { WebhooksService } from './webhooks/webhooks.service';
 
 /**
@@ -48,7 +53,9 @@ export class PayoutsController {
   /** GDPR export: Payments' part of `GET /me/export`. */
   @MessagePattern(PaymentsRpc.exportMe)
   async exportMe(@CurrentUser() user: AuthUser): Promise<PaymentsDataExport> {
-    const row = await findAccountByUser(this.dataSource.manager, user.userId);
+    const tx = this.dataSource.manager;
+    const row = await findAccountByUser(tx, user.userId);
+    const payments = await listPaymentsOf(tx, user.userId);
     return {
       exportedAt: new Date().toISOString(),
       payoutAccount: row
@@ -58,7 +65,45 @@ export class PayoutsController {
             createdAt: row.created_at.toISOString(),
           }
         : null,
+      payments: payments.map((p) => ({
+        bookingId: p.booking_id,
+        status: p.status,
+        chargeCents: p.amount_cents,
+        createdAt: p.created_at.toISOString(),
+        paidAt: p.paid_at?.toISOString() ?? null,
+      })),
     };
+  }
+}
+
+class BookingPaymentDto implements BookingPaymentRequest {
+  @IsUUID()
+  bookingId!: string;
+}
+
+/**
+ * The renter pays an accepted booking (ADR-0019). The renter is the
+ * token's user; Payments checks the booking is theirs.
+ */
+@Controller()
+@UseGuards(RpcJwtAuthGuard)
+export class CheckoutController {
+  constructor(private readonly checkout: CheckoutService) {}
+
+  @MessagePattern(PaymentsRpc.startCheckout)
+  start(
+    @CurrentUser() user: AuthUser,
+    @Payload('data') dto: BookingPaymentDto,
+  ): Promise<CheckoutView> {
+    return this.checkout.start(user.userId, dto.bookingId);
+  }
+
+  @MessagePattern(PaymentsRpc.getPayment)
+  get(
+    @CurrentUser() user: AuthUser,
+    @Payload('data') dto: BookingPaymentDto,
+  ): Promise<PaymentView> {
+    return this.checkout.get(user.userId, dto.bookingId);
   }
 }
 

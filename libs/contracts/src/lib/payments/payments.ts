@@ -41,7 +41,8 @@ export interface StripeLinkView {
  * - `PROCESSING`: the bank is still confirming;
  * - `SUCCEEDED`: paid;
  * - `CANCELLED`: the booking closed before it was paid;
- * - `NEEDS_REFUND`: paid, but the booking had closed meanwhile: refunded in full.
+ * - `NEEDS_REFUND`: paid, but the booking closed (cancelled, or paid too late): a
+ *   refund is due (PR C).
  */
 export const PAYMENT_STATUSES = [
   'REQUIRES_PAYMENT',
@@ -63,8 +64,8 @@ export interface PaymentView {
   feeCents: number;
   /** What the renter pays: rent + deposit + fee. */
   chargeCents: number;
-  /** When the booking expires unless paid. */
-  payBy: string;
+  /** When the booking expires unless paid; null once it no longer waits. */
+  payBy: string | null;
   /** The last attempt failed (declined card, failed 3-D Secure); the renter may try again. */
   lastAttemptFailed: boolean;
   paidAt: string | null;

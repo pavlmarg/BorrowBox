@@ -29,6 +29,31 @@ export interface VerifiedEvent {
   type: string;
   /** The connected account it's about, for Connect events. */
   accountId: string | null;
+  /** The object it's about (`data.object.id`): a PaymentIntent, an account. */
+  objectId: string | null;
+}
+
+/** A PaymentIntent's status as Stripe names it. */
+export const PAYMENT_INTENT_STATUSES = [
+  'requires_payment_method',
+  'requires_confirmation',
+  'requires_action',
+  'processing',
+  'requires_capture',
+  'canceled',
+  'succeeded',
+] as const;
+export type PaymentIntentStatus = (typeof PAYMENT_INTENT_STATUSES)[number];
+
+/** What Payments needs of a PaymentIntent: never card or personal details. */
+export interface PaymentIntentState {
+  id: string;
+  status: PaymentIntentStatus;
+  amountCents: number;
+  /** The last attempt failed (declined, failed 3-D Secure). */
+  lastAttemptFailed: boolean;
+  /** For the renter's browser only: never logged or stored. */
+  clientSecret: string;
 }
 
 /**
@@ -52,6 +77,18 @@ export interface StripeApi {
     refreshUrl: string;
   }): Promise<StripeLink>;
   createDashboardLink(accountId: string): Promise<StripeLink>;
+  /**
+   * A card payment of `amountCents` EUR on the platform account for one
+   * booking; the same `idempotencyKey` returns the same PaymentIntent.
+   */
+  createPaymentIntent(input: {
+    bookingId: string;
+    amountCents: number;
+    idempotencyKey: string;
+  }): Promise<PaymentIntentState>;
+  retrievePaymentIntent(id: string): Promise<PaymentIntentState>;
+  /** Cancels a PaymentIntent that hasn't succeeded; returns its state after. */
+  cancelPaymentIntent(id: string): Promise<PaymentIntentState>;
   /** Throws `InvalidSignatureError` unless Stripe signed `payload` with `secret`. */
   verifyWebhook(
     payload: string,
@@ -220,6 +257,48 @@ export class SdkStripeApi implements StripeApi {
     return { url: link.url, expiresAt: null };
   }
 
+  async createPaymentIntent({
+    bookingId,
+    amountCents,
+    idempotencyKey,
+  }: {
+    bookingId: string;
+    amountCents: number;
+    idempotencyKey: string;
+  }): Promise<PaymentIntentState> {
+    const intent = await call(() =>
+      this.stripe.paymentIntents.create(
+        {
+          amount: amountCents,
+          currency: 'eur',
+          // Cards only (Apple Pay / Google Pay come as cards): methods that
+          // settle over days would outlive the 24-hour pay-by time.
+          allowed_payment_method_types: ['card'],
+          // Charged at once (ADR-0003: no authorization holds).
+          capture_method: 'automatic',
+          // Settlement transfers to the lender by this group (PR C).
+          transfer_group: `booking_${bookingId}`,
+          // Our id only: no names, emails or receipts (A2).
+          metadata: { bookingId },
+        },
+        { idempotencyKey },
+      ),
+    );
+    return toIntentState(intent);
+  }
+
+  async retrievePaymentIntent(id: string): Promise<PaymentIntentState> {
+    return toIntentState(
+      await call(() => this.stripe.paymentIntents.retrieve(id)),
+    );
+  }
+
+  async cancelPaymentIntent(id: string): Promise<PaymentIntentState> {
+    return toIntentState(
+      await call(() => this.stripe.paymentIntents.cancel(id)),
+    );
+  }
+
   verifyWebhook(
     payload: string,
     signature: string,
@@ -231,8 +310,35 @@ export class SdkStripeApi implements StripeApi {
     } catch {
       throw new InvalidSignatureError();
     }
-    return { id: event.id, type: event.type, accountId: event.account ?? null };
+    const object = (event as { data?: { object?: { id?: unknown } } }).data
+      ?.object;
+    return {
+      id: event.id,
+      type: event.type,
+      accountId: event.account ?? null,
+      objectId: typeof object?.id === 'string' ? object.id : null,
+    };
   }
+}
+
+function toIntentState(intent: Stripe.PaymentIntent): PaymentIntentState {
+  if (!intent.client_secret) {
+    throw new Error('PaymentIntent without a client secret');
+  }
+  // A status added to Stripe's API later counts as still processing:
+  // never as paid, never as failed.
+  const status = (PAYMENT_INTENT_STATUSES as readonly string[]).includes(
+    intent.status,
+  )
+    ? (intent.status as PaymentIntentStatus)
+    : 'processing';
+  return {
+    id: intent.id,
+    status,
+    amountCents: intent.amount,
+    lastAttemptFailed: intent.last_payment_error != null,
+    clientSecret: intent.client_secret,
+  };
 }
 
 /** Runs one SDK call; a Stripe error leaves as a `StripeCallError`. */

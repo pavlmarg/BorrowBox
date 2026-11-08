@@ -8,6 +8,15 @@ import {
 import type { DataSource } from 'typeorm';
 import { DATA_SOURCE } from '@borrowbox/service-kit';
 import { syncAccount } from './accounts/account-sync';
+import { findBooking } from './checkout/bookings.repository';
+import { applyIntentState } from './checkout/payment-sync';
+import {
+  claimDueCancels,
+  lockPaymentByIntent,
+  retryCancelLater,
+  updatePayment,
+  type CancelJob,
+} from './checkout/payments.repository';
 import {
   claimDueDeletions,
   markStripeDeleted,
@@ -17,6 +26,8 @@ import {
 import {
   STRIPE_API,
   StripeCallError,
+  StripeRequestError,
+  type PaymentIntentState,
   type StripeApi,
 } from './stripe/stripe-api';
 import {
@@ -50,8 +61,9 @@ const PRUNE_EVERY_MS = 60 * 60 * 1000;
 export const KEEP_STRIPE_EVENTS_DAYS = 30;
 
 /**
- * Payments' background work: processes stored Stripe events (P9, A3) and
- * deletes erased lenders' Stripe accounts (A7). Both retry with backoff.
+ * Payments' background work: processes stored Stripe events (P9, A3),
+ * cancels the PaymentIntents of bookings that closed unpaid (ADR-0019) and
+ * deletes erased lenders' Stripe accounts (A7). All retry with backoff.
  * Logs carry ids and what identifies an error, never Stripe data.
  */
 @Injectable()
@@ -104,6 +116,13 @@ export class PaymentsWorker
     }
     for (;;) {
       const jobs = await this.dataSource.transaction((tx) =>
+        claimDueCancels(tx, BATCH, LEASE_MS),
+      );
+      for (const job of jobs) await this.cancelAtStripe(job);
+      if (jobs.length < BATCH || this.stopped) break;
+    }
+    for (;;) {
+      const jobs = await this.dataSource.transaction((tx) =>
         claimDueDeletions(tx, BATCH, LEASE_MS),
       );
       for (const job of jobs) await this.deleteAtStripe(job, now);
@@ -121,6 +140,14 @@ export class PaymentsWorker
           event.account_id,
           `stripe:${event.event_id}`,
         );
+      } else if (event.type.startsWith('payment_intent.') && event.object_id) {
+        const intentId = event.object_id;
+        await this.syncPayment(
+          intentId,
+          () => this.stripe.retrievePaymentIntent(intentId),
+          `stripe:${event.event_id}`,
+          event.type,
+        );
       }
       await markProcessed(tx, event.event_id);
     } catch (err) {
@@ -136,6 +163,76 @@ export class PaymentsWorker
         `Stripe event ${event.event_id} (${event.type}) failed (attempt ${event.attempts + 1}): ${reason}`,
       );
       await retryEventLater(tx, event.event_id, backoff(event.attempts));
+    }
+  }
+
+  /**
+   * Brings our payment up to date with its PaymentIntent, fetched by
+   * `fetch` (Stripe's current state, never a webhook's copy). An unknown
+   * PaymentIntent (not ours) is ignored.
+   */
+  private async syncPayment(
+    intentId: string,
+    fetch: () => Promise<PaymentIntentState>,
+    correlationId: string,
+    stripeEventType: string | null,
+  ): Promise<void> {
+    const known = await this.dataSource.query(
+      `SELECT 1 FROM payments WHERE stripe_payment_intent_id = $1`,
+      [intentId],
+    );
+    if (known.length === 0) return;
+    const intent = await fetch();
+    await this.dataSource.transaction(async (tx) => {
+      const payment = await lockPaymentByIntent(tx, intentId);
+      if (!payment) return;
+      const booking = await findBooking(tx, payment.booking_id);
+      await applyIntentState(
+        tx,
+        payment,
+        booking,
+        intent,
+        { correlationId },
+        stripeEventType,
+      );
+    });
+  }
+
+  /**
+   * The booking closed unpaid: cancels its PaymentIntent so it can't be
+   * paid any more. Stripe refuses when the PaymentIntent moved on (paid,
+   * processing): then its current state decides, e.g. a refund is due.
+   */
+  private async cancelAtStripe(job: CancelJob): Promise<void> {
+    const tx = this.dataSource.manager;
+    const intentId = job.stripe_payment_intent_id;
+    if (!intentId) {
+      // Nothing at Stripe yet; a checkout that saves an id later re-queues it.
+      await updatePayment(tx, job.id, { cancelPending: false });
+      return;
+    }
+    try {
+      await this.syncPayment(
+        intentId,
+        async () => {
+          try {
+            return await this.stripe.cancelPaymentIntent(intentId);
+          } catch (err) {
+            if (err instanceof StripeRequestError) {
+              return this.stripe.retrievePaymentIntent(intentId);
+            }
+            throw err;
+          }
+        },
+        `cancel:${job.booking_id}`,
+        null,
+      );
+    } catch (err) {
+      const attempt = job.stripe_cancel_attempts + 1;
+      const message = `Cancelling PaymentIntent of booking ${job.booking_id} failed (attempt ${attempt}): ${describe(err)}`;
+      if (attempt >= DELETION_ALERT_ATTEMPTS) this.logger.error(message);
+      else this.logger.warn(message);
+      await retryCancelLater(tx, job.id, backoff(job.stripe_cancel_attempts));
     }
   }
 

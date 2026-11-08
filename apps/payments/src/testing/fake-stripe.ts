@@ -8,6 +8,8 @@ import {
   StripeRequestError,
   StripeUnavailableError,
   type AccountFlags,
+  type PaymentIntentState,
+  type PaymentIntentStatus,
   type StripeApi,
   type StripeLink,
   type VerifiedEvent,
@@ -37,6 +39,13 @@ export class FakeStripe implements StripeApi {
   refusing = false;
   /** Runs while Stripe "creates" an account (to play something happening meanwhile). */
   whileCreating?: () => Promise<void>;
+  /** PaymentIntent id → its state, and the booking it was made for. */
+  readonly intents = new Map<
+    string,
+    { state: PaymentIntentState; bookingId: string }
+  >();
+  /** Runs while Stripe "creates" a PaymentIntent. */
+  whileCreatingIntent?: () => Promise<void>;
   private readonly byIdempotencyKey = new Map<string, string>();
   private readonly sdk = new SdkStripeApi('sk_test_fake');
   private readonly stripe = new Stripe('sk_test_fake');
@@ -47,6 +56,25 @@ export class FakeStripe implements StripeApi {
     const current = this.accounts.get(accountId);
     if (!current) throw new Error(`unknown account ${accountId}`);
     this.accounts.set(accountId, { ...current, ...flags });
+  }
+
+  /** The PaymentIntent made for `bookingId`, if any. */
+  intentFor(bookingId: string): PaymentIntentState | undefined {
+    for (const { state, bookingId: b } of this.intents.values()) {
+      if (b === bookingId) return { ...state };
+    }
+    return undefined;
+  }
+
+  /** Plays the renter's bank: the PaymentIntent moves to `status`. */
+  setIntent(
+    id: string,
+    status: PaymentIntentStatus,
+    lastAttemptFailed = false,
+  ): void {
+    const found = this.intents.get(id);
+    if (!found) throw new Error(`unknown PaymentIntent ${id}`);
+    found.state = { ...found.state, status, lastAttemptFailed };
   }
 
   /** A `Stripe-Signature` header for `payload`, signed with `secret`. */
@@ -113,6 +141,57 @@ export class FakeStripe implements StripeApi {
       url: `https://connect.stripe.test/express/${accountId}`,
       expiresAt: null,
     };
+  }
+
+  async createPaymentIntent(input: {
+    bookingId: string;
+    amountCents: number;
+    idempotencyKey: string;
+  }): Promise<PaymentIntentState> {
+    this.check();
+    await this.whileCreatingIntent?.();
+    const known = this.byIdempotencyKey.get(input.idempotencyKey);
+    if (known) return this.retrievePaymentIntent(known);
+    const id = `pi_test${this.next++}`;
+    this.byIdempotencyKey.set(input.idempotencyKey, id);
+    this.intents.set(id, {
+      bookingId: input.bookingId,
+      state: {
+        id,
+        status: 'requires_payment_method',
+        amountCents: input.amountCents,
+        lastAttemptFailed: false,
+        clientSecret: `${id}_secret_test`,
+      },
+    });
+    return this.retrievePaymentIntent(id);
+  }
+
+  async retrievePaymentIntent(id: string): Promise<PaymentIntentState> {
+    this.check();
+    const found = this.intents.get(id);
+    if (!found) {
+      throw new StripeObjectMissingError({
+        type: 'StripeInvalidRequestError',
+        code: 'resource_missing',
+        statusCode: 404,
+      });
+    }
+    return { ...found.state };
+  }
+
+  async cancelPaymentIntent(id: string): Promise<PaymentIntentState> {
+    const state = await this.retrievePaymentIntent(id);
+    // Like Stripe: a paid or processing PaymentIntent can't be cancelled.
+    if (state.status === 'succeeded' || state.status === 'processing') {
+      throw new StripeRequestError({
+        type: 'StripeInvalidRequestError',
+        code: 'payment_intent_unexpected_state',
+        statusCode: 400,
+      });
+    }
+    this.setIntent(id, 'canceled');
+    return this.retrievePaymentIntent(id);
   }
 
   verifyWebhook(
