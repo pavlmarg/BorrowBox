@@ -19,7 +19,10 @@ import {
   parsePayload,
 } from '@borrowbox/service-kit';
 import { cancelBookings } from '../bookings/booking-transitions';
-import { lockOpenBookings } from '../bookings/bookings.repository';
+import {
+  lockItemBookings,
+  lockOpenBookings,
+} from '../bookings/bookings.repository';
 import { ChatPublisher, ChatPushes } from '../messaging/chat-publisher';
 import { lockOpenOffers } from '../messaging/messaging.repository';
 import { withdrawOffers } from '../messaging/offer-withdrawals';
@@ -73,13 +76,18 @@ export class ItemEventsConsumer implements OnApplicationBootstrap {
           ITEM_EVENTS_QUEUE,
           envelope,
           async (tx) => {
+            // Lock order shared with accepts and offer bookings (item lock,
+            // then offers, then bookings), so they wait for each other
+            // instead of deadlocking.
+            await lockItemBookings(tx, itemId);
             // Waits for requests in flight (they hold the item row).
             await markItemDeleted(tx, itemId, lenderId, envelope.occurredAt);
+            const offers = await lockOpenOffers(tx, { itemId });
             const ids = await lockOpenBookings(tx, { itemId });
             await cancelBookings(tx, ids, 'ITEM_DELETED', envelope, pushes);
             await withdrawOffers(
               tx,
-              await lockOpenOffers(tx, { itemId }),
+              offers,
               'ITEM_DELETED',
               { causedBy: envelope },
               pushes,

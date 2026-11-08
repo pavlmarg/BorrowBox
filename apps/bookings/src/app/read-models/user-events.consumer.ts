@@ -99,12 +99,16 @@ export class UserEventsConsumer implements OnApplicationBootstrap {
             // Waits for the user's requests in flight, then stops new ones.
             await lockUserBookings(tx, userId);
             await markUserDeleted(tx, userId);
+            // Offers before bookings, like booking an offer (which locks
+            // the offer, then declines overlapping requests): the other
+            // order deadlocks when the lender is erased meanwhile.
+            const offers = await lockOpenOffers(tx, { userId });
             const ids = await lockOpenBookings(tx, { userId });
             await cancelBookings(tx, ids, 'ACCOUNT_DELETED', envelope, pushes);
             cancelled = ids.length;
             await withdrawOffers(
               tx,
-              await lockOpenOffers(tx, { userId }),
+              offers,
               'ACCOUNT_DELETED',
               { causedBy: envelope },
               pushes,
