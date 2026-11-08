@@ -6,6 +6,8 @@ import {
   onConfirmed,
   onDeclined,
   onExpired,
+  onPaid,
+  onPaymentFailed,
   onRequested,
 } from './plan';
 
@@ -62,6 +64,52 @@ describe('which booking emails go to whom (N1)', () => {
     expect(who(onExpired({ ...booking, reason: 'STARTED' }))).toEqual([
       'BOOKING_EXPIRED>renter',
     ]);
+    // Unpaid in time: the lender learns it won't go ahead too.
+    expect(who(onExpired({ ...booking, reason: 'PAYMENT_TIMEOUT' }))).toEqual([
+      'BOOKING_EXPIRED>renter',
+      'BOOKING_EXPIRED>lender',
+    ]);
+  });
+
+  it('tells both people once a booking is paid', () => {
+    expect(who(onPaid(booking))).toEqual([
+      'BOOKING_PAID>renter',
+      'BOOKING_PAID>lender',
+    ]);
+  });
+
+  it('tells the renter a payment failed, with what to pay and by when', () => {
+    const [email] = onPaymentFailed({
+      bookingId: booking.bookingId,
+      renterId: 'renter',
+      lenderId: 'lender',
+      itemTitle: 'Drill',
+      amountCents: 7200,
+      payBy: '2026-11-01T09:00:00.000Z',
+    });
+    expect(email).toEqual({
+      kind: 'PAYMENT_FAILED',
+      recipientId: 'renter',
+      data: {
+        otherId: 'lender',
+        itemTitle: 'Drill',
+        bookingId: booking.bookingId,
+        chargeCents: 7200,
+        payBy: '2026-11-01T09:00:00.000Z',
+      },
+    });
+  });
+
+  it('carries the fee and the pay-by time of an accepted booking', () => {
+    const [email] = onAccepted({
+      ...booking,
+      feeCents: 200,
+      payBy: '2026-11-01T09:00:00.000Z',
+    });
+    expect(email.data).toMatchObject({
+      feeCents: 200,
+      payBy: '2026-11-01T09:00:00.000Z',
+    });
   });
 
   it.each([

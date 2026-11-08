@@ -46,6 +46,8 @@ describe('renderNotification', () => {
     ['STARTED', 'en', 'The booking of “Drill <b>pro</b>” expired'],
     ['NO_ANSWER', 'el', 'Το αίτημα για «Drill <b>pro</b>» έληξε'],
     ['STARTED', 'el', 'Η κράτηση για «Drill <b>pro</b>» έληξε'],
+    ['PAYMENT_TIMEOUT', 'en', 'The booking of “Drill <b>pro</b>” expired'],
+    ['PAYMENT_TIMEOUT', 'el', 'Η κράτηση για «Drill <b>pro</b>» έληξε'],
   ] as const)(
     'names an expiry for %s a request or a booking (%s)',
     (reason, locale, subject) => {
@@ -59,6 +61,42 @@ describe('renderNotification', () => {
       expect(email.subject).toBe(subject);
     },
   );
+
+  it('asks the renter to pay rent + deposit + fee by the pay-by time', () => {
+    const data = {
+      ...input().data,
+      rentCents: 2000,
+      depositCents: 5000,
+      feeCents: 200,
+      payBy: '2026-08-31T07:00:00.000Z',
+    };
+    const en = renderNotification(input({ kind: 'BOOKING_ACCEPTED', data }));
+    expect(en.text).toContain('service fee €2.00');
+    expect(en.text).toContain('Pay €72.00 in BorrowBox by');
+    expect(en.text).toContain('10:00'); // Athens time
+    const el = renderNotification(
+      input({ kind: 'BOOKING_ACCEPTED', locale: 'el', data }),
+    );
+    expect(el.text).toContain('72,00');
+  });
+
+  it('says what failed and until when the renter can try again', () => {
+    const email = renderNotification(
+      input({
+        kind: 'PAYMENT_FAILED',
+        data: {
+          ...input().data,
+          chargeCents: 7200,
+          payBy: '2026-08-31T07:00:00.000Z',
+        },
+      }),
+    );
+    expect(email.subject).toBe(
+      "Your payment for “Drill <b>pro</b>” didn't go through",
+    );
+    expect(email.text).toContain('€72.00');
+    expect(email.text).toContain('Try again by');
+  });
 
   it('shows Athens time and EUR amounts', () => {
     const email = renderNotification(input());
