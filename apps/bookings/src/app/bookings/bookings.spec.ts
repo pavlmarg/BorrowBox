@@ -610,14 +610,40 @@ describe('Bookings commands and queries (integration)', () => {
       });
     });
 
-    it('cannot be cancelled by its people once paid, until refunds exist (PR C)', async () => {
-      const { renter, lender, booking } = await accepted();
+    it('can be cancelled by either side once paid, before it starts (Payments refunds it)', async () => {
+      const byRenter = await accepted();
+      await bookings.pay(
+        byRenter.booking.id,
+        byRenter.booking.price.totalCents,
+      );
+      await expect(
+        act('cancel', byRenter.renter, byRenter.booking.id),
+      ).resolves.toMatchObject({ status: 'CANCELLED', reason: 'RENTER' });
+
+      const byLender = await accepted();
+      await bookings.pay(
+        byLender.booking.id,
+        byLender.booking.price.totalCents,
+      );
+      await expect(
+        act('cancel', byLender.lender, byLender.booking.id),
+      ).resolves.toMatchObject({ status: 'CANCELLED', reason: 'LENDER' });
+    });
+
+    it('names the erased account when an erasure cancels a paid booking', async () => {
+      const { renter, booking } = await accepted();
       await bookings.pay(booking.id, booking.price.totalCents);
-      for (const who of [renter, lender]) {
-        await expect(act('cancel', who, booking.id)).rejects.toEqual(
-          failure('INVALID_STATE'),
-        );
-      }
+      await bookings.deleteUser(renter);
+      const [row] = await bookings.dataSource.query(
+        `SELECT envelope->'payload' AS payload FROM outbox
+          WHERE routing_key = 'booking.cancelled.v1'
+            AND envelope->'payload'->>'bookingId' = $1`,
+        [booking.id],
+      );
+      expect(row.payload).toMatchObject({
+        reason: 'ACCOUNT_DELETED',
+        erasedUserId: renter,
+      });
     });
   });
 

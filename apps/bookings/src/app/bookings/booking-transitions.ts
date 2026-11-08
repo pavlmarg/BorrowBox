@@ -35,7 +35,12 @@ export type BookingMove =
   | { to: 'PAID' }
   | { to: 'DECLINED'; reason: BookingDeclineReason }
   | { to: 'EXPIRED'; reason: BookingExpireReason }
-  | { to: 'CANCELLED'; reason: BookingCancelReason };
+  | {
+      to: 'CANCELLED';
+      reason: BookingCancelReason;
+      /** With ACCOUNT_DELETED: whose account was erased (ADR-0021). */
+      erasedUserId?: string;
+    };
 
 export type Cause = { correlationId: string } | { causedBy: EventEnvelope };
 
@@ -167,15 +172,20 @@ function envelopeFor(
     case 'CANCELLED':
       return createEnvelope(
         BookingCancelledV1,
-        { ...snapshot, reason: move.reason },
+        {
+          ...snapshot,
+          reason: move.reason,
+          ...(move.erasedUserId ? { erasedUserId: move.erasedUserId } : {}),
+        },
         options,
       );
   }
 }
 
 /**
- * Cancels each of `ids` (open bookings the caller has locked) because the
- * item or an account is gone. Used by the event consumers.
+ * Cancels each of `ids` (open or paid bookings the caller has locked)
+ * because the item or an account is gone. Used by the event consumers;
+ * `erasedUserId` names the erased account for ACCOUNT_DELETED.
  */
 export async function cancelBookings(
   tx: EntityManager,
@@ -183,13 +193,14 @@ export async function cancelBookings(
   reason: 'ITEM_DELETED' | 'ACCOUNT_DELETED',
   cause: EventEnvelope,
   pushes: ChatPushes | null,
+  erasedUserId?: string,
 ): Promise<void> {
   for (const id of ids) {
     const booking = (await findBooking(tx, id)) as BookingRow;
     await moveBooking(
       tx,
       booking,
-      { to: 'CANCELLED', reason },
+      { to: 'CANCELLED', reason, ...(erasedUserId ? { erasedUserId } : {}) },
       { causedBy: cause },
       pushes,
     );
