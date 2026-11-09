@@ -236,24 +236,24 @@ html[data-theme='dark'] {
 }
 
 // Signed-in pages (inside the app shell) and pop-ups (dialogs, menus,
-// autocomplete panels, snack bars render in the CDK overlay): square corners,
-// except buttons, which get 2 px. Login and register keep the softer shapes above. Round on
+// autocomplete panels, snack bars render in the CDK overlay): slightly
+// rounded corners (6 px; cards 8, dialogs 12). Login and register keep the softer shapes above. Round on
 // purpose and not changed here: map circles and cluster bubbles (an
 // approximate area, ADR-0007), and switches, radios and spinners.
 bb-app-shell,
 .cdk-overlay-container {
-  --bb-radius: 0;
-  --bb-button-radius: 2px;
+  --bb-radius: 6px;
+  --bb-button-radius: 6px;
   // The language toggle (shared with login/register, where it stays rounded).
   --bb-control-radius: var(--bb-button-radius);
-  --bb-flag-radius: 0;
+  --bb-flag-radius: 2px;
   // Material's shared corner scale, for components without their own token
   // (select panels, date pickers, …). `corner-full` stays: switches use it.
-  --mat-sys-corner-extra-small: 0;
-  --mat-sys-corner-small: 0;
-  --mat-sys-corner-medium: 0;
-  --mat-sys-corner-large: 0;
-  --mat-sys-corner-extra-large: 0;
+  --mat-sys-corner-extra-small: 4px;
+  --mat-sys-corner-small: 6px;
+  --mat-sys-corner-medium: 8px;
+  --mat-sys-corner-large: 12px;
+  --mat-sys-corner-extra-large: 16px;
 
   // MapLibre's zoom buttons and attribution.
   .maplibregl-ctrl-group {
@@ -261,80 +261,80 @@ bb-app-shell,
   }
   .maplibregl-ctrl-attrib,
   .maplibregl-ctrl-attrib-button {
-    border-radius: 0;
+    border-radius: 4px;
   }
   @include mat.button-overrides(
     (
-      filled-container-shape: 2px,
-      outlined-container-shape: 2px,
-      protected-container-shape: 2px,
-      text-container-shape: 2px,
-      tonal-container-shape: 2px,
+      filled-container-shape: 6px,
+      outlined-container-shape: 6px,
+      protected-container-shape: 6px,
+      text-container-shape: 6px,
+      tonal-container-shape: 6px,
     )
   );
   @include mat.icon-button-overrides(
     (
-      container-shape: 2px,
+      container-shape: 6px,
     )
   );
   @include mat.fab-overrides(
     (
-      container-shape: 2px,
-      extended-container-shape: 2px,
-      small-container-shape: 2px,
+      container-shape: 6px,
+      extended-container-shape: 6px,
+      small-container-shape: 6px,
     )
   );
   @include mat.button-toggle-overrides(
     (
-      shape: 2px,
+      shape: 6px,
     )
   );
   @include mat.chips-overrides(
     (
-      container-shape-radius: 0,
+      container-shape-radius: 6px,
     )
   );
   @include mat.form-field-overrides(
     (
-      outlined-container-shape: 0,
-      filled-container-shape: 0,
+      outlined-container-shape: 6px,
+      filled-container-shape: 6px,
     )
   );
   @include mat.card-overrides(
     (
-      elevated-container-shape: 0,
-      filled-container-shape: 0,
-      outlined-container-shape: 0,
+      elevated-container-shape: 8px,
+      filled-container-shape: 8px,
+      outlined-container-shape: 8px,
     )
   );
   @include mat.dialog-overrides(
     (
-      container-shape: 0,
+      container-shape: 12px,
     )
   );
   @include mat.menu-overrides(
     (
-      container-shape: 0,
+      container-shape: 8px,
     )
   );
   @include mat.autocomplete-overrides(
     (
-      container-shape: 0,
+      container-shape: 8px,
     )
   );
   @include mat.snack-bar-overrides(
     (
-      container-shape: 0,
+      container-shape: 8px,
     )
   );
   @include mat.tooltip-overrides(
     (
-      container-shape: 0,
+      container-shape: 6px,
     )
   );
   @include mat.expansion-overrides(
     (
-      container-shape: 0,
+      container-shape: 8px,
     )
   );
 }

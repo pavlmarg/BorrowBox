@@ -251,13 +251,13 @@ export function sendable(text: string): boolean {
           @if (!store.closed()) {
             <form class="composer" (submit)="submit($event)">
               <mat-form-field class="field" subscriptSizing="dynamic">
-                <mat-label>{{ t('chat.write') }}</mat-label>
                 <textarea
                   matInput
                   cdkTextareaAutosize
                   cdkAutosizeMinRows="1"
                   cdkAutosizeMaxRows="6"
                   [formControl]="draft"
+                  [attr.aria-label]="t('chat.write')"
                   (keydown)="onKeydown($event)"
                 ></textarea>
                 @if (length() > counterFrom) {
@@ -270,11 +270,8 @@ export function sendable(text: string): boolean {
                 {{ t('chat.send') }}
               </button>
             </form>
-            <p class="tools">
-              <span class="muted small enter-hint">{{
-                t('chat.enterHint')
-              }}</span>
-              @if (store.isLender()) {
+            @if (store.isLender()) {
+              <p class="tools">
                 <button
                   type="button"
                   class="bb-text-action action"
@@ -282,18 +279,19 @@ export function sendable(text: string): boolean {
                 >
                   {{ t('offers.make') }}
                 </button>
-              }
-            </p>
+              </p>
+            }
           }
         }
       }
     </div>
   `,
   styles: `
+    /* Fills its pane in the messages layout: the messages scroll, the
+       composer stays. */
     :host {
       display: block;
-      /* The screen under the top bar: the messages scroll, the composer stays. */
-      height: calc(100dvh - 64px);
+      height: 100%;
     }
     .thread {
       box-sizing: border-box;
@@ -302,11 +300,20 @@ export function sendable(text: string): boolean {
       height: 100%;
       margin: 0 auto;
       max-width: 960px;
-      padding: 20px 40px 16px;
+      padding: 16px 32px 16px;
     }
     @media (max-width: 959px) {
       .thread {
         padding: 12px 16px 8px;
+      }
+    }
+    /* Wide screens: the list is beside the thread, so no way back is needed. */
+    @media (min-width: 960px) {
+      .back {
+        display: none;
+      }
+      .who {
+        margin-top: 0;
       }
     }
     .head {
@@ -352,6 +359,7 @@ export function sendable(text: string): boolean {
     }
     .closed {
       background: var(--bb-sky-100);
+      border-radius: 12px;
       color: var(--mat-sys-on-surface);
       flex: none;
       margin: 12px 0 0;
@@ -393,17 +401,19 @@ export function sendable(text: string): boolean {
       align-items: flex-end;
       align-self: flex-end;
     }
-    /* Flat, square, tinted: no border or shadow. */
+    /* Round, tinted bubbles; the corner nearest the sender is tighter. */
     .bubble {
       background: var(--mat-sys-surface-container-high);
+      border-radius: 18px 18px 18px 6px;
       color: var(--mat-sys-on-surface);
       margin: 0;
       overflow-wrap: anywhere;
-      padding: 8px 12px;
+      padding: 9px 14px;
       white-space: pre-wrap;
     }
     .mine .bubble {
       background: var(--bb-sky-100);
+      border-radius: 18px 18px 6px 18px;
     }
     .bubble.deleted {
       color: var(--mat-sys-on-surface-variant);
@@ -487,11 +497,14 @@ export function sendable(text: string): boolean {
       gap: 12px;
       padding-top: 12px;
     }
+    /* A round message field and Send button. */
     .field {
+      --mat-form-field-outlined-container-shape: 24px;
       flex: 1;
       min-width: 0;
     }
     .composer button {
+      --mat-button-filled-container-shape: 999px;
       margin-bottom: 4px;
     }
     .over {
@@ -502,7 +515,7 @@ export function sendable(text: string): boolean {
       display: flex;
       flex: none;
       gap: 16px;
-      justify-content: space-between;
+      justify-content: flex-end;
       margin: 6px 0 0;
     }
     .action {
@@ -538,11 +551,6 @@ export function sendable(text: string): boolean {
     }
     .message p {
       margin: 0 0 12px;
-    }
-    @media (max-width: 599px) {
-      .enter-hint {
-        display: none;
-      }
     }
   `,
 })

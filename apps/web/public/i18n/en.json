@@ -805,7 +805,6 @@
     "discard": "Discard",
     "write": "Write a message",
     "send": "Send",
-    "enterHint": "Enter sends, Shift+Enter starts a new line.",
     "maskedHint": "Contact details are hidden until you have a booking that goes ahead.",
     "toSettings": "Go to Settings",
     "ask": "Ask the lender",

@@ -12,6 +12,7 @@ import {
   provideZonelessChangeDetection,
 } from '@angular/core';
 import {
+  Router,
   provideRouter,
   withComponentInputBinding,
   withInMemoryScrolling,
@@ -30,6 +31,15 @@ import {
   initialLanguage,
 } from './core/i18n/language';
 
+/** The messages list or one of its conversations. */
+function isMessagesUrl(url: string): boolean {
+  return (
+    url === '/messages' ||
+    url.startsWith('/messages/') ||
+    url.startsWith('/messages?')
+  );
+}
+
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
@@ -39,7 +49,22 @@ export const appConfig: ApplicationConfig = {
       withComponentInputBinding(),
       withInMemoryScrolling({ scrollPositionRestoration: 'top' }),
       // Animated route changes (CSS in styles.scss); no-op where unsupported.
-      withViewTransitions({ skipInitialTransition: true }),
+      withViewTransitions({
+        skipInitialTransition: true,
+        // Between the messages list and a conversation the layout slides
+        // instead: no whole-page fade on top of it.
+        onViewTransitionCreated: ({ transition }) => {
+          const router = inject(Router);
+          const to = router.currentNavigation()?.finalUrl;
+          if (
+            to &&
+            isMessagesUrl(router.url) &&
+            isMessagesUrl(router.serializeUrl(to))
+          ) {
+            transition.skipTransition();
+          }
+        },
+      }),
     ),
     // XHR, not fetch: only XHR reports upload progress (photo uploads).
     provideHttpClient(withXhr(), withInterceptors([authInterceptor])),

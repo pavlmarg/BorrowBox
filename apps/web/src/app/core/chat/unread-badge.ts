@@ -25,9 +25,9 @@ import { UnreadStore } from './unread.store';
       display: contents;
     }
     .badge {
-      background: var(--mat-sys-primary);
-      border-radius: var(--bb-radius);
-      color: var(--mat-sys-on-primary);
+      background: var(--mat-sys-error);
+      border-radius: 999px;
+      color: var(--mat-sys-on-error);
       font: var(--mat-sys-label-small);
       font-weight: 700;
       margin-left: auto;

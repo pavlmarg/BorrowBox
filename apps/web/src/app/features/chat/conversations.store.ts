@@ -18,6 +18,8 @@ interface ConversationsState {
   status: 'loading' | 'ready' | 'error';
   error: KnownErrorCode | null;
   loadingMore: boolean;
+  /** The conversation open beside the list, if any. */
+  activeId: string | null;
 }
 
 /** Most recent activity first, as the API sorts them. */
@@ -40,6 +42,7 @@ export const ConversationsStore = signalStore(
     status: 'loading',
     error: null,
     loadingMore: false,
+    activeId: null,
   }),
   withProps(() => ({ _api: inject(Api), _meta: { seq: 0 } })),
   withMethods((store) => {
@@ -58,6 +61,7 @@ export const ConversationsStore = signalStore(
           status: 'ready',
           error: null,
         });
+        clearActive();
       } catch (err) {
         if (seq !== store._meta.seq) return;
         if (store.status() !== 'ready') {
@@ -66,8 +70,27 @@ export const ConversationsStore = signalStore(
       }
     };
 
+    /** The open conversation's messages are being read: no unread count. */
+    const clearActive = (): void => {
+      const id = store.activeId();
+      if (!id) return;
+      patchState(store, {
+        conversations: store
+          .conversations()
+          .map((c) =>
+            c.id === id && c.unreadCount > 0 ? { ...c, unreadCount: 0 } : c,
+          ),
+      });
+    };
+
     return {
       load,
+
+      /** Marks which conversation is open beside the list (null: none). */
+      setActive(id: string | null): void {
+        patchState(store, { activeId: id });
+        clearActive();
+      },
 
       async loadMore(): Promise<void> {
         const cursor = store.nextCursor();
@@ -111,7 +134,7 @@ export const ConversationsStore = signalStore(
             lastMessage: push.message,
             lastMessageAt: push.message.sentAt,
             unreadCount:
-              push.message.mine || known
+              push.message.mine || known || current.id === store.activeId()
                 ? current.unreadCount
                 : current.unreadCount + 1,
           };

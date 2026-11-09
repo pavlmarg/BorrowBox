@@ -1,7 +1,9 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  effect,
   inject,
+  input,
   type OnInit,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -65,6 +67,8 @@ import { ConversationsStore } from './conversations.store';
                   <a
                     class="row"
                     [class.unread]="c.unreadCount > 0"
+                    [class.active]="c.id === activeId()"
+                    [attr.aria-current]="c.id === activeId() ? 'page' : null"
                     [routerLink]="['/messages', c.id]"
                   >
                     <bb-avatar [size]="44" />
@@ -127,16 +131,21 @@ import { ConversationsStore } from './conversations.store';
       margin: 8px 0 0;
       padding: 0;
     }
-    .list li + li .row {
-      border-top: 1px solid var(--mat-sys-outline-variant);
-    }
     .row {
       align-items: center;
+      border-radius: 12px;
       color: var(--mat-sys-on-surface);
       display: flex;
       gap: 16px;
-      padding: 16px 0;
+      padding: 12px;
       text-decoration: none;
+      transition: background-color var(--bb-fast) var(--bb-ease);
+    }
+    .row:hover {
+      background: rgb(var(--bb-line-rgb) / 0.05);
+    }
+    .row.active {
+      background: var(--bb-sky-100);
     }
     .row:hover .name,
     .row:focus-visible .name {
@@ -197,9 +206,9 @@ import { ConversationsStore } from './conversations.store';
       font-weight: 600;
     }
     .count {
-      background: var(--mat-sys-primary);
-      border-radius: var(--bb-radius);
-      color: var(--mat-sys-on-primary);
+      background: var(--mat-sys-error);
+      border-radius: 999px;
+      color: var(--mat-sys-on-error);
       flex: none;
       font: var(--mat-sys-label-medium);
       font-weight: 700;
@@ -235,11 +244,15 @@ import { ConversationsStore } from './conversations.store';
   `,
 })
 export class ConversationsPage implements OnInit {
+  /** The conversation open beside the list (wide screens), highlighted. */
+  readonly activeId = input<string | null>(null);
+
   protected readonly store = inject(ConversationsStore);
   private readonly transloco = inject(TranslocoService);
   private readonly language = inject(LanguageService);
 
   constructor() {
+    effect(() => this.store.setActive(this.activeId()));
     const socket = inject(ChatSocket);
     socket.pushes
       .pipe(takeUntilDestroyed())
