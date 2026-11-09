@@ -1,7 +1,8 @@
-<!-- Signed-in pages bring their own layout (AppShell); auth pages get a
-     floating language switch over their full-screen scene. -->
+<!-- Signed-in pages bring their own layout (AppShell); auth pages get
+     floating theme and language switches over their full-screen scene. -->
 @if (onAuthPage()) {
 <header class="toolbar">
+  <bb-theme-toggle />
   <bb-language-toggle (changed)="accountLanguage.set($event)" />
 </header>
 }

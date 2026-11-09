@@ -22,6 +22,8 @@ import { AuthStore } from '../auth/auth.store';
 import { AccountLanguage } from '../i18n/account-language';
 import { LanguageService } from '../i18n/language';
 import { LanguageToggle } from '../i18n/language-toggle';
+import { ThemeService } from '../theme/theme';
+import { ThemeToggle } from '../theme/theme-toggle';
 import { Avatar } from '../../shared/avatar/avatar';
 import { NavIcon } from './nav-icon';
 import { FOOTER_NAV, MAIN_NAV } from './nav-items';
@@ -44,6 +46,7 @@ const WIDE = '(min-width: 960px)';
     MatSidenavModule,
     MatButtonModule,
     LanguageToggle,
+    ThemeToggle,
     NavIcon,
     Avatar,
   ],
@@ -135,6 +138,10 @@ const WIDE = '(min-width: 960px)';
               </li>
             }
             <li class="language">
+              <bb-theme-toggle menuX="after" />
+              <span>{{ t('theme.' + themePreference()) }}</span>
+            </li>
+            <li class="language">
               <bb-language-toggle (changed)="accountLanguage.set($event)" />
               <span>{{ t('languages.' + language()) }}</span>
             </li>
@@ -185,8 +192,10 @@ const WIDE = '(min-width: 960px)';
             </nav>
           }
           <span class="spacer"></span>
-          <!-- Phones: the language is in the drawer, to leave room here. -->
+          <!-- Phones: theme and language are in the drawer, to leave room
+               here. -->
           @if (wide()) {
+            <bb-theme-toggle class="theme" />
             <bb-language-toggle (changed)="accountLanguage.set($event)" />
           }
           @if (signedIn()) {
@@ -233,8 +242,10 @@ const WIDE = '(min-width: 960px)';
       display: block;
     }
     .container {
-      --mat-sidenav-container-background-color: rgb(255 255 255 / 0.82);
-      --mat-sidenav-container-divider-color: rgb(16 58 99 / 0.08);
+      --mat-sidenav-container-background-color: rgb(
+        var(--bb-surface-rgb) / 0.82
+      );
+      --mat-sidenav-container-divider-color: rgb(var(--bb-line-rgb) / 0.08);
       --mat-sidenav-container-shape: 0;
       --mat-sidenav-container-width: 280px;
       --mat-sidenav-content-background-color: transparent;
@@ -278,7 +289,7 @@ const WIDE = '(min-width: 960px)';
       padding: 0;
     }
     .footer {
-      border-top: 1px solid rgb(16 58 99 / 0.08);
+      border-top: 1px solid rgb(var(--bb-line-rgb) / 0.08);
       margin-top: auto;
       padding-top: 12px;
     }
@@ -340,6 +351,7 @@ const WIDE = '(min-width: 960px)';
     }
     .language {
       align-items: center;
+      /* Both toggles are 34 x 26 px, so the two rows line up. */
       color: var(--mat-sys-on-surface-variant);
       display: flex;
       font: var(--mat-sys-body-medium);
@@ -370,8 +382,8 @@ const WIDE = '(min-width: 960px)';
     .topbar {
       align-items: center;
       backdrop-filter: blur(12px);
-      background: rgb(255 255 255 / 0.8);
-      border-bottom: 1px solid rgb(16 58 99 / 0.08);
+      background: rgb(var(--bb-surface-rgb) / 0.8);
+      border-bottom: 1px solid rgb(var(--bb-line-rgb) / 0.08);
       /* 64 px with its border, as Explore's height assumes. */
       box-sizing: border-box;
       display: flex;
@@ -459,9 +471,12 @@ const WIDE = '(min-width: 960px)';
     .bar-button {
       margin-left: 8px;
     }
+    .theme {
+      margin-right: 4px;
+    }
     /* A compact box: thin outline, slightly rounded. */
     .sign-out {
-      --mat-button-outlined-outline-color: rgb(16 58 99 / 0.3);
+      --mat-button-outlined-outline-color: rgb(var(--bb-line-rgb) / 0.3);
       --mat-button-outlined-outline-width: 1px;
       --mat-button-outlined-container-shape: 8px;
       --mat-button-outlined-container-height: 34px;
@@ -513,6 +528,7 @@ export class AppShell {
   private readonly breakpoints = inject(BreakpointObserver);
   protected readonly accountLanguage = inject(AccountLanguage);
   protected readonly language = inject(LanguageService).current;
+  protected readonly themePreference = inject(ThemeService).preference;
 
   protected readonly signedIn = this.auth.isAuthenticated;
   /** Signed-out visitors don't see pages they can't open (E3). */
