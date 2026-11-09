@@ -39,6 +39,15 @@ export const appRoutes: Route[] = [
             (m) => m.myItemsRoutes,
           ),
       },
+      // Paying for a booking (Phase 4). The lazy `bookings` feature
+      // (/bookings, /bookings/:id) is added alongside in the same web pass;
+      // when merged, this entry can stay next to it or move into its routes.
+      {
+        path: 'bookings/:id/pay',
+        canMatch: [authGuard],
+        loadComponent: () =>
+          import('./features/payments/pay.page').then((m) => m.PayPage),
+      },
       {
         path: 'profile',
         canMatch: [authGuard],
