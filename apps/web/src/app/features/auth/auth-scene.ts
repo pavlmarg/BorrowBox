@@ -82,9 +82,10 @@ function prefersReducedMotion(): boolean {
     }
 
     .scene {
-      --tone: 234 245 255; /* register: light sky blue */
-      --tone-soft: 246 251 255;
-      --glow: 196 228 255;
+      /* register: light sky blue (dark: deep navy) */
+      --tone: var(--bb-auth-tone);
+      --tone-soft: var(--bb-auth-tone-soft);
+      --glow: var(--bb-auth-glow);
       /* No panel: the whole screen is a soft tint and the video's edge
          fades into it, so nothing ends in a hard line. */
       background:
@@ -99,9 +100,10 @@ function prefersReducedMotion(): boolean {
       position: relative;
     }
     .scene.tone-login {
-      --tone: 230 249 246; /* login: light aqua */
-      --tone-soft: 245 253 251;
-      --glow: 190 238 229;
+      /* login: light aqua (dark: deep teal) */
+      --tone: var(--bb-auth-login-tone);
+      --tone-soft: var(--bb-auth-login-tone-soft);
+      --glow: var(--bb-auth-login-glow);
       background:
         radial-gradient(
           60% 70% at 88% 30%,
@@ -113,6 +115,8 @@ function prefersReducedMotion(): boolean {
 
     .media {
       background: var(--poster-wide) 50% 30% / cover no-repeat;
+      /* Dimmed in dark mode, so the video doesn't glare. */
+      filter: brightness(var(--bb-auth-video-brightness));
       inset: 0 0 0 38%;
       position: absolute;
       /* Feathered edge towards the form: fully transparent at the video's
@@ -173,7 +177,7 @@ function prefersReducedMotion(): boolean {
       margin: 0;
     }
     .tone-login .name {
-      color: #137a74;
+      color: var(--bb-aqua-700);
     }
     /* The name is the way back to Explore. */
     .name a {

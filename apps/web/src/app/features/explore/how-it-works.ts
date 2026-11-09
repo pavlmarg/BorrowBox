@@ -129,8 +129,8 @@ export const STEP_EVERY_MS = 4000;
     }
     .stage {
       aspect-ratio: 5 / 3;
-      background: #fff;
-      border: 1px solid rgb(16 58 99 / 0.08);
+      background: rgb(var(--bb-surface-rgb));
+      border: 1px solid rgb(var(--bb-line-rgb) / 0.08);
       overflow: hidden;
     }
     .art {
@@ -171,7 +171,7 @@ export const STEP_EVERY_MS = 4000;
       gap: 6px;
     }
     .dot {
-      background: rgb(16 58 99 / 0.18);
+      background: rgb(var(--bb-line-rgb) / 0.18);
       border: 0;
       border-radius: 50%;
       cursor: pointer;
@@ -223,7 +223,7 @@ export const STEP_EVERY_MS = 4000;
       stroke-width: 10;
     }
     .radius {
-      fill: rgb(31 111 178 / 0.12);
+      fill: color-mix(in srgb, var(--bb-sky-700) 12%, transparent);
       stroke: var(--bb-sky-500);
       stroke-width: 1.5;
       transform-box: fill-box;
@@ -249,7 +249,7 @@ export const STEP_EVERY_MS = 4000;
       animation: bb-how-drop 600ms var(--bb-ease) both;
     }
     .pin-dot {
-      fill: #fff;
+      fill: rgb(var(--bb-surface-rgb));
       animation: bb-how-drop 600ms var(--bb-ease) both;
     }
     .card {
@@ -265,7 +265,7 @@ export const STEP_EVERY_MS = 4000;
       fill: var(--bb-sky-300);
     }
     .shield {
-      fill: #fff;
+      fill: rgb(var(--bb-surface-rgb));
       stroke: var(--bb-sky-700);
       stroke-width: 2.5;
       animation: bb-how-pop 500ms 200ms var(--bb-ease) both;
@@ -273,14 +273,14 @@ export const STEP_EVERY_MS = 4000;
       transform-origin: center;
     }
     .check {
-      stroke: #15803d;
+      stroke: var(--bb-check);
       stroke-dasharray: 40;
       stroke-dashoffset: 40;
       stroke-width: 4;
       animation: bb-how-draw 600ms 700ms var(--bb-ease) forwards;
     }
     .phone {
-      fill: #fff;
+      fill: rgb(var(--bb-surface-rgb));
       stroke: var(--bb-sky-700);
       stroke-width: 2.5;
     }
@@ -288,7 +288,7 @@ export const STEP_EVERY_MS = 4000;
       fill: var(--bb-sky-700);
     }
     .scan {
-      stroke: #15803d;
+      stroke: var(--bb-check);
       stroke-width: 2.5;
       animation: bb-how-scan 1.6s ease-in-out infinite alternate;
     }

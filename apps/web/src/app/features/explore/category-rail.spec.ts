@@ -40,7 +40,7 @@ describe('CategoryRail', () => {
     const tools = buttons().find((b) =>
       b.textContent?.includes('catalog.categories.tools'),
     ) as HTMLButtonElement;
-    expect(tools.style.getPropertyValue('--cat')).toBe('#c2410c');
+    expect(tools.style.getPropertyValue('--cat')).toBe('var(--bb-cat-tools)');
   });
 
   it('shows how many results each category gives', async () => {

@@ -202,14 +202,14 @@ import { ListingStore } from './listing.store';
       gap: 16px;
       margin-bottom: 16px;
     }
-    /* Phones: a round black camera button. */
+    /* Phones: a round black camera button (light grey in dark mode). */
     .camera {
       align-items: center;
-      background: #111;
+      background: var(--bb-camera-bg);
       border: 0;
       border-radius: 50%;
       box-shadow: 0 4px 12px rgb(0 0 0 / 0.25);
-      color: #fff;
+      color: var(--bb-camera-fg);
       cursor: pointer;
       display: inline-flex;
       height: 64px;
@@ -237,8 +237,8 @@ import { ListingStore } from './listing.store';
     /* With a mouse: a dashed area to drop photos on. */
     .drop {
       align-items: center;
-      background: #fff;
-      border: 2px dashed rgb(16 58 99 / 0.25);
+      background: rgb(var(--bb-surface-rgb));
+      border: 2px dashed rgb(var(--bb-line-rgb) / 0.25);
       border-radius: 12px;
       display: flex;
       flex-direction: column;
@@ -309,12 +309,12 @@ import { ListingStore } from './listing.store';
     }
     .tile-placeholder {
       aspect-ratio: 1;
-      background: rgb(16 58 99 / 0.08);
+      background: rgb(var(--bb-line-rgb) / 0.08);
       outline: 2px dashed var(--bb-sky-500);
     }
     .badge {
-      background: var(--bb-sky-700);
-      color: #fff;
+      background: var(--bb-solid);
+      color: var(--bb-on-solid);
       font: var(--mat-sys-label-small);
       left: 6px;
       padding: 2px 6px;
@@ -348,7 +348,7 @@ import { ListingStore } from './listing.store';
     }
     .remove {
       align-items: center;
-      background: rgb(255 255 255 / 0.92);
+      background: rgb(var(--bb-surface-rgb) / 0.92);
       border: 0;
       border-radius: var(--bb-button-radius);
       cursor: pointer;

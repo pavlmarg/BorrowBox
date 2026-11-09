@@ -69,7 +69,7 @@ describe('ExplorePage', () => {
     expect(rows[0].textContent).toContain('catalog.categories.tools');
     expect(rows[0].textContent).toContain('Works well');
     const row = rows[0].querySelector('.row') as HTMLElement;
-    expect(row.style.getPropertyValue('--cat')).toBe('#c2410c');
+    expect(row.style.getPropertyValue('--cat')).toBe('var(--bb-cat-tools)');
   });
 
   it('says when there is nothing nearby', async () => {

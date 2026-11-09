@@ -148,7 +148,7 @@ const GAP_PX = 12;
   `,
   styles: `
     :host {
-      border-bottom: 1px solid rgb(16 58 99 / 0.08);
+      border-bottom: 1px solid rgb(var(--bb-line-rgb) / 0.08);
       display: block;
       padding: 16px 0 18px;
     }
@@ -261,7 +261,11 @@ const GAP_PX = 12;
     .chip {
       align-items: center;
       align-self: flex-start;
-      background: color-mix(in srgb, var(--cat) 7%, white);
+      background: color-mix(
+        in srgb,
+        var(--cat) var(--bb-tint),
+        rgb(var(--bb-surface-rgb))
+      );
       border-radius: var(--bb-button-radius);
       color: var(--cat);
       display: inline-flex;
@@ -283,7 +287,7 @@ const GAP_PX = 12;
     /* Round on purpose, centred on the photos, over the row's edges. */
     .arrow {
       align-items: center;
-      background: #fff;
+      background: rgb(var(--bb-surface-rgb));
       border: 0;
       border-radius: 50%;
       box-shadow: var(--bb-shadow-md);

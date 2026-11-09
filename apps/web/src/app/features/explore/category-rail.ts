@@ -101,7 +101,11 @@ import { ExploreStore } from './explore.store';
       outline-offset: -3px;
     }
     .category.chosen {
-      background: color-mix(in srgb, var(--cat) 7%, white);
+      background: color-mix(
+        in srgb,
+        var(--cat) var(--bb-tint),
+        rgb(var(--bb-surface-rgb))
+      );
       color: var(--cat);
       font-weight: 600;
     }
@@ -125,13 +129,13 @@ import { ExploreStore } from './explore.store';
     /* "All": every colour at once. */
     .swatch.all {
       background: conic-gradient(
-        #b91c1c,
-        #b45309,
-        #15803d,
-        #0e7490,
-        #4338ca,
-        #a21caf,
-        #b91c1c
+        var(--bb-cat-party),
+        var(--bb-cat-diy-ladders),
+        var(--bb-cat-garden),
+        var(--bb-cat-cleaning),
+        var(--bb-cat-electronics),
+        var(--bb-cat-music),
+        var(--bb-cat-party)
       );
     }
   `,

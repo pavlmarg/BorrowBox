@@ -78,8 +78,8 @@ let toggles = 0;
     .toggle {
       align-items: center;
       backdrop-filter: blur(8px);
-      background: rgb(255 255 255 / 0.78);
-      border: 1px solid rgb(16 58 99 / 0.1);
+      background: rgb(var(--bb-surface-rgb) / 0.78);
+      border: 1px solid rgb(var(--bb-line-rgb) / 0.1);
       border-radius: var(--bb-control-radius, 6px);
       box-shadow: var(--bb-shadow-sm);
       cursor: pointer;
