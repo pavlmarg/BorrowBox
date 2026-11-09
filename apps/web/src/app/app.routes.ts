@@ -40,6 +40,14 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'bookings',
+        canMatch: [authGuard],
+        loadChildren: () =>
+          import('./features/bookings/bookings.routes').then(
+            (m) => m.bookingsRoutes,
+          ),
+      },
+      {
         path: 'profile',
         canMatch: [authGuard],
         loadChildren: () =>
