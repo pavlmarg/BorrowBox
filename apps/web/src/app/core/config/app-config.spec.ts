@@ -7,11 +7,32 @@ import { TestBed } from '@angular/core/testing';
 import { AppConfigService, parseAppConfig } from './app-config';
 
 const STYLE = 'https://api.maptiler.com/maps/streets-v2/style.json?key=abc';
+const KEY = 'pk_test_51AbCdEfGhIjKlMnOpQrStUv';
 
 describe('parseAppConfig', () => {
   it('keeps an https style URL', () => {
     expect(parseAppConfig({ mapStyleUrl: STYLE })).toEqual({
       mapStyleUrl: STYLE,
+      stripePublishableKey: null,
+    });
+  });
+
+  it('keeps a Stripe test-mode publishable key', () => {
+    expect(parseAppConfig({ stripePublishableKey: KEY })).toEqual({
+      mapStyleUrl: null,
+      stripePublishableKey: KEY,
+    });
+  });
+
+  it.each([
+    ['a live key', 'pk_live_51AbCdEfGhIjKlMnOpQrStUv'],
+    ['a secret key', 'sk_test_51AbCdEfGhIjKlMnOpQrStUv'],
+    ['the example placeholder', 'pk_test_YOUR_STRIPE_PUBLISHABLE_KEY'],
+    ['not a string', 42],
+  ])('refuses %s', (_, stripePublishableKey) => {
+    expect(parseAppConfig({ stripePublishableKey })).toEqual({
+      mapStyleUrl: null,
+      stripePublishableKey: null,
     });
   });
 
@@ -27,7 +48,10 @@ describe('parseAppConfig', () => {
       },
     ],
   ])('turns %s into "no map"', (_, raw) => {
-    expect(parseAppConfig(raw)).toEqual({ mapStyleUrl: null });
+    expect(parseAppConfig(raw)).toEqual({
+      mapStyleUrl: null,
+      stripePublishableKey: null,
+    });
   });
 });
 
@@ -47,8 +71,8 @@ describe('AppConfigService', () => {
     const both = Promise.all([service.load(), service.load()]);
     http.expectOne('/config.json').flush({ mapStyleUrl: STYLE });
     expect(await both).toEqual([
-      { mapStyleUrl: STYLE },
-      { mapStyleUrl: STYLE },
+      { mapStyleUrl: STYLE, stripePublishableKey: null },
+      { mapStyleUrl: STYLE, stripePublishableKey: null },
     ]);
     http.verify();
   });
@@ -59,6 +83,9 @@ describe('AppConfigService', () => {
     http
       .expectOne('/config.json')
       .flush('', { status: 404, statusText: 'Not Found' });
-    expect(await config).toEqual({ mapStyleUrl: null });
+    expect(await config).toEqual({
+      mapStyleUrl: null,
+      stripePublishableKey: null,
+    });
   });
 });

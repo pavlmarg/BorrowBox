@@ -32,6 +32,11 @@ describe('start page', () => {
     ['/explore', false, '/explore'],
     ['/settings', true, '/settings'],
     ['/settings', false, '/auth/login?returnUrl=%2Fsettings'],
+    [
+      '/bookings/b-1/pay',
+      false,
+      '/auth/login?returnUrl=%2Fbookings%2Fb-1%2Fpay',
+    ],
   ])('%s (signed in: %s) lands on %s', async (url, signedIn, expected) => {
     expect(await landOn(url, signedIn)).toBe(expected);
   });
