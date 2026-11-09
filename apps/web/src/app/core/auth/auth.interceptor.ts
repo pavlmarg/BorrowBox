@@ -6,7 +6,7 @@ import {
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, from, switchMap, throwError } from 'rxjs';
-import type { ApiErrorResponse } from '../../api/models';
+import { apiErrorBody } from '../api-errors';
 import { AuthStore } from './auth.store';
 
 /** Auth endpoints use the refresh cookie, never the bearer token. */
@@ -36,8 +36,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       const expired =
         err instanceof HttpErrorResponse &&
         err.status === 401 &&
-        (err.error as Partial<ApiErrorResponse> | null)?.code ===
-          'UNAUTHENTICATED';
+        apiErrorBody(err)?.code === 'UNAUTHENTICATED';
       if (!expired) return throwError(() => err);
 
       return from(auth.refresh()).pipe(
