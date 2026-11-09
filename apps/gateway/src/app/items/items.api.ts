@@ -335,6 +335,14 @@ export class SearchItemsBody implements SearchItemsRequest {
   @IsIn(SEARCH_RADIUS_KM)
   radiusKm!: SearchRadiusKm;
 
+  @ApiPropertyOptional({
+    description:
+      'Further away (ADR-0023): only items farther than radiusKm, with no upper limit',
+  })
+  @IsOptional()
+  @IsBoolean()
+  beyond?: boolean;
+
   @ApiPropertyOptional({ maxLength: SEARCH_QUERY_MAX_LENGTH })
   @IsOptional()
   @trim()

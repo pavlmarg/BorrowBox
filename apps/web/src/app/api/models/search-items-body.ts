@@ -6,6 +6,11 @@ import { ItemCategory } from '../models/item-category';
 import { PriceUnit } from '../models/price-unit';
 import { SearchRadiusKm } from '../models/search-radius-km';
 export interface SearchItemsBody {
+
+  /**
+   * Further away (ADR-0023): only items farther than radiusKm, with no upper limit
+   */
+  beyond?: boolean;
   category?: ItemCategory;
 
   /**

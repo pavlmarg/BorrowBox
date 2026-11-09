@@ -5447,6 +5447,10 @@
               }
             ]
           },
+          "beyond": {
+            "type": "boolean",
+            "description": "Further away (ADR-0023): only items farther than radiusKm, with no upper limit"
+          },
           "q": {
             "type": "string",
             "maxLength": 100

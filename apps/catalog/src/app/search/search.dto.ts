@@ -44,6 +44,11 @@ export class SearchItemsDto implements SearchItemsRequest {
   @IsIn(SEARCH_RADIUS_KM)
   radiusKm!: SearchRadiusKm;
 
+  /** Only items farther than `radiusKm` (ADR-0023). */
+  @IsOptional()
+  @IsBoolean()
+  beyond?: boolean;
+
   /** Blank counts as no text. */
   @IsOptional()
   @Transform(trim)

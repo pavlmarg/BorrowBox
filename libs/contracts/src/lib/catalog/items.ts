@@ -156,6 +156,11 @@ export interface SearchItemsRequest {
   /** The searcher's chosen point; used for this query only, never stored or logged. */
   near: GeoPoint;
   radiusKm: SearchRadiusKm;
+  /**
+   * "Further away" (ADR-0023): only items farther than `radiusKm`, with no
+   * upper limit, nearest first. The other filters still apply.
+   */
+  beyond?: boolean;
   /** Free text, matched in Greek and English. */
   q?: string;
   category?: ItemCategory;

@@ -179,6 +179,61 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
                     </button>
                   </div>
                 }
+                @if (!store.hasMore()) {
+                  @let further = store.further();
+                  @if (further.status === 'loading') {
+                    <div class="more" role="status">
+                      <mat-spinner diameter="18" />
+                    </div>
+                  } @else if (further.status === 'error') {
+                    <div class="more">
+                      <button
+                        mat-stroked-button
+                        type="button"
+                        (click)="store.loadFurther()"
+                      >
+                        {{ t('explore.further.show') }}
+                      </button>
+                    </div>
+                  } @else if (further.items.length > 0) {
+                    <section class="further" aria-labelledby="further-title">
+                      <h2 id="further-title" class="further-title">
+                        {{ t('explore.further.title') }}
+                      </h2>
+                      <p class="further-hint">
+                        {{
+                          t('explore.further.hint', {
+                            km: store.filters().radiusKm,
+                          })
+                        }}
+                      </p>
+                      @for (item of further.items; track item.id) {
+                        <bb-result-row
+                          [id]="'result-' + item.id"
+                          [item]="item"
+                          [selected]="store.selectedId() === item.id"
+                          (hovered)="store.select($event)"
+                        />
+                      }
+                      @if (further.nextCursor) {
+                        <div class="more">
+                          <button
+                            mat-stroked-button
+                            type="button"
+                            [disabled]="further.loadingMore"
+                            (click)="store.loadFurther()"
+                          >
+                            @if (further.loadingMore) {
+                              <mat-spinner diameter="18" />
+                            } @else {
+                              {{ t('explore.loadMore') }}
+                            }
+                          </button>
+                        </div>
+                      }
+                    </section>
+                  }
+                }
               }
             }
           </div>
@@ -385,6 +440,20 @@ const SKELETON_ROWS = [1, 2, 3, 4, 5, 6];
     .message .strong {
       color: var(--mat-sys-on-surface);
       font: var(--mat-sys-title-medium);
+    }
+    .further {
+      border-top: 1px solid var(--mat-sys-outline-variant);
+      margin-top: 16px;
+      padding-top: 20px;
+    }
+    .further-title {
+      font: var(--mat-sys-title-medium);
+      margin: 0 0 2px;
+    }
+    .further-hint {
+      color: var(--mat-sys-on-surface-variant);
+      font: var(--mat-sys-body-medium);
+      margin: 0 0 8px;
     }
     .more {
       align-items: center;

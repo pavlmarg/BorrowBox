@@ -260,6 +260,11 @@
       "show": "Show step {{n}}",
       "pause": "Pause the animation",
       "play": "Play the animation"
+    },
+    "further": {
+      "title": "Further away",
+      "hint": "More than {{km}} km from here, nearest first.",
+      "show": "Show items further away"
     }
   },
   "item": {
