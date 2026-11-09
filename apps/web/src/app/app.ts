@@ -14,11 +14,10 @@ import { AccountLanguage } from './core/i18n/account-language';
 import { LANGUAGES, LanguageService } from './core/i18n/language';
 import { LanguageToggle } from './core/i18n/language-toggle';
 import { ThemeService } from './core/theme/theme';
-import { ThemeToggle } from './core/theme/theme-toggle';
 
 @Component({
   selector: 'bb-root',
-  imports: [RouterOutlet, LanguageToggle, ThemeToggle],
+  imports: [RouterOutlet, LanguageToggle],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

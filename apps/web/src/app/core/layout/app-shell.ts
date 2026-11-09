@@ -143,8 +143,8 @@ const WIDE = '(min-width: 960px)';
               </li>
             }
             <li class="language">
-              <bb-theme-toggle menuX="after" />
-              <span>{{ t('theme.' + themePreference()) }}</span>
+              <bb-theme-toggle />
+              <span>{{ t('theme.' + nextTheme()) }}</span>
             </li>
             <li class="language">
               <bb-language-toggle (changed)="accountLanguage.set($event)" />
@@ -536,7 +536,11 @@ export class AppShell {
   private readonly breakpoints = inject(BreakpointObserver);
   protected readonly accountLanguage = inject(AccountLanguage);
   protected readonly language = inject(LanguageService).current;
-  protected readonly themePreference = inject(ThemeService).preference;
+  private readonly theme = inject(ThemeService).theme;
+  /** The drawer names what the theme button switches to. */
+  protected readonly nextTheme = computed(() =>
+    this.theme() === 'dark' ? 'light' : 'dark',
+  );
 
   protected readonly signedIn = this.auth.isAuthenticated;
   /** Signed-out visitors don't see pages they can't open (E3). */

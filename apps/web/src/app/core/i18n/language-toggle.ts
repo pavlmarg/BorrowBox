@@ -100,6 +100,14 @@ let toggles = 0;
       outline: 3px solid var(--bb-sky-300);
       outline-offset: 2px;
     }
+    /* In the app's top bar and drawer: the plain flag, no box or lift. */
+    :host-context(bb-app-shell) .toggle {
+      backdrop-filter: none;
+      background: none;
+      border-color: transparent;
+      box-shadow: none;
+      transform: none;
+    }
 
     .flag {
       border-radius: var(--bb-flag-radius, 3px);

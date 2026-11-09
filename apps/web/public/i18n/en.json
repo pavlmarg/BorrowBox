@@ -369,11 +369,8 @@
     "deleted": "Item deleted."
   },
   "theme": {
-    "label": "Appearance",
-    "button": "Appearance: {{choice}}",
-    "system": "Same as device",
-    "light": "Light",
-    "dark": "Dark"
+    "dark": "Dark mode",
+    "light": "Light mode"
   },
   "accountEmails": {
     "toExplore": "Go to Explore",

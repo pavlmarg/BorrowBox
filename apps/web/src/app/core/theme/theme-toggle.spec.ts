@@ -16,12 +16,7 @@ async function render() {
   const button = (fixture.nativeElement as HTMLElement).querySelector(
     'button.toggle',
   ) as HTMLButtonElement;
-  const open = async () => {
-    button.click();
-    await fixture.whenStable();
-    return [...document.querySelectorAll<HTMLButtonElement>('.theme-choice')];
-  };
-  return { fixture, button, open, theme: TestBed.inject(ThemeService) };
+  return { fixture, button, theme: TestBed.inject(ThemeService) };
 }
 
 describe('ThemeToggle', () => {
@@ -35,42 +30,24 @@ describe('ThemeToggle', () => {
   });
   afterEach(() => document.documentElement.removeAttribute('data-theme'));
 
-  it('names the current choice and opens a menu', async () => {
+  it('offers dark while light, named for what it does', async () => {
     const { button } = await render();
-    expect(button.getAttribute('aria-label')).toBe('theme.button');
-    expect(button.getAttribute('aria-haspopup')).toBe('menu');
+    expect(button.getAttribute('aria-label')).toBe('theme.dark');
+    expect(button.getAttribute('aria-haspopup')).toBeNull();
   });
 
-  it('offers the three choices, the current one checked', async () => {
-    const { open } = await render();
-    const items = await open();
-    expect(items.map((i) => i.textContent?.trim())).toEqual([
-      'theme.system',
-      'theme.light',
-      'theme.dark',
-    ]);
-    expect(items.map((i) => i.getAttribute('role'))).toEqual([
-      'menuitemradio',
-      'menuitemradio',
-      'menuitemradio',
-    ]);
-    expect(items.map((i) => i.getAttribute('aria-checked'))).toEqual([
-      'true',
-      'false',
-      'false',
-    ]);
-  });
-
-  it('switches to the chosen theme', async () => {
-    const { open, theme, fixture } = await render();
-    const items = await open();
-    items[2].click();
+  it('switches with one click each way, and remembers it', async () => {
+    const { button, theme, fixture } = await render();
+    button.click();
     await fixture.whenStable();
-    expect(theme.preference()).toBe('dark');
+    expect(theme.theme()).toBe('dark');
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
     expect(localStorage.getItem('bb.theme')).toBe('dark');
+    expect(button.getAttribute('aria-label')).toBe('theme.light');
 
-    const again = await open();
-    expect(again[2].getAttribute('aria-checked')).toBe('true');
+    button.click();
+    await fixture.whenStable();
+    expect(theme.theme()).toBe('light');
+    expect(localStorage.getItem('bb.theme')).toBe('light');
   });
 });
