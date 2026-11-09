@@ -53,15 +53,17 @@ export function createMailer(
     };
   }
 
+  // An empty user means none: Nest's ConfigService hands back the raw ''
+  // of an empty `SMTP_USER=` line, even when the config turned it into
+  // undefined, and STARTTLS would then be required of Mailpit.
+  const user = config.user || undefined;
   const transport: Transporter = createTransport({
     host: config.host,
     port: config.port,
     secure: config.secure,
-    requireTLS: !config.secure && config.user !== undefined,
+    requireTLS: !config.secure && user !== undefined,
     auth:
-      config.user !== undefined
-        ? { user: config.user, pass: config.password ?? '' }
-        : undefined,
+      user !== undefined ? { user, pass: config.password ?? '' } : undefined,
     connectionTimeout: SMTP_TIMEOUT_MS,
     greetingTimeout: SMTP_TIMEOUT_MS,
     socketTimeout: SMTP_TIMEOUT_MS,

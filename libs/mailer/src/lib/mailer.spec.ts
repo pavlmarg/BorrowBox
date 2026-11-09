@@ -86,6 +86,27 @@ describe('createMailer', () => {
       expect(email.text).toContain('Καλώς ήρθες.');
     });
 
+    it('treats an empty user as none (an empty SMTP_USER= line)', async () => {
+      const mailer = createMailer({
+        host: mailpit.smtpHost,
+        port: mailpit.smtpPort,
+        secure: false,
+        user: '',
+        password: '',
+        from: 'no-reply@borrowbox.test',
+      });
+      await mailer.send({
+        to: 'empty-user@example.com',
+        subject: 's',
+        text: 't',
+        html: 'h',
+      });
+      mailer.close();
+      expect(
+        await mailpit.waitForEmails('empty-user@example.com'),
+      ).toHaveLength(1);
+    });
+
     it('never sends credentials over a connection without TLS', async () => {
       // Mailpit offers no STARTTLS: with a user set, the mailer must refuse.
       const mailer = createMailer({
