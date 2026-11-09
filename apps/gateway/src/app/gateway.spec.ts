@@ -15,6 +15,7 @@ import {
   IdentityRpc,
   MessagingRpc,
   NotificationsRpc,
+  PaymentsRpc,
   type AuthSession,
   type RpcRequest,
   type UserProfile,
@@ -25,6 +26,7 @@ import {
   FakeCatalog,
   FakeIdentity,
   FakeNotifications,
+  FakePayments,
 } from '../testing/fake-service';
 
 const WEB = 'http://localhost:4200';
@@ -56,6 +58,7 @@ describe('Gateway (integration)', () => {
   let catalog: FakeCatalog;
   let bookings: FakeBookings;
   let notifications: FakeNotifications;
+  let payments: FakePayments;
   let app: NestExpressApplication;
   let signer: AccessTokenSigner;
   let otherSigner: AccessTokenSigner;
@@ -68,11 +71,13 @@ describe('Gateway (integration)', () => {
     catalog = new FakeCatalog();
     bookings = new FakeBookings();
     notifications = new FakeNotifications();
+    payments = new FakePayments();
     await Promise.all([
       identity.start(),
       catalog.start(),
       bookings.start(),
       notifications.start(),
+      payments.start(),
     ]);
 
     const keys = generateKeyPairSync('ed25519', {
@@ -102,6 +107,8 @@ describe('Gateway (integration)', () => {
       BOOKINGS_PORT: String(bookings.port),
       NOTIFICATIONS_HOST: '127.0.0.1',
       NOTIFICATIONS_PORT: String(notifications.port),
+      PAYMENTS_HOST: '127.0.0.1',
+      PAYMENTS_PORT: String(payments.port),
       RPC_TIMEOUT_MS: '1000',
       COOKIE_SECRET: 'test-cookie-secret-0123456789abcdef',
       JWT_PUBLIC_KEY: keys.publicKey,
@@ -121,6 +128,7 @@ describe('Gateway (integration)', () => {
     }).compile();
     app = moduleRef.createNestApplication<NestExpressApplication>({
       bodyParser: false,
+      rawBody: true,
       logger: false,
     });
     configureApp(app);
@@ -135,6 +143,7 @@ describe('Gateway (integration)', () => {
       catalog?.stop(),
       bookings?.stop(),
       notifications?.stop(),
+      payments?.stop(),
     ]);
     await redisClient?.quit();
     process.env = savedEnv;
@@ -146,6 +155,7 @@ describe('Gateway (integration)', () => {
     catalog.reset();
     bookings.reset();
     notifications.reset();
+    payments.reset();
     await redisClient.flushall(); // rate-limit counters
   });
 
@@ -474,11 +484,13 @@ describe('Gateway (integration)', () => {
       const bookingsExport = { exportedAt: 'b', asRenter: [], asLender: [] };
       const messagingExport = { exportedAt: 'm', conversations: [] };
       const notificationsExport = { exportedAt: 'n', emails: [] };
+      const paymentsExport = { exportedAt: 'p', payoutAccount: null };
       identity.on(IdentityRpc.exportMe, () => exported);
       catalog.on(CatalogRpc.exportMe, () => catalogExport);
       bookings.on(BookingsRpc.exportMe, () => bookingsExport);
       bookings.on(MessagingRpc.exportMe, () => messagingExport);
       notifications.on(NotificationsRpc.exportMe, () => notificationsExport);
+      payments.on(PaymentsRpc.exportMe, () => paymentsExport);
       const res = await http()
         .get('/api/me/export')
         .set('Authorization', await bearer())
@@ -489,6 +501,7 @@ describe('Gateway (integration)', () => {
         bookings: bookingsExport,
         messaging: messagingExport,
         notifications: notificationsExport,
+        payments: paymentsExport,
       });
       // Every service verifies the same token again.
       const token = identity.callsTo(IdentityRpc.exportMe)[0].message
@@ -502,6 +515,9 @@ describe('Gateway (integration)', () => {
       expect(
         notifications.callsTo(NotificationsRpc.exportMe)[0].message.accessToken,
       ).toBe(token);
+      expect(
+        payments.callsTo(PaymentsRpc.exportMe)[0].message.accessToken,
+      ).toBe(token);
       expect(res.headers['content-disposition']).toMatch(/^attachment;/);
       expect(res.headers['cache-control']).toBe('no-store');
     });
@@ -511,6 +527,7 @@ describe('Gateway (integration)', () => {
       catalog.on(CatalogRpc.exportMe, () => ({ exportedAt: 'x' }));
       bookings.on(BookingsRpc.exportMe, () => ({ exportedAt: 'x' }));
       bookings.on(MessagingRpc.exportMe, () => ({ exportedAt: 'x' }));
+      payments.on(PaymentsRpc.exportMe, () => ({ exportedAt: 'x' }));
       notifications.on(
         NotificationsRpc.exportMe,
         () => new Promise(() => undefined),

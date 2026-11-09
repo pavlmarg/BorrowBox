@@ -17,11 +17,13 @@ import {
   IdentityRpc,
   MessagingRpc,
   NotificationsRpc,
+  PaymentsRpc,
   type BookingsRpcPattern,
   type CatalogRpcPattern,
   type IdentityRpcPattern,
   type MessagingRpcPattern,
   type NotificationsRpcPattern,
+  type PaymentsRpcPattern,
   type RpcErrorBody,
   type RpcRequest,
 } from '@borrowbox/contracts';
@@ -142,6 +144,12 @@ export class FakeBookings extends FakeService<
 export class FakeNotifications extends FakeService<NotificationsRpcPattern> {
   constructor() {
     super(Object.values(NotificationsRpc));
+  }
+}
+
+export class FakePayments extends FakeService<PaymentsRpcPattern> {
+  constructor() {
+    super(Object.values(PaymentsRpc));
   }
 }
 

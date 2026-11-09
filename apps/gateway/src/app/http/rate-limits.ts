@@ -24,6 +24,10 @@ export const RefreshRateLimit = () =>
 export const SuggestRateLimit = () =>
   Throttle({ default: { limit: 300, ttl: MINUTE } });
 
+/** Stripe links (payouts): each call creates objects at Stripe. */
+export const StripeLinkRateLimit = () =>
+  Throttle({ default: { limit: 10, ttl: MINUTE } });
+
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 

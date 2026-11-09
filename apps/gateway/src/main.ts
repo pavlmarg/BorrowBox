@@ -39,6 +39,8 @@ async function serve(): Promise<void> {
   const { configureApp, GLOBAL_PREFIX } = await import('./app/bootstrap');
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: false, // configured (with a size limit) in configureApp
+    // Keeps `req.rawBody`: Stripe signs the exact bytes of its webhooks.
+    rawBody: true,
   });
   configureApp(app);
   app.enableShutdownHooks();

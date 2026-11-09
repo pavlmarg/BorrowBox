@@ -3374,6 +3374,178 @@
         ]
       }
     },
+    "/api/me/payouts": {
+      "get": {
+        "operationId": "PayoutsController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayoutAccountResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Where my payout setup stands",
+        "tags": [
+          "payouts"
+        ]
+      }
+    },
+    "/api/me/payouts/onboarding": {
+      "post": {
+        "description": "Creates the Stripe account the first time. Stripe sends the browser back to /settings/payouts?stripe=return, or ?stripe=refresh when the link has expired (ask for a new one).",
+        "operationId": "PayoutsController_startOnboarding",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StripeLinkResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EMAIL_NOT_VERIFIED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (10 per minute)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PROVIDER_UNAVAILABLE (Stripe), SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "A link to Stripe's onboarding, to set up payouts",
+        "tags": [
+          "payouts"
+        ]
+      }
+    },
+    "/api/me/payouts/dashboard": {
+      "post": {
+        "operationId": "PayoutsController_dashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StripeLinkResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PAYOUTS_NOT_SET_UP (finish onboarding first)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (10 per minute)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PROVIDER_UNAVAILABLE (Stripe), SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "A link to my Stripe Express dashboard (payouts, bank account)",
+        "tags": [
+          "payouts"
+        ]
+      }
+    },
     "/api/health": {
       "get": {
         "operationId": "HealthController_get",
@@ -4629,6 +4801,77 @@
           "emails"
         ]
       },
+      "PayoutStatus": {
+        "type": "string",
+        "enum": [
+          "NOT_STARTED",
+          "INCOMPLETE",
+          "PENDING",
+          "READY",
+          "RESTRICTED"
+        ],
+        "description": "NOT_STARTED, INCOMPLETE (Stripe needs details), PENDING (Stripe is checking), READY, RESTRICTED (Stripe disabled payouts)"
+      },
+      "ExportedPayoutAccount": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "description": "NOT_STARTED, INCOMPLETE (Stripe needs details), PENDING (Stripe is checking), READY, RESTRICTED (Stripe disabled payouts)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutStatus"
+              }
+            ]
+          },
+          "payoutsEnabled": {
+            "type": "boolean",
+            "description": "Whether Stripe pays out the balance to the lender's bank"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "When Stripe last reported on the account"
+          },
+          "stripeAccountId": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "status",
+          "payoutsEnabled",
+          "updatedAt",
+          "stripeAccountId",
+          "createdAt"
+        ]
+      },
+      "PaymentsDataExportResponse": {
+        "type": "object",
+        "properties": {
+          "exportedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payoutAccount": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExportedPayoutAccount"
+              }
+            ]
+          }
+        },
+        "required": [
+          "exportedAt",
+          "payoutAccount"
+        ]
+      },
       "DataExportResponse": {
         "type": "object",
         "properties": {
@@ -4646,6 +4889,9 @@
           },
           "notifications": {
             "$ref": "#/components/schemas/NotificationsDataExportResponse"
+          },
+          "payments": {
+            "$ref": "#/components/schemas/PaymentsDataExportResponse"
           }
         },
         "required": [
@@ -4653,7 +4899,8 @@
           "catalog",
           "bookings",
           "messaging",
-          "notifications"
+          "notifications",
+          "payments"
         ]
       },
       "DeleteAccountBody": {
@@ -5798,6 +6045,53 @@
         },
         "required": [
           "bookingId"
+        ]
+      },
+      "PayoutAccountResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "description": "NOT_STARTED, INCOMPLETE (Stripe needs details), PENDING (Stripe is checking), READY, RESTRICTED (Stripe disabled payouts)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutStatus"
+              }
+            ]
+          },
+          "payoutsEnabled": {
+            "type": "boolean",
+            "description": "Whether Stripe pays out the balance to the lender's bank"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "When Stripe last reported on the account"
+          }
+        },
+        "required": [
+          "status",
+          "payoutsEnabled",
+          "updatedAt"
+        ]
+      },
+      "StripeLinkResponse": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "A single-use Stripe page; send the browser there"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "url",
+          "expiresAt"
         ]
       },
       "HealthResponse": {

@@ -69,7 +69,9 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
         *   Price tags on Explore's map (ADR-0014): revisit if users take them for exact addresses.
         *   ~~CI speed-up: cache `.nx/cache` and pre-pull the Testcontainers images in GitHub Actions.~~ Done in Phase 3.
 *   [ ] **Phase 3 – Bookings:** availability, request / accept / decline, state machine, email notifications, in-app chat with price offers
+    *   The backend is merged; its PWA screens (borrowing, bookings, chat, the email-link pages) are built together with Phase 4's, after Phase 4's backend.
 *   [ ] **Phase 4 – Payments:** Stripe Connect onboarding, checkout, webhooks, transfers & refunds (test mode)
+    *   Backend first ([ADR-0019](docs/adr/0019-payments-fees-and-policies.md)): lender onboarding and webhooks done; checkout, then refunds and settlement, next.
 *   [ ] **Phase 5 – Handoff:** QR pickup/return protocol, condition photos, claim window
 *   [ ] **Phase 6 – Trust & Social:** chat, reviews, trust score, ID verification
 *   [ ] **Phase 7 – Hardening:** observability stack, e2e tests, VPS deployment
@@ -112,10 +114,11 @@ cp apps/identity/.env.example apps/identity/.env
 cp apps/catalog/.env.example apps/catalog/.env
 cp apps/bookings/.env.example apps/bookings/.env
 cp apps/notifications/.env.example apps/notifications/.env
+cp apps/payments/.env.example apps/payments/.env
 cp apps/gateway/.env.example apps/gateway/.env
 
 # 2. Token signing keys: paste all three lines into apps/identity/.env, and
-#    only JWT_KEY_ID + JWT_PUBLIC_KEY into the catalog, bookings, notifications and gateway .env files.
+#    only JWT_KEY_ID + JWT_PUBLIC_KEY into the catalog, bookings, notifications, payments and gateway .env files.
 node tools/gen-jwt-keys.mjs
 
 # 3. Set COOKIE_SECRET in apps/gateway/.env (32+ random characters):
@@ -130,6 +133,7 @@ npx nx serve identity   # TCP :4001, runs DB migrations in dev
 npx nx serve catalog    # TCP :4002, runs DB migrations in dev; needs Redis + SeaweedFS (photo pipeline)
 npx nx serve bookings   # TCP :4003, runs DB migrations in dev; needs Redis (expiry and chat jobs, live chat)
 npx nx serve notifications  # TCP :4004, runs DB migrations in dev; emails go to Mailpit (http://localhost:8025)
+npx nx serve payments   # TCP :4005, runs DB migrations in dev; needs Stripe test keys (see below)
 npx nx serve gateway    # http://localhost:3000/api (Swagger UI at /api/docs)
 npx nx serve web        # http://localhost:4200 (proxies /api to the gateway)
 ```
@@ -138,9 +142,25 @@ Google sign-in is optional. To enable it, create a "Web application" OAuth clien
 with redirect URI `http://localhost:4200/api/auth/google/callback`. Put `GOOGLE_CLIENT_ID` in both `.env`
 files and `GOOGLE_CLIENT_SECRET` in Identity's only. Left empty, Google sign-in stays disabled.
 
+#### Payments and Stripe (test mode)
+
+Payments only ever uses Stripe's **test mode**: a live key stops it from starting ([ADR-0019](docs/adr/0019-payments-fees-and-policies.md)).
+
+1. Create a Stripe account, switch the dashboard to **Test mode**, and enable **Connect** (Settings → Connect) with Express accounts.
+2. Put the test secret key (Developers → API keys, `sk_test_…`) in `STRIPE_SECRET_KEY` in `apps/payments/.env`.
+3. Install the [Stripe CLI](https://docs.stripe.com/stripe-cli), run `stripe login`, then forward both webhook routes to the gateway:
+   ```sh
+   stripe listen --forward-to localhost:3000/api/webhooks/stripe \
+                 --forward-connect-to localhost:3000/api/webhooks/stripe-connect
+   ```
+   Put the `whsec_…` it prints in both `STRIPE_WEBHOOK_SECRET` and `STRIPE_CONNECT_WEBHOOK_SECRET` (locally they're the same).
+4. Signed in with a verified email, `POST /api/me/payouts/onboarding` returns a Stripe link. Stripe's test onboarding takes the test data from [Stripe's Connect testing docs](https://docs.stripe.com/connect/testing) (test phone numbers, verification codes and bank accounts); nothing real is needed.
+
+In a deployment, register two webhook endpoints in the dashboard (`/api/webhooks/stripe` with "Your account" events, `/api/webhooks/stripe-connect` with "Connected accounts" events, at least `account.updated`); each has its own signing secret.
+
 Tests never read these `.env` files (`NODE_ENV=test`); they set their own environment.
 
-Catalog, Bookings and Notifications learn names, emails, verifications and items from other services' events, and RabbitMQ only
+Catalog, Bookings, Notifications and Payments learn names, emails, verifications and items from other services' events, and RabbitMQ only
 delivers to queues that already exist. Once a service runs for the first time, with the others running too,
 re-announce what came before it (safe to repeat):
 
