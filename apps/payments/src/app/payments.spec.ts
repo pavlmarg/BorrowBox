@@ -144,6 +144,23 @@ describe('Payments (integration)', () => {
       ).toHaveLength(1);
     });
 
+    it('works on the next try once a refused creation is fixed', async () => {
+      const { userId, accessToken } = await lender();
+      jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+      service.stripe.refusing = true;
+      await expect(onboard(accessToken)).rejects.toMatchObject({
+        code: 'INTERNAL',
+      });
+      service.stripe.refusing = false;
+      const link = await onboard(accessToken);
+
+      const accountId = await accountIdOf(userId);
+      expect(link.url).toContain(accountId);
+      expect(
+        service.stripe.created.filter((a) => a.userId === userId),
+      ).toHaveLength(1);
+    });
+
     it('answers INTERNAL when Stripe refuses the call, logging what identifies it', async () => {
       const { accessToken } = await lender();
       const errors = jest.spyOn(Logger.prototype, 'error');

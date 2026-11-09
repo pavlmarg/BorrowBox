@@ -66,6 +66,8 @@ export class FakeStripe implements StripeApi {
   /** Accounts Stripe has that Payments didn't make through `createAccount` (orphans). */
   readonly extraAccounts: ListedAccount[] = [];
   private readonly byIdempotencyKey = new Map<string, string>();
+  /** Account creations Stripe refused, by idempotency key. */
+  private readonly refusedKeys = new Map<string, StripeRequestError>();
   private readonly sdk = new SdkStripeApi('sk_test_fake');
   private readonly stripe = new Stripe('sk_test_fake');
   private next = 1;
@@ -112,7 +114,17 @@ export class FakeStripe implements StripeApi {
     country: string;
     idempotencyKey: string;
   }): Promise<string> {
-    this.check();
+    // Like Stripe, a refused key answers with the same refusal (24 hours).
+    const refusal = this.refusedKeys.get(input.idempotencyKey);
+    if (refusal) throw refusal;
+    try {
+      this.check();
+    } catch (err) {
+      if (err instanceof StripeRequestError) {
+        this.refusedKeys.set(input.idempotencyKey, err);
+      }
+      throw err;
+    }
     await this.whileCreating?.();
     const known = this.byIdempotencyKey.get(input.idempotencyKey);
     if (known) return known;

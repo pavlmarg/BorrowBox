@@ -496,7 +496,10 @@ export function toStripeCallError(err: unknown): unknown {
     err instanceof Stripe.errors.StripeConnectionError ||
     err instanceof Stripe.errors.StripeAPIError ||
     err instanceof Stripe.errors.StripeRateLimitError ||
-    err instanceof Stripe.errors.StripeIdempotencyError
+    // A request with the same key still running: trying again helps. A key
+    // reused with other parameters (400) is a refusal like any other.
+    (err instanceof Stripe.errors.StripeIdempotencyError &&
+      err.statusCode === 409)
   ) {
     return new StripeUnavailableError(failure);
   }
