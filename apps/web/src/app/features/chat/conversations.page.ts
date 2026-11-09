@@ -4,6 +4,7 @@ import {
   effect,
   inject,
   input,
+  untracked,
   type OnInit,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -252,7 +253,12 @@ export class ConversationsPage implements OnInit {
   private readonly language = inject(LanguageService);
 
   constructor() {
-    effect(() => this.store.setActive(this.activeId()));
+    // Only the open id is tracked: setActive reads and rewrites the list,
+    // which would otherwise re-run this effect forever.
+    effect(() => {
+      const id = this.activeId();
+      untracked(() => this.store.setActive(id));
+    });
     const socket = inject(ChatSocket);
     socket.pushes
       .pipe(takeUntilDestroyed())

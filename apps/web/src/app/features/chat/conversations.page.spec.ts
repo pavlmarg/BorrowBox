@@ -51,6 +51,28 @@ async function render(
 }
 
 describe('ConversationsPage', () => {
+  it('highlights the open conversation and clears its unread count, once', async () => {
+    const { fixture, rows, el, socket } = await render([
+      conversation({ id: 'c1', unreadCount: 2 }),
+      conversation({ id: 'c2', unreadCount: 1 }),
+    ]);
+    fixture.componentRef.setInput('activeId', 'c1');
+    await fixture.whenStable();
+    expect(rows().map((r) => r.unread)).toEqual([false, true]);
+    expect(el.querySelector('a.row.active')?.getAttribute('href')).toBe(
+      '/messages/c1',
+    );
+
+    // A message in the open conversation isn't counted as unread.
+    socket.pushes.next({
+      type: 'message',
+      conversationId: 'c1',
+      message: message('m9', { text: 'Hi' }),
+    } as ChatPush);
+    await fixture.whenStable();
+    expect(rows()[0].unread).toBe(false);
+  });
+
   it('says so when there are none yet', async () => {
     const { el } = await render([]);
     expect(el.textContent).toContain('chat.empty');
