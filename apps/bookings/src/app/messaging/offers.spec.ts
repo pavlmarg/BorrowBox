@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import {
   BookingsRpc,
+  createEnvelope,
   MessagingRpc,
+  PaymentAccountRestrictedV1,
   type ItemSnapshotV1,
   type OfferView,
   type RpcErrorBody,
@@ -110,7 +112,9 @@ describe('Offers (integration)', () => {
     expect(sent).toMatchObject({
       rentCents: 800,
       depositCents: 5000,
-      totalCents: 5800,
+      // The renter's fee on the offer price (ADR-0020): 10% of €8.
+      feeCents: 80,
+      totalCents: 5880,
       listRentCents: 1000,
       status: 'OPEN',
       bookingId: null,
@@ -197,7 +201,10 @@ describe('Offers (integration)', () => {
       price: {
         rentCents: 600,
         depositCents: 5000,
-        totalCents: 5600,
+        feeCents: 72,
+        totalCents: 5672,
+        lenderFeeCents: 150,
+        payoutCents: 450,
         offerId: sent.id,
       },
     });
@@ -336,6 +343,37 @@ describe('Offers (integration)', () => {
         await race(() => bookings.deleteUser(lender), book(renter, offerId));
         expect(await openBookings(item.itemId)).toBe(0);
       }
+    });
+  });
+
+  describe("the lender's payouts (ADR-0019)", () => {
+    it('are needed to offer a booking with something to pay', async () => {
+      const lender = await bookings.addUser({ name: 'Lena', payable: false });
+      const renter = await bookings.addUser({ name: 'Rafael' });
+      const item = await bookings.addItem(lender);
+      const c = await bookings.send(
+        MessagingRpc.start,
+        { itemId: item.itemId },
+        await as(renter),
+      );
+      await expect(offer(lender, c.id, 500)).rejects.toEqual(
+        failure('PAYOUTS_NOT_SET_UP'),
+      );
+    });
+
+    it('are checked again when the offer is booked', async () => {
+      const { lender, renter, conversationId } = await setup();
+      const sent = await offer(lender, conversationId, 500);
+      await bookings.receive(
+        createEnvelope(PaymentAccountRestrictedV1, { userId: lender }),
+      );
+      await expect(book(renter, sent.id)).rejects.toEqual(
+        failure('PAYOUTS_NOT_SET_UP'),
+      );
+      // Nothing was booked; the offer is still open.
+      expect(
+        await outbox('booking.requested.v1', 'offerId', sent.id),
+      ).toHaveLength(0);
     });
   });
 

@@ -6,6 +6,7 @@ import type {
   ConversationUnreadV1Payload,
   EmailKind,
   OfferSentV1Payload,
+  PaymentFailedV1Payload,
 } from '@borrowbox/contracts';
 
 /**
@@ -24,6 +25,12 @@ export interface EmailData {
   end?: string;
   rentCents?: number;
   depositCents?: number;
+  /** The renter's service fee (ADR-0020). */
+  feeCents?: number;
+  /** What the renter pays (`payment.failed`). */
+  chargeCents?: number;
+  /** When an accepted booking expires unless paid. */
+  payBy?: string;
   expiresAt?: string;
   reason?: string;
   unreadCount?: number;
@@ -55,6 +62,8 @@ function bookingData(b: Booking, otherId: string, reason?: string): EmailData {
     end: b.end,
     rentCents: b.rentCents,
     depositCents: b.depositCents,
+    ...(b.feeCents !== undefined ? { feeCents: b.feeCents } : {}),
+    ...(b.payBy ? { payBy: b.payBy } : {}),
     ...(b.offerId ? { offerId: b.offerId } : {}),
     ...(reason ? { reason } : {}),
   };
@@ -83,6 +92,28 @@ export function onAccepted(b: Booking): PlannedEmail[] {
     : [toRenter('BOOKING_ACCEPTED', b)];
 }
 
+/** booking.paid.v1: it goes ahead; both arrange where and when to meet. */
+export function onPaid(b: Booking): PlannedEmail[] {
+  return [toRenter('BOOKING_PAID', b), toLender('BOOKING_PAID', b)];
+}
+
+/** payment.failed.v1: the renter may try again until the pay-by time. */
+export function onPaymentFailed(p: PaymentFailedV1Payload): PlannedEmail[] {
+  return [
+    {
+      kind: 'PAYMENT_FAILED',
+      recipientId: p.renterId,
+      data: {
+        otherId: p.lenderId,
+        itemTitle: p.itemTitle,
+        bookingId: p.bookingId,
+        chargeCents: p.amountCents,
+        payBy: p.payBy,
+      },
+    },
+  ];
+}
+
 /** booking.confirmed.v1: both arrange where and when to meet (ADR-0015). */
 export function onConfirmed(b: Booking): PlannedEmail[] {
   return [toRenter('BOOKING_CONFIRMED', b), toLender('BOOKING_CONFIRMED', b)];
@@ -92,9 +123,9 @@ export function onDeclined(b: BookingDeclinedV1Payload): PlannedEmail[] {
   return [toRenter('BOOKING_DECLINED', b, b.reason)];
 }
 
-/** The renter always; the lender too when they never answered. */
+/** The renter always; the lender too when they never answered, or it wasn't paid. */
 export function onExpired(b: BookingExpiredV1Payload): PlannedEmail[] {
-  return b.reason === 'NO_ANSWER'
+  return b.reason === 'NO_ANSWER' || b.reason === 'PAYMENT_TIMEOUT'
     ? [
         toRenter('BOOKING_EXPIRED', b, b.reason),
         toLender('BOOKING_EXPIRED', b, b.reason),

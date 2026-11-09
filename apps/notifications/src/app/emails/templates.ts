@@ -44,6 +44,14 @@ function euros(cents: number | undefined, locale: Locale): string {
   }).format((cents ?? 0) / 100);
 }
 
+/** What the renter pays for a booking: rent + deposit + fee (ADR-0020). */
+function chargeOf(data: EmailData, locale: Locale): string {
+  return euros(
+    (data.rentCents ?? 0) + (data.depositCents ?? 0) + (data.feeCents ?? 0),
+    locale,
+  );
+}
+
 export function renderNotification(input: TemplateInput): RenderedEmail {
   return renderEmail(input.locale === 'el' ? greek(input) : english(input));
 }
@@ -55,6 +63,7 @@ function english(input: TemplateInput): EmailContent {
   const period = `${when(data.start, 'en')} – ${when(data.end, 'en')}`;
   const rent = euros(data.rentCents, 'en');
   const deposit = euros(data.depositCents, 'en');
+  const charge = (locale: Locale) => chargeOf(data, locale);
   const booking = {
     label: 'See the booking',
     url: `${input.webBaseUrl}/bookings/${data.bookingId}`,
@@ -84,10 +93,12 @@ function english(input: TemplateInput): EmailContent {
         ...base,
         subject: `${other} accepted your request for ${item}`,
         paragraphs: [
-          `${period}, rent ${rent}, deposit ${deposit}.`,
-          'Your time is held. Payment opens soon in BorrowBox; until then, nothing to do.',
+          `${period}, rent ${rent}, deposit ${deposit}, service fee ${euros(data.feeCents, 'en')}.`,
+          data.payBy
+            ? `Pay ${charge('en')} in BorrowBox by ${when(data.payBy, 'en')} to keep the booking; otherwise it expires. The deposit comes back after the return.`
+            : `Pay ${charge('en')} in BorrowBox within 24 hours to keep the booking; otherwise it expires.`,
         ],
-        action: booking,
+        action: { ...booking, label: 'Pay now' },
       };
     case 'BOOKING_CONFIRMED':
       return {
@@ -98,6 +109,26 @@ function english(input: TemplateInput): EmailContent {
           `Arrange where and when to meet with ${other} in the booking's chat.`,
         ],
         action: booking,
+      };
+    case 'BOOKING_PAID':
+      return {
+        ...base,
+        subject: `The booking of ${item} is paid`,
+        paragraphs: [
+          `${period}.`,
+          `Arrange where and when to meet with ${other} in the booking's chat.`,
+        ],
+        action: booking,
+      };
+    case 'PAYMENT_FAILED':
+      return {
+        ...base,
+        subject: `Your payment for ${item} didn't go through`,
+        paragraphs: [
+          `Your bank didn't accept the payment of ${euros(data.chargeCents, 'en')}.`,
+          `Try again by ${when(data.payBy, 'en')}, or the booking expires.`,
+        ],
+        action: { ...booking, label: 'Pay again' },
       };
     case 'BOOKING_DECLINED':
       return {
@@ -113,15 +144,17 @@ function english(input: TemplateInput): EmailContent {
     case 'BOOKING_EXPIRED':
       return {
         ...base,
-        // STARTED is an unanswered request or an unpaid booking at its start.
+        // NO_ANSWER: an unanswered request; otherwise a booking.
         subject:
-          data.reason === 'STARTED'
-            ? `The booking of ${item} expired`
-            : `The request for ${item} expired`,
+          data.reason === 'NO_ANSWER'
+            ? `The request for ${item} expired`
+            : `The booking of ${item} expired`,
         paragraphs: [
-          data.reason === 'STARTED'
-            ? `The booking of ${item} for ${period} wasn't completed before it started.`
-            : `The request for ${item} (${period}) wasn't answered in time.`,
+          data.reason === 'PAYMENT_TIMEOUT'
+            ? `The booking of ${item} for ${period} wasn't paid in time, so it expired.`
+            : data.reason === 'STARTED'
+              ? `The booking of ${item} for ${period} wasn't completed before it started.`
+              : `The request for ${item} (${period}) wasn't answered in time.`,
         ],
         action: booking,
       };
@@ -176,6 +209,7 @@ function greek(input: TemplateInput): EmailContent {
   const period = `${when(data.start, 'el')} – ${when(data.end, 'el')}`;
   const rent = euros(data.rentCents, 'el');
   const deposit = euros(data.depositCents, 'el');
+  const charge = (locale: Locale) => chargeOf(data, locale);
   const booking = {
     label: 'Δες την κράτηση',
     url: `${input.webBaseUrl}/bookings/${data.bookingId}`,
@@ -206,10 +240,12 @@ function greek(input: TemplateInput): EmailContent {
         ...base,
         subject: `${other} αποδέχτηκε το αίτημά σου για ${item}`,
         paragraphs: [
-          `${period}, ενοίκιο ${rent}, εγγύηση ${deposit}.`,
-          'Ο χρόνος σου είναι κρατημένος. Η πληρωμή στο BorrowBox έρχεται σύντομα· μέχρι τότε δεν χρειάζεται να κάνεις κάτι.',
+          `${period}, ενοίκιο ${rent}, εγγύηση ${deposit}, χρέωση υπηρεσίας ${euros(data.feeCents, 'el')}.`,
+          data.payBy
+            ? `Πλήρωσε ${charge('el')} στο BorrowBox έως ${when(data.payBy, 'el')} για να ισχύσει η κράτηση· αλλιώς λήγει. Η εγγύηση επιστρέφεται μετά την επιστροφή.`
+            : `Πλήρωσε ${charge('el')} στο BorrowBox μέσα σε 24 ώρες για να ισχύσει η κράτηση· αλλιώς λήγει.`,
         ],
-        action: booking,
+        action: { ...booking, label: 'Πλήρωσε τώρα' },
       };
     case 'BOOKING_CONFIRMED':
       return {
@@ -220,6 +256,26 @@ function greek(input: TemplateInput): EmailContent {
           `Κανόνισε με ${other} πού και πότε θα συναντηθείτε, στη συνομιλία της κράτησης.`,
         ],
         action: booking,
+      };
+    case 'BOOKING_PAID':
+      return {
+        ...base,
+        subject: `Η κράτηση για ${item} πληρώθηκε`,
+        paragraphs: [
+          `${period}.`,
+          `Κανόνισε με ${other} πού και πότε θα συναντηθείτε, στη συνομιλία της κράτησης.`,
+        ],
+        action: booking,
+      };
+    case 'PAYMENT_FAILED':
+      return {
+        ...base,
+        subject: `Η πληρωμή σου για ${item} δεν ολοκληρώθηκε`,
+        paragraphs: [
+          `Η τράπεζά σου δεν δέχτηκε την πληρωμή των ${euros(data.chargeCents, 'el')}.`,
+          `Δοκίμασε ξανά έως ${when(data.payBy, 'el')}, αλλιώς η κράτηση λήγει.`,
+        ],
+        action: { ...booking, label: 'Πλήρωσε ξανά' },
       };
     case 'BOOKING_DECLINED':
       return {
@@ -236,13 +292,15 @@ function greek(input: TemplateInput): EmailContent {
       return {
         ...base,
         subject:
-          data.reason === 'STARTED'
-            ? `Η κράτηση για ${item} έληξε`
-            : `Το αίτημα για ${item} έληξε`,
+          data.reason === 'NO_ANSWER'
+            ? `Το αίτημα για ${item} έληξε`
+            : `Η κράτηση για ${item} έληξε`,
         paragraphs: [
-          data.reason === 'STARTED'
-            ? `Η κράτηση για ${item} (${period}) δεν ολοκληρώθηκε πριν από την έναρξή της.`
-            : `Το αίτημα για ${item} (${period}) δεν απαντήθηκε εγκαίρως.`,
+          data.reason === 'PAYMENT_TIMEOUT'
+            ? `Η κράτηση για ${item} (${period}) δεν πληρώθηκε εγκαίρως, οπότε έληξε.`
+            : data.reason === 'STARTED'
+              ? `Η κράτηση για ${item} (${period}) δεν ολοκληρώθηκε πριν από την έναρξή της.`
+              : `Το αίτημα για ${item} (${period}) δεν απαντήθηκε εγκαίρως.`,
         ],
         action: booking,
       };

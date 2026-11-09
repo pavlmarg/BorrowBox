@@ -18,6 +18,11 @@ export interface BookingViewResponse {
   itemId: string;
   itemTitle: string;
   lender: BookingPartyResponse;
+
+  /**
+   * While ACCEPTED: when it expires unless paid (ADR-0019)
+   */
+  payBy: string | null;
   price: BookingPriceResponse;
 
   /**

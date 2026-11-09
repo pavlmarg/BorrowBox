@@ -70,10 +70,10 @@ flowchart TB
 | **Gateway** | nothing (stateless) | – | Redis pub/sub (fan-out to sockets) |
 | **Identity** | users, credentials, refresh tokens, email tokens, verification status; sends its own account-security emails | `user.registered`, `user.profile_updated`, `user.email_verified`, `user.verified` (ID check), `user.deletion_requested` | – |
 | **Catalog** | items, categories, photos, location | `item.created`, `item.updated`, `item.deleted` | `user.registered`, `.profile_updated` (lender names), `.email_verified` (to publish), `.deletion_requested`, `booking.accepted` / `.confirmed` (featured items), `review.created` (item rating) |
-| **Bookings** | bookings, availability, handoffs, condition photos | `booking.requested`, `.accepted`, `.confirmed`, `.paid`, `.declined`, `.expired`, `.cancelled`, `.picked_up`, `.returned`, `.completed`, `.disputed` | `item.*`, `user.registered`, `.profile_updated` (names), `.email_verified` (to book), `.deletion_requested`, `payment.account_ready` / `.account_restricted` (payable lenders), `payment.captured`, `payment.failed` |
-| **Payments** | Stripe connected accounts, payments, transfers, refunds, `stripe_events` | `payment.account_ready`, `payment.account_restricted`, `payment.captured`, `payment.failed`, `payment.settled` | `user.email_verified`, `.deletion_requested`, `booking.accepted`, `.cancelled`, `.completed`, `.disputed`, `dispute.resolved` |
+| **Bookings** | bookings, availability, handoffs, condition photos | `booking.requested`, `.accepted`, `.confirmed`, `.paid`, `.declined`, `.expired`, `.cancelled`, `.picked_up`, `.returned`, `.completed`, `.disputed` | `item.*`, `user.registered`, `.profile_updated` (names), `.email_verified` (to book), `.deletion_requested`, `payment.account_ready` / `.account_restricted` (payable lenders), `payment.captured` |
+| **Payments** | Stripe connected accounts, payments, transfers, refunds, `stripe_events` | `payment.account_ready`, `payment.account_restricted`, `payment.captured`, `payment.failed`, `payment.settled` | `user.email_verified`, `.deletion_requested`, `booking.accepted`, `.paid`, `.expired`, `.cancelled`, `.completed`, `.disputed`, `dispute.resolved` |
 | **Messaging** (a module of Bookings for now, [ADR-0017](adr/0017-in-app-chat.md)) | conversations, messages, price offers, reports | `message.sent`, `conversation.unread`, `offer.sent`, `offer.withdrawn` | booking changes (system lines, in-process), `item.deleted`, `user.deletion_requested` |
-| **Notifications** | recipients (from `user.*` events), email jobs; later preferences, push subscriptions, in-app inbox | – | `user.registered`, `.profile_updated`, `.deletion_requested`, `booking.*`, `offer.sent`, `conversation.unread` |
+| **Notifications** | recipients (from `user.*` events), email jobs; later preferences, push subscriptions, in-app inbox | – | `user.registered`, `.profile_updated`, `.deletion_requested`, `booking.*`, `payment.failed`, `offer.sent`, `conversation.unread` |
 | **Reviews / Trust** | reviews, trust scores | `review.created` | `booking.completed`, `user.verified`, `booking.disputed` |
 
 **Media** is a shared library, not a service. It issues presigned upload URLs into a private uploads bucket, and runs a BullMQ worker (inside the owning service) that strips all metadata with `sharp` and writes resized versions to a separate public-read bucket. Only processed photos are served. Stripping EXIF matters because photo GPS data would leak home locations. See [ADR-0009](adr/0009-photo-pipeline.md).
@@ -111,8 +111,9 @@ flowchart TB
   - Per user, on top of the per-IP limits: 30 booking requests (and offer bookings) per hour, 30 messages (and offers) per minute, 20 new conversations per day.
 - Phase 4 endpoints (Payments, [ADR-0019](adr/0019-payments-fees-and-policies.md)):
   - Signed in: `GET /api/me/payouts` (status), `POST /api/me/payouts/onboarding` and `/dashboard` (each returns a single-use Stripe link; 10 per minute).
+  - The renter, signed in: `POST /api/bookings/:id/payment` (start or come back to paying: amounts, pay-by time and the client secret for Stripe's form; 10 per minute) and `GET` (the payment's status).
   - Stripe only: `POST /api/webhooks/stripe` (platform events) and `/api/webhooks/stripe-connect` (connected accounts). The raw body (`rawBody`, within the 100 kB limit) and the `Stripe-Signature` header go to Payments, which verifies them; no rate limit, not in the OpenAPI spec.
-  - `PAYOUTS_NOT_SET_UP` is `409`, `INVALID_SIGNATURE` `400`, and `PROVIDER_UNAVAILABLE` (Stripe didn't answer) `503`. Onboarding waits up to 46 s and the dashboard 25.5 s, derived in `libs/contracts` from Payments' Stripe timeouts and the SDK's sleep before a retry.
+  - `PAYOUTS_NOT_SET_UP` (also from Bookings and Messaging), `INVALID_STATE` and `PAYMENT_WINDOW_CLOSED` are `409`, Payments' `NOT_FOUND` `404`, `INVALID_SIGNATURE` `400`, and `PROVIDER_UNAVAILABLE` (Stripe didn't answer) `503`. Onboarding waits up to 46 s and the dashboard 25.5 s, derived in `libs/contracts` from Payments' Stripe timeouts and the SDK's sleep before a retry.
 - **Live chat:** Socket.IO on the gateway's server, namespace `/chat`. The access token goes in the handshake (`auth.token`), the Origin must be on the CORS allow-list, and each socket joins its user's room; it is disconnected when the token expires and reconnects with a fresh one. Every gateway instance subscribes to Redis `chat:*` (also when Redis only comes up after the gateway) and emits to its own sockets. Clients only listen: sending is REST.
 - **Cookies:**
   - The refresh token is set only as `bb_refresh` (httpOnly, Secure, SameSite=Strict, `Path=/api/auth`) and never appears in a response body.
@@ -180,7 +181,7 @@ flowchart TB
 - **Deleted accounts:** access tokens stay valid for up to 15 minutes, so once Catalog has processed `user.deletion_requested`, it refuses that account's write commands.
 
 ### Bookings
-- **Periods and prices** ([ADR-0015](adr/0015-booking-model.md)): whole hours `[start, end)` as a `tstzrange`, shown in Europe/Athens time; 1 hour to 90 days long (and within the item's own limits), starting 1 hour to 180 days ahead. The rent is the cheapest combination of the item's rates that covers the period (a day is 24 h, a week 7 days, a month 30 days), fixed with the deposit and the rate card when the booking is requested.
+- **Periods and prices** ([ADR-0015](adr/0015-booking-model.md)): whole hours `[start, end)` as a `tstzrange`, shown in Europe/Athens time; 1 hour to 90 days long (and within the item's own limits), starting 1 hour to 180 days ahead. The rent is the cheapest combination of the item's rates that covers the period (a day is 24 h, a week 7 days, a month 30 days), fixed with the deposit, the rate card and the fees ([ADR-0020](adr/0020-booking-fees.md)) when the booking is requested.
 - Double-booking is prevented at the DB level (it needs the `btree_gist` extension, created by the infra init script):
   ```sql
   EXCLUDE USING gist (item_id WITH =, period WITH &&)
@@ -189,11 +190,12 @@ flowchart TB
 - Owns the booking state machine (§4) and the QR handoff protocol (§5). Every status change goes through one function that checks the state machine and writes the event to the outbox.
 - **Read models:** items (Catalog's snapshots; the newest wins, deletion is final) and users (names and verified emails from Identity's events). Services started after the data existed are filled with `nx run catalog:republish-items` and `nx run identity:republish-users`, which re-announce the current state through the outbox.
 - **Requests:** a renter with a verified email asks for a period of an `ACTIVE` item that isn't their own. The client picks the booking's id, so a retried request returns the same booking. At most 10 open requests per renter, no second overlapping request for the same item, and a period someone already holds is refused (`SLOT_TAKEN`). Requests are serialised per renter, so parallel ones can't pass the limit.
-- **Answers:** the lender accepts (`CONFIRMED` when rent and deposit are 0, else `ACCEPTED`) or declines. Accepting declines the item's other overlapping requests in the same transaction (reason `OVERLAP`); accepts are serialised per item, and the constraint turns any race into `SLOT_TAKEN`. The renter withdraws a request; either side cancels an `ACCEPTED` or `CONFIRMED` booking before it starts.
-- **Expiry:** a request expires 24 hours after it was made or at its start, whichever is sooner; until Payments exists, an `ACCEPTED` booking still unpaid at its start expires too. Each is a BullMQ delayed job that re-checks the booking under its row lock, and a sweeper every 10 minutes catches lost jobs.
+- **Answers:** the lender accepts (`CONFIRMED` when rent and deposit are 0, else `ACCEPTED`) or declines. Accepting a booking with something to pay needs the lender's payouts set up (`PAYOUTS_NOT_SET_UP`), known from `payment.account_ready` / `.account_restricted` (the newest wins). Accepting declines the item's other overlapping requests in the same transaction (reason `OVERLAP`); accepts are serialised per item, and the constraint turns any race into `SLOT_TAKEN`. The renter withdraws a request; either side cancels an `ACCEPTED` or `CONFIRMED` booking before it starts.
+- **Expiry:** a request expires 24 hours after it was made or at its start, whichever is sooner; an `ACCEPTED` booking not paid by its pay-by time (24 hours after the acceptance, or its start if sooner) expires with `PAYMENT_TIMEOUT`.
+- **Payment** ([ADR-0019](adr/0019-payments-fees-and-policies.md)): `payment.captured` moves an `ACCEPTED` booking to `PAID` (`booking.paid`, and a chat line asking both to arrange where to meet). A payment for a booking that closed meanwhile is left alone: Payments refunds it. Each is a BullMQ delayed job that re-checks the booking under its row lock, and a sweeper every 10 minutes catches lost jobs.
 - **Public queries:** a price quote for a period, and an item's held periods (start and end only, never who or which state), for the date picker.
 - **Events** (`booking.*.v1`) carry the booking (ids, item title, period, rent, deposit) and a reason where one applies, but no names, emails or locations.
-- **Items and accounts:** pausing an item only stops new requests. `item.deleted` and `user.deletion_requested` cancel the open bookings (`ITEM_DELETED`, `ACCOUNT_DELETED`, either side for an account). Finished bookings stay, without the deleted person's name; once the deletion is processed, the account's still-valid tokens can't write.
+- **Items and accounts:** pausing an item only stops new requests. `item.deleted` and `user.deletion_requested` cancel the open and paid bookings (`ITEM_DELETED`, `ACCOUNT_DELETED`, either side for an account); Payments refunds the paid ones. Finished bookings stay, without the deleted person's name; once the deletion is processed, the account's still-valid tokens can't write.
 - **GDPR:** the export has the stored name, the email verification and every booking on both sides.
 
 ### Payments
@@ -203,7 +205,11 @@ See §6 and [ADR-0019](adr/0019-payments-fees-and-policies.md). Stripe test mode
 - **Erasure:** `user.deletion_requested` closes the lender's account (their still-valid tokens are refused) and the worker deletes the Stripe account, retrying until it succeeds; only Stripe's "no such account" counts as already gone, and from the 10th failed attempt each failure is logged as an error. An onboarding call overlapping the erasure hands out no link. The row stays.
 - **Stripe errors:** logged with the error's class, Stripe's code, the HTTP status and Stripe's request id, never Stripe's message (it can echo request data). For a user's request, Stripe unreachable is `PROVIDER_UNAVAILABLE` and Stripe refusing the call is `INTERNAL`.
 - **GDPR:** the export has the payout account (Stripe account id, status, dates).
-- Checkout, refunds and settlement come with the next Phase 4 PRs.
+- **Checkout** ([ADR-0019](adr/0019-payments-fees-and-policies.md), [ADR-0020](adr/0020-booking-fees.md)): Payments keeps the bookings it takes money for from `booking.*` events (a closed booking stays closed, whatever order they arrive in). When the renter starts paying, it creates one card PaymentIntent per booking for rent + deposit + fee (charged at once, `transfer_group = booking_<id>`, only the booking id as metadata, our row's id as idempotency key) and returns its client secret to the renter only; it's never stored or logged. Paying can't start in the last 10 minutes before the pay-by time.
+- **Outcome:** the PaymentIntent webhooks are processed like the others, from Stripe's current state: success writes `payment.captured`, a failed attempt `payment.failed` (the renter may try again). When a booking closes unpaid, the worker cancels its PaymentIntent; a payment that still succeeds for a closed booking, or a paid booking that is cancelled, is marked `NEEDS_REFUND` for PR C's refunds.
+- **Backfill:** `nx run payments:republish-accounts` re-announces the payable lenders for services started later (Bookings).
+- **GDPR:** the export also lists the renter's payments (amounts and dates, no card details).
+- Refunds and settlement come with the next Phase 4 PR.
 
 ### Messaging
 See [ADR-0017](adr/0017-in-app-chat.md) and [ADR-0018](adr/0018-price-offers.md). A module of `apps/bookings`, with tables in the `bookings` schema, until its contracts settle.
@@ -212,14 +218,14 @@ See [ADR-0017](adr/0017-in-app-chat.md) and [ADR-0018](adr/0018-price-offers.md)
 - **Contact details** (phone numbers of 10 or more digits, email addresses, links and bare domains) are masked when read until the two have a booking of the item that went ahead (`CONFIRMED`, `PAID` or later). A sender always sees their own text.
 - **Live delivery:** after the commit, Bookings publishes each change, shaped for each reader, on Redis `chat:<userId>`; the gateway pushes it to sockets. A lost push is fetched on reconnect.
 - **Unread email:** 2 minutes after a message, if it's unread and the recipient wasn't reminded about the conversation in the last 30 minutes, `conversation.unread.v1` goes out; Notifications emails a link. Events never carry message text.
-- **Price offers:** the lender offers a rent (at most the rate card's, deposit unchanged) for a period; one open offer per conversation, valid 48 hours or until an hour before its start, single use. Booking it creates the booking and accepts it in one transaction (`REQUESTED` → `ACCEPTED`, or `CONFIRMED` with nothing to pay), with `offerId` on the price and the events.
+- **Price offers:** the lender offers a rent (at most the rate card's, deposit unchanged) for a period, which needs their payouts set up if there's anything to pay; one open offer per conversation, valid 48 hours or until an hour before its start, single use. Booking it creates the booking and accepts it in one transaction (`REQUESTED` → `ACCEPTED`, or `CONFIRMED` with nothing to pay), with `offerId` on the price and the events.
 - **Retention and GDPR:** a daily sweep deletes conversations idle for 2 years. Erasing an account removes its messages' text ("[deleted]"), withdraws its open offers and deletes its reports. The export has the caller's conversations, own messages, offers and reports. Reports wait for the admin area.
 
 ### Notifications
 See [ADR-0016](adr/0016-notifications-and-email.md).
 - Its own service, consuming events. It knows recipients (email, name, language `el`/`en`) from `user.*` events, and forgets them on `user.deletion_requested`.
 - Email over SMTP with `nodemailer` (Mailpit locally), from plain TypeScript templates in Greek and English, with times in Europe/Athens. Phase 3 sends email only; preferences, an in-app inbox and Web Push come later.
-- **Which emails:** a new request (lender), accepted (renter; for an offer, the lender learns it was booked), confirmed (both: arrange where to meet), declined (renter), expired (renter, and the lender if they never answered), cancelled (the other side; for a deleted item the renter), a new offer (renter), unread messages (recipient). No welcome email.
+- **Which emails:** a new request (lender), accepted (renter, with what to pay and by when; for an offer, the lender learns it was booked), confirmed and paid (both: arrange where to meet), a failed payment (renter, who may try again), declined (renter), expired (renter, and the lender if they never answered or it wasn't paid), cancelled (the other side; for a deleted item the renter), a new offer (renter), unread messages (recipient). No welcome email.
 - **Sending:** the consumer writes `email_jobs` in the same transaction as `processed_events`. A polling sender claims due jobs with a lease, renders them in the recipient's language when sending, and retries with backoff for up to a day; a job for a recipient not known yet waits. Without an SMTP host nothing counts as sent: jobs retry like failed sends. A job that can't be rendered is dropped and logged. Cancellations caused by an erasure wait 10 minutes, so the erased person's copy is dropped. At least once: a crash mid-send can repeat an email. Sent jobs are kept 30 days.
 - Jobs store ids, the item title, times and amounts, never names or message text. The export has the recipient's details and their emails; erasure forgets both.
 - **Account-security emails** (email verification, password reset, password change) are sent by Identity itself, so their tokens never travel in events. Identity stores only a hash of each token; a reset link lasts 10 minutes, a verification link 24 hours, each works once, and a new one cancels the older ones. Both senders share `libs/mailer`.
@@ -263,7 +269,10 @@ sequenceDiagram
     B-->>N: booking.requested
     N-->>L: "New request"
     L->>B: accept
-    B-->>P: booking.accepted
+    B-->>P: booking.accepted (fees, pay-by time)
+    B-->>N: booking.accepted
+    N-->>R: "Pay by …"
+    R->>P: start paying
     P->>S: create PaymentIntent (rent + deposit + fee)
     R->>S: pay (SCA / 3DS)
     S->>P: webhook payment_intent.succeeded
@@ -302,8 +311,8 @@ This proves both people were physically present with the item, so neither side c
 See [ADR-0003](adr/0003-stripe-separate-charges-transfers.md).
 
 - **Lenders** onboard as **Express connected accounts**. Stripe handles KYC, payouts to IBAN, SCA and DAC7 data collection. An account is ready when its `transfers` capability is active (the one separate charges and transfers need): becoming ready emits `payment.account_ready`, losing it `payment.account_restricted` ([ADR-0019](adr/0019-payments-fees-and-policies.md)).
-- **Checkout:** one PaymentIntent on the platform account for `rent + deposit + service fee`, with `transfer_group = booking_<id>`.
-- **Settlement** on `booking.completed`: `Transfer(rent − platform commission)` to the lender, then `Refund(deposit)` to the renter.
+- **Checkout:** one PaymentIntent on the platform account for `rent + deposit + service fee`, with `transfer_group = booking_<id>`, created when the renter starts paying. The fee always covers Stripe's cost ([ADR-0020](adr/0020-booking-fees.md)).
+- **Settlement** on `booking.completed`: `Transfer(rent − lender's deposit fee)` to the lender ([ADR-0020](adr/0020-booking-fees.md)), then `Refund(deposit)` to the renter.
 - **Damage claim:** an admin decides the amount. Payments transfers that part of the deposit to the lender and refunds the rest.
 - **Cancellation policy:** full refund more than 24 h before the start, rent minus 50% after that (configurable).
 - **Webhooks:** raw body signature verification, stored in `payments.stripe_events` (unique on the Stripe event id) and processed asynchronously.

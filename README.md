@@ -71,7 +71,7 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
 *   [ ] **Phase 3 – Bookings:** availability, request / accept / decline, state machine, email notifications, in-app chat with price offers
     *   The backend is merged; its PWA screens (borrowing, bookings, chat, the email-link pages) are built together with Phase 4's, after Phase 4's backend.
 *   [ ] **Phase 4 – Payments:** Stripe Connect onboarding, checkout, webhooks, transfers & refunds (test mode)
-    *   Backend first ([ADR-0019](docs/adr/0019-payments-fees-and-policies.md)): lender onboarding and webhooks done; checkout, then refunds and settlement, next.
+    *   Backend first ([ADR-0019](docs/adr/0019-payments-fees-and-policies.md), fees in [ADR-0020](docs/adr/0020-booking-fees.md)): lender onboarding, webhooks and checkout done; refunds and settlement next.
 *   [ ] **Phase 5 – Handoff:** QR pickup/return protocol, condition photos, claim window
 *   [ ] **Phase 6 – Trust & Social:** chat, reviews, trust score, ID verification
 *   [ ] **Phase 7 – Hardening:** observability stack, e2e tests, VPS deployment
@@ -168,6 +168,7 @@ re-announce what came before it (safe to repeat):
 npx nx run identity:republish-users   # names + verified emails (never email addresses)
 npx nx run identity:republish-registered  # the same with email addresses, for Notifications
 npx nx run catalog:republish-items    # every item not deleted, for Bookings
+npx nx run payments:republish-accounts  # lenders who can be paid, for Bookings
 ```
 
 After changing gateway endpoints, run `npx nx run gateway:openapi` and then `npx nx run web:api-client` to

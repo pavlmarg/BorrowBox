@@ -29,3 +29,36 @@ export const PaymentAccountRestrictedV1 =
     'payment.account_restricted',
     1,
   );
+
+/**
+ * The renter's payment for a booking succeeded (ADR-0019): rent, deposit
+ * and fee are on the platform account. Bookings moves the booking to PAID
+ * if it's still waiting for payment.
+ */
+export interface PaymentCapturedV1Payload {
+  bookingId: string;
+  /** What was charged: rent + deposit + fee. */
+  amountCents: number;
+}
+export const PaymentCapturedV1 = defineEvent<PaymentCapturedV1Payload>()(
+  'payment.captured',
+  1,
+);
+
+/**
+ * An attempt to pay a booking failed (declined card, failed 3-D Secure).
+ * The booking stays waiting for payment; the renter can try again until
+ * `payBy` (ADR-0019). Carries what the renter's email needs.
+ */
+export interface PaymentFailedV1Payload {
+  bookingId: string;
+  renterId: string;
+  lenderId: string;
+  itemTitle: string;
+  amountCents: number;
+  payBy: string;
+}
+export const PaymentFailedV1 = defineEvent<PaymentFailedV1Payload>()(
+  'payment.failed',
+  1,
+);

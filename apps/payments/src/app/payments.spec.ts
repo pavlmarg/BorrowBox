@@ -93,7 +93,7 @@ describe('Payments (integration)', () => {
 
   it('migrates into the payments schema', async () => {
     expect(await service.dataSource.showMigrations()).toBe(false);
-    expect(MIGRATIONS).toHaveLength(2);
+    expect(MIGRATIONS).toHaveLength(3);
     const [{ schema }] = await service.dataSource.query(
       `SELECT current_schema() AS schema`,
     );
@@ -242,6 +242,7 @@ describe('Payments (integration)', () => {
         'attempts',
         'event_id',
         'next_attempt_at',
+        'object_id',
         'processed_at',
         'received_at',
         'source',

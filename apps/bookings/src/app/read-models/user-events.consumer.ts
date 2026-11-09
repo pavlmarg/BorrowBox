@@ -21,7 +21,7 @@ import {
   parsePayload,
 } from '@borrowbox/service-kit';
 import { cancelBookings } from '../bookings/booking-transitions';
-import { lockOpenBookings } from '../bookings/bookings.repository';
+import { lockBookingsToCancel } from '../bookings/bookings.repository';
 import { ChatPublisher, ChatPushes } from '../messaging/chat-publisher';
 import {
   eraseMessagesOf,
@@ -103,7 +103,7 @@ export class UserEventsConsumer implements OnApplicationBootstrap {
             // the offer, then declines overlapping requests): the other
             // order deadlocks when the lender is erased meanwhile.
             const offers = await lockOpenOffers(tx, { userId });
-            const ids = await lockOpenBookings(tx, { userId });
+            const ids = await lockBookingsToCancel(tx, { userId });
             await cancelBookings(tx, ids, 'ACCOUNT_DELETED', envelope, pushes);
             cancelled = ids.length;
             await withdrawOffers(

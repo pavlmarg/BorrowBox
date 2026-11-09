@@ -190,4 +190,71 @@ describe('Payout and webhook routes (integration)', () => {
       }
     });
   });
+
+  describe('booking payment', () => {
+    const BOOKING = '7b0e4a6c-2f1d-4f6b-9a8e-3c5d2e1f0a9b';
+    const view = {
+      bookingId: BOOKING,
+      status: 'REQUIRES_PAYMENT',
+      rentCents: 2000,
+      depositCents: 5000,
+      feeCents: 200,
+      chargeCents: 7200,
+      payBy: '2026-11-09T10:00:00.000Z',
+      lastAttemptFailed: false,
+      paidAt: null,
+    };
+
+    it('needs a signed-in user and a well-formed booking id', async () => {
+      await gw.http().post(`/api/bookings/${BOOKING}/payment`).expect(401);
+      await gw
+        .http()
+        .post('/api/bookings/not-a-uuid/payment')
+        .set('Authorization', await gw.bearer())
+        .expect(400);
+      expect(payments.calls).toHaveLength(0);
+    });
+
+    it('starts paying with the renter’s token and returns the client secret', async () => {
+      payments.on(PaymentsRpc.startCheckout, () => ({
+        ...view,
+        clientSecret: 'pi_1_secret_x',
+      }));
+      const auth = await gw.bearer();
+      const res = await gw
+        .http()
+        .post(`/api/bookings/${BOOKING}/payment`)
+        .set('Authorization', auth)
+        .expect(200);
+      expect(res.body).toEqual({ ...view, clientSecret: 'pi_1_secret_x' });
+      const call = payments.callsTo(PaymentsRpc.startCheckout)[0].message;
+      expect(call.data).toEqual({ bookingId: BOOKING });
+      expect(call.accessToken).toBe(auth.slice('Bearer '.length));
+    });
+
+    it('reads the payment', async () => {
+      payments.on(PaymentsRpc.getPayment, () => view);
+      const res = await gw
+        .http()
+        .get(`/api/bookings/${BOOKING}/payment`)
+        .set('Authorization', await gw.bearer())
+        .expect(200);
+      expect(res.body).toEqual(view);
+    });
+
+    it.each([
+      ['NOT_FOUND', 404],
+      ['INVALID_STATE', 409],
+      ['PAYMENT_WINDOW_CLOSED', 409],
+      ['PROVIDER_UNAVAILABLE', 503],
+    ])('maps %s to %i', async (code, status) => {
+      payments.fail(PaymentsRpc.startCheckout, { code, message: 'm' });
+      const res = await gw
+        .http()
+        .post(`/api/bookings/${BOOKING}/payment`)
+        .set('Authorization', await gw.bearer())
+        .expect(status);
+      expect(res.body.code).toBe(code);
+    });
+  });
 });

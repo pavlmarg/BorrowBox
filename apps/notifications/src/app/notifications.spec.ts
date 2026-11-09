@@ -3,10 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import {
   BookingCancelledV1,
   BookingConfirmedV1,
+  BookingPaidV1,
   BookingRequestedV1,
   ConversationUnreadV1,
   createEnvelope,
   NotificationsRpc,
+  PaymentFailedV1,
   UserDeletionRequestedV1,
   UserProfileUpdatedV1,
   UserRegisteredV1,
@@ -113,7 +115,7 @@ describe('Notifications (integration)', () => {
 
   it('migrates into the notifications schema', async () => {
     expect(await service.dataSource.showMigrations()).toBe(false);
-    expect(MIGRATIONS).toHaveLength(2);
+    expect(MIGRATIONS).toHaveLength(3);
   });
 
   it('emails the lender a new request in their language, once per event', async () => {
@@ -149,6 +151,45 @@ describe('Notifications (integration)', () => {
     expect(toLender.text).toContain(
       'Arrange where and when to meet with Rafael',
     );
+  });
+
+  it('emails both people once a booking is paid, once per event', async () => {
+    const lender = await person('Lena');
+    const renter = await person('Rafael');
+    const paid = createEnvelope(
+      BookingPaidV1,
+      booking(lender.userId, renter.userId),
+    );
+    await service.receive(paid);
+    await service.receive(paid);
+    await service.sendDue();
+    const [toRenter] = await mailpit.waitForEmails(renter.email);
+    const [toLender] = await mailpit.waitForEmails(lender.email);
+    expect(toRenter.subject).toBe('The booking of “Cordless drill” is paid');
+    expect(toLender.text).toContain(
+      'Arrange where and when to meet with Rafael',
+    );
+    expect(await mailpit.emailsTo(renter.email)).toHaveLength(1);
+  });
+
+  it('tells the renter when a payment fails, once per event', async () => {
+    const lender = await person('Lena');
+    const renter = await person('Rafael');
+    const failed = createEnvelope(PaymentFailedV1, {
+      bookingId: randomUUID(),
+      renterId: renter.userId,
+      lenderId: lender.userId,
+      itemTitle: 'Cordless drill',
+      amountCents: 7200,
+      payBy: '2026-11-02T08:00:00.000Z',
+    });
+    await service.receive(failed);
+    await service.receive(failed);
+    await service.sendDue();
+    const emails = await mailpit.waitForEmails(renter.email);
+    expect(emails).toHaveLength(1);
+    expect(emails[0].text).toContain('€72.00');
+    expect(await mailpit.emailsTo(lender.email)).toEqual([]);
   });
 
   it('waits for a recipient it does not know yet, then sends', async () => {
@@ -209,9 +250,19 @@ describe('Notifications (integration)', () => {
     await service.receive(
       createEnvelope(BookingRequestedV1, booking(renter.userId, lender.userId)),
     );
+    // Held back until the erasure is processed: the service's own sender
+    // polls every 2 seconds and must not send them earlier.
+    const hold = (interval: string) =>
+      service.dataSource.query(
+        `UPDATE email_jobs SET next_attempt_at = now() + $2::interval
+          WHERE recipient_id = ANY($1::uuid[]) AND status = 'PENDING'`,
+        [[lender.userId, renter.userId], interval],
+      );
+    await hold('1 hour');
     await deliver(
       createEnvelope(UserDeletionRequestedV1, { userId: renter.userId }),
     );
+    await hold('0 seconds');
     // A late registration can't bring them back.
     await service.receive(
       createEnvelope(UserRegisteredV1, {

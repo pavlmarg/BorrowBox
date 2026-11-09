@@ -11,7 +11,13 @@ import {
 import { PayoutsService } from './accounts/payouts.service';
 import { validateConfig, type PaymentsConfig } from './config';
 import { PaymentsDatabaseModule } from './database/database.module';
-import { PayoutsController, WebhooksController } from './payments.controller';
+import { BookingEventsConsumer } from './checkout/booking-events.consumer';
+import { CheckoutService } from './checkout/checkout.service';
+import {
+  CheckoutController,
+  PayoutsController,
+  WebhooksController,
+} from './payments.controller';
 import { PaymentsWorker } from './payments.worker';
 import { SdkStripeApi, STRIPE_API } from './stripe/stripe-api';
 import { UserEventsConsumer } from './users/user-events.consumer';
@@ -20,8 +26,8 @@ import { WebhooksService } from './webhooks/webhooks.service';
 export const configModule = serviceConfigModule('payments', validateConfig);
 
 /**
- * Lenders' Stripe connected accounts and Stripe's webhooks (ADR-0003,
- * ADR-0019). Stripe test mode only.
+ * Lenders' Stripe connected accounts, renters' payments and Stripe's
+ * webhooks (ADR-0003, ADR-0019). Stripe test mode only.
  */
 @Module({
   imports: [
@@ -39,7 +45,7 @@ export const configModule = serviceConfigModule('payments', validateConfig);
       }),
     }),
   ],
-  controllers: [PayoutsController, WebhooksController],
+  controllers: [PayoutsController, CheckoutController, WebhooksController],
   providers: [
     {
       provide: STRIPE_API,
@@ -48,9 +54,11 @@ export const configModule = serviceConfigModule('payments', validateConfig);
         new SdkStripeApi(config.get('STRIPE_SECRET_KEY', { infer: true })),
     },
     PayoutsService,
+    CheckoutService,
     WebhooksService,
     PaymentsWorker,
     UserEventsConsumer,
+    BookingEventsConsumer,
     { provide: APP_PIPE, useValue: rpcValidationPipe },
     { provide: APP_FILTER, useClass: RpcErrorFilter },
   ],

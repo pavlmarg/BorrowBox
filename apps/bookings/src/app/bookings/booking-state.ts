@@ -8,8 +8,7 @@ import type { BookingStatus } from '@borrowbox/contracts';
  */
 const TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]> = {
   REQUESTED: ['ACCEPTED', 'CONFIRMED', 'DECLINED', 'EXPIRED', 'CANCELLED'],
-  // Phase 4: PAID on payment.captured; EXPIRED on a payment timeout (and,
-  // until then, when the start passes unpaid).
+  // PAID on payment.captured; EXPIRED when unpaid by its pay-by time.
   ACCEPTED: ['PAID', 'EXPIRED', 'CANCELLED'],
   // Phase 5: PICKED_UP on the pickup QR scan.
   CONFIRMED: ['CANCELLED', 'PICKED_UP'],

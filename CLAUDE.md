@@ -9,7 +9,7 @@ Full design (read before any structural change): @docs/ARCHITECTURE.md
 ADRs — read the relevant one before touching that area:
 - Messaging / RabbitMQ topology → `docs/adr/0001-rabbitmq.md`
 - Monorepo layout, DB schemas & roles → `docs/adr/0002-nx-monorepo-schema-per-service.md`
-- Anything involving money / Stripe → `docs/adr/0003-stripe-separate-charges-transfers.md`, then `0019-payments-fees-and-policies.md` (onboarding, webhooks, fees, payment timeout, refunds)
+- Anything involving money / Stripe → `docs/adr/0003-stripe-separate-charges-transfers.md`, then `0019-payments-fees-and-policies.md` (onboarding, webhooks, payment timeout, checkout, refunds), then `0020-booking-fees.md` (the fees)
 - Item locations, maps, photos → `docs/adr/0004-location-fuzzing.md`, then `0007-location-privacy-search.md` (supersedes parts of 0004), then `0011-one-offset-per-place.md` (amends 0007's offset rule)
 - Map tiles, setting item locations → `docs/adr/0008-maps-pin-drop.md`; Explore's map markers → `docs/adr/0014-price-tags-on-explore-map.md`
 - Photo uploads and processing → `docs/adr/0009-photo-pipeline.md`, then `0013-wider-photo-formats.md` (formats, browser conversion, camera)
@@ -44,7 +44,7 @@ ADRs — read the relevant one before touching that area:
 - Start infra: `docker compose -f infra/docker-compose.yml up -d --wait`
 - Affected checks: `npx nx affected -t lint test build` (Docker must be running: integration tests use Testcontainers)
 - Single project: `npx nx test <project>`, `npx nx serve <project>` (apps need `apps/<app>/.env`; see README "Running the apps")
-- Backfill a newly started service's read models: `npx nx run identity:republish-users` (or `republish-registered`, with emails, for Notifications), `npx nx run catalog:republish-items` (safe to repeat)
+- Backfill a newly started service's read models: `npx nx run identity:republish-users` (or `republish-registered`, with emails, for Notifications), `npx nx run catalog:republish-items`, `npx nx run payments:republish-accounts` (safe to repeat)
 - Stripe webhooks locally (test mode, Stripe CLI): `stripe listen --forward-to localhost:3000/api/webhooks/stripe --forward-connect-to localhost:3000/api/webhooks/stripe-connect`; put the printed `whsec_…` in both webhook secrets of `apps/payments/.env`
 - After changing gateway endpoints: `npx nx run gateway:openapi`, then `npx nx run web:api-client` (a test fails if `openapi.json` drifts)
 - Node ≥ 22.22.3 (`.nvmrc`); Angular 22 and Testcontainers need it

@@ -38,6 +38,7 @@ import {
   NotificationsClient,
 } from './notifications/notifications.client';
 import {
+  CheckoutController,
   PayoutsController,
   StripeWebhooksController,
 } from './payments/payments.controller';
@@ -91,6 +92,7 @@ const configModule = ConfigModule.forRoot({
     BookingsController,
     MyBookingsController,
     ConversationsController,
+    CheckoutController,
     PayoutsController,
     StripeWebhooksController,
     HealthController,

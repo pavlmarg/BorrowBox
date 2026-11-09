@@ -59,6 +59,13 @@
       "options": {
         "command": "node dist/apps/payments/main.js migrate"
       }
+    },
+    "republish-accounts": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "node dist/apps/payments/main.js republish-accounts"
+      }
     }
   }
 }

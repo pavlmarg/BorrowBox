@@ -147,6 +147,7 @@ describe('Booking and chat routes (integration)', () => {
       ['REQUEST_LIMIT_REACHED', 409],
       ['OWN_ITEM', 409],
       ['EMAIL_NOT_VERIFIED', 403],
+      ['PAYOUTS_NOT_SET_UP', 409],
     ] as const)('maps %s to %i', async (code, status) => {
       bookings.fail(BookingsRpc.request, { code, message: 'No' });
       const res = await gw

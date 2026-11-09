@@ -12,8 +12,8 @@ const SWEEP_BATCH = 500;
  * Expires bookings whose time is up (ADR-0015):
  * - a request nobody answered within 24 hours (`NO_ANSWER`), or whose start
  *   came first (`STARTED`);
- * - an accepted booking still unpaid at its start (`STARTED`). Payments
- *   (Phase 4) adds its own payment timeout.
+ * - an accepted booking still unpaid at its pay-by time, 24 hours after
+ *   the acceptance or its start if sooner (`PAYMENT_TIMEOUT`, ADR-0019).
  *
  * Every check re-reads the booking under its row lock, so a job that fires
  * late, twice, or after an answer does nothing wrong.
@@ -49,11 +49,15 @@ export class BookingExpiry {
         );
         return true;
       }
-      if (booking.status === 'ACCEPTED' && started) {
+      if (
+        booking.status === 'ACCEPTED' &&
+        booking.pay_by !== null &&
+        booking.pay_by.getTime() <= now.getTime()
+      ) {
         await moveBooking(
           tx,
           booking,
-          { to: 'EXPIRED', reason: 'STARTED' },
+          { to: 'EXPIRED', reason: 'PAYMENT_TIMEOUT' },
           null,
           pushes,
         );

@@ -25,6 +25,7 @@ import {
   type ConversationUnreadV1Payload,
   type Locale,
   type OfferSentV1Payload,
+  type PaymentFailedV1Payload,
 } from '@borrowbox/contracts';
 
 /**
@@ -105,6 +106,38 @@ export class BookingPayload implements BookingSnapshotV1 {
   @IsOptional()
   @IsUUID()
   offerId?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  feeCents?: number;
+
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  payBy?: string;
+}
+
+/** `payment.failed.v1`. */
+export class PaymentFailedPayload implements PaymentFailedV1Payload {
+  @IsUUID()
+  bookingId!: string;
+
+  @IsUUID()
+  renterId!: string;
+
+  @IsUUID()
+  lenderId!: string;
+
+  @IsString()
+  @MaxLength(ITEM_TITLE_MAX_LENGTH)
+  itemTitle!: string;
+
+  @IsInt()
+  @Min(0)
+  amountCents!: number;
+
+  @IsISO8601({ strict: true })
+  payBy!: string;
 }
 
 export class DeclinedPayload extends BookingPayload {

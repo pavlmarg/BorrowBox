@@ -5,7 +5,8 @@ import type { EntityManager } from 'typeorm';
  * events. Events may arrive late or out of order, so:
  * - the newest `occurredAt` wins for the name;
  * - verification is kept from the first event;
- * - deletion is final: later events never bring a deleted user back.
+ * - deletion is final: later events never bring a deleted user back;
+ * - whether they can be paid comes from Payments' events, the newest wins.
  */
 
 export interface UserRow {
@@ -14,6 +15,32 @@ export interface UserRow {
   name_updated_at: Date | null;
   email_verified_at: Date | null;
   deleted_at: Date | null;
+  /** Payments can pay them (`payment.account_ready`, ADR-0019). */
+  payouts_ready: boolean;
+  payouts_changed_at: Date | null;
+}
+
+/**
+ * From `payment.account_ready` (true) or `.account_restricted` (false).
+ * An older event never overrides a newer one; ignored once deleted.
+ */
+export async function savePayoutsReady(
+  tx: EntityManager,
+  userId: string,
+  ready: boolean,
+  occurredAt: string,
+): Promise<void> {
+  await tx.query(
+    `INSERT INTO users (user_id, payouts_ready, payouts_changed_at)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (user_id) DO UPDATE
+       SET payouts_ready = EXCLUDED.payouts_ready,
+           payouts_changed_at = EXCLUDED.payouts_changed_at
+       WHERE users.deleted_at IS NULL
+         AND (users.payouts_changed_at IS NULL
+              OR users.payouts_changed_at < EXCLUDED.payouts_changed_at)`,
+    [userId, ready, occurredAt],
+  );
 }
 
 /** From `user.registered` or `user.profile_updated`; creates the row if missing. */
@@ -68,6 +95,7 @@ export async function markUserDeleted(
        SET display_name = NULL,
            name_updated_at = NULL,
            email_verified_at = NULL,
+           payouts_ready = false,
            deleted_at = COALESCE(users.deleted_at, now())`,
     [userId],
   );
@@ -81,6 +109,15 @@ export async function findUser(
     userId,
   ]);
   return row ?? null;
+}
+
+/** True if Payments said the lender can be paid (and the account is live). */
+export async function canBePaid(
+  tx: EntityManager,
+  userId: string,
+): Promise<boolean> {
+  const user = await findUser(tx, userId);
+  return Boolean(user?.payouts_ready && !user.deleted_at);
 }
 
 /**

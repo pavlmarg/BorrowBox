@@ -1,6 +1,7 @@
 import { CreateOutboxTables1759140000000 } from '@borrowbox/outbox';
 import { DatabaseModule } from '@borrowbox/service-kit';
 import { NotificationsInitial1761500000000 } from './migrations/1761500000000-notifications-initial';
+import { NotificationsPaymentEmails1762800000000 } from './migrations/1762800000000-notifications-payment-emails';
 
 /**
  * The outbox tables come with `processed_events`, which the consumer needs.
@@ -9,6 +10,7 @@ import { NotificationsInitial1761500000000 } from './migrations/1761500000000-no
 export const MIGRATIONS = [
   CreateOutboxTables1759140000000,
   NotificationsInitial1761500000000,
+  NotificationsPaymentEmails1762800000000,
 ];
 
 /** Notifications' DataSource as `DATA_SOURCE` (from `@borrowbox/service-kit`). */

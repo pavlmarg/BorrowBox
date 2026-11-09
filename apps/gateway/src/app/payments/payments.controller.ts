@@ -23,10 +23,90 @@ import { JwtAuthGuard } from '@borrowbox/auth';
 import { PaymentsRpc, type WebhookSource } from '@borrowbox/contracts';
 import { ApiErrorResponse } from '../api.dto';
 import { apiError } from '../http/api-error';
+import { UuidParam } from '../http/params';
 import { StripeLinkRateLimit } from '../http/rate-limits';
 import { AccessToken, CorrelationId } from '../http/request-context';
-import { PayoutAccountResponse, StripeLinkResponse } from './payments.api';
+import {
+  CheckoutResponse,
+  PaymentViewResponse,
+  PayoutAccountResponse,
+  StripeLinkResponse,
+} from './payments.api';
 import { PaymentsClient } from './payments.client';
+
+/**
+ * The renter pays an accepted booking (ADR-0019): Payments checks the
+ * booking is theirs and still waiting for payment.
+ */
+@ApiTags('payments')
+@ApiBearerAuth()
+@ApiResponse({
+  status: 401,
+  type: ApiErrorResponse,
+  description: 'UNAUTHENTICATED',
+})
+@ApiResponse({
+  status: 404,
+  type: ApiErrorResponse,
+  description: 'NOT_FOUND (unknown booking, or not mine to pay)',
+})
+@UseGuards(JwtAuthGuard)
+@Controller('bookings')
+export class CheckoutController {
+  constructor(private readonly payments: PaymentsClient) {}
+
+  @Post(':bookingId/payment')
+  @HttpCode(HttpStatus.OK)
+  @StripeLinkRateLimit()
+  @ApiOperation({
+    summary: 'Start (or come back to) paying my accepted booking',
+    description:
+      "Returns the amounts, the pay-by time and a client secret for Stripe's payment form. The outcome arrives by webhook: poll GET or wait for the booking to become PAID.",
+  })
+  @ApiOkResponse({ type: CheckoutResponse })
+  @ApiResponse({
+    status: 409,
+    type: ApiErrorResponse,
+    description:
+      'INVALID_STATE (paid, processing or closed), PAYMENT_WINDOW_CLOSED (under 10 minutes to the pay-by time)',
+  })
+  @ApiResponse({
+    status: 429,
+    type: ApiErrorResponse,
+    description: 'RATE_LIMITED (10 per minute)',
+  })
+  @ApiResponse({
+    status: 503,
+    type: ApiErrorResponse,
+    description: 'PROVIDER_UNAVAILABLE (Stripe), SERVICE_UNAVAILABLE',
+  })
+  start(
+    @UuidParam('bookingId') bookingId: string,
+    @AccessToken() accessToken: string,
+    @CorrelationId() correlationId: string,
+  ): Promise<CheckoutResponse> {
+    return this.payments.call(
+      PaymentsRpc.startCheckout,
+      { bookingId },
+      { accessToken, correlationId },
+    );
+  }
+
+  @Get(':bookingId/payment')
+  @ApiOperation({ summary: "My booking's payment: status and amounts" })
+  @ApiOkResponse({ type: PaymentViewResponse })
+  get(
+    @UuidParam('bookingId') bookingId: string,
+    @AccessToken() accessToken: string,
+    @CorrelationId() correlationId: string,
+  ): Promise<PaymentViewResponse> {
+    return this.payments.call(
+      PaymentsRpc.getPayment,
+      { bookingId },
+      { accessToken, correlationId },
+    );
+  }
+}
 
 /**
  * The signed-in lender's payouts (ADR-0019). The gateway checks the JWT;

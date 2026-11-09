@@ -10,9 +10,11 @@ import {
   BookingConfirmedV1,
   BookingDeclinedV1,
   BookingExpiredV1,
+  BookingPaidV1,
   BookingRequestedV1,
   ConversationUnreadV1,
   OfferSentV1,
+  PaymentFailedV1,
   UserDeletionRequestedV1,
   UserProfileUpdatedV1,
   UserRegisteredV1,
@@ -34,6 +36,8 @@ import {
   onDeclined,
   onExpired,
   onOfferSent,
+  onPaid,
+  onPaymentFailed,
   onRequested,
   onUnread,
 } from '../emails/plan';
@@ -48,6 +52,7 @@ import {
   DeclinedPayload,
   ExpiredPayload,
   OfferSentPayload,
+  PaymentFailedPayload,
   ProfilePayload,
   RegisteredPayload,
   UnreadPayload,
@@ -59,7 +64,7 @@ export const EVENTS_QUEUE = 'notifications.events';
 
 /**
  * Every event Notifications reacts to, on one queue: Identity's user events
- * keep the recipients; booking, offer and unread-message events queue
+ * keep the recipients; booking, payment, offer and unread-message events queue
  * emails, in the same transaction as `processed_events` (N3).
  */
 @Injectable()
@@ -82,6 +87,8 @@ export class EventsConsumer implements OnApplicationBootstrap {
         BookingDeclinedV1.routingKey,
         BookingExpiredV1.routingKey,
         BookingCancelledV1.routingKey,
+        BookingPaidV1.routingKey,
+        PaymentFailedV1.routingKey,
         OfferSentV1.routingKey,
         ConversationUnreadV1.routingKey,
       ],
@@ -126,6 +133,12 @@ export class EventsConsumer implements OnApplicationBootstrap {
         return queue(onExpired(parsePayload(envelope, ExpiredPayload)));
       case BookingCancelledV1.routingKey:
         return queue(onCancelled(parsePayload(envelope, CancelledPayload)));
+      case BookingPaidV1.routingKey:
+        return queue(onPaid(parsePayload(envelope, BookingPayload)));
+      case PaymentFailedV1.routingKey:
+        return queue(
+          onPaymentFailed(parsePayload(envelope, PaymentFailedPayload)),
+        );
       case OfferSentV1.routingKey:
         return queue(onOfferSent(parsePayload(envelope, OfferSentPayload)));
       case ConversationUnreadV1.routingKey:

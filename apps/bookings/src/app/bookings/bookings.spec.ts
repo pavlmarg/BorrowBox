@@ -2,6 +2,10 @@ import { randomUUID } from 'node:crypto';
 import {
   BOOKING_OPEN_REQUESTS_MAX,
   BookingsRpc,
+  createEnvelope,
+  PaymentAccountReadyV1,
+  PaymentAccountRestrictedV1,
+  PaymentCapturedV1,
   type BookingView,
   type ItemSnapshotV1,
   type RpcErrorBody,
@@ -123,7 +127,10 @@ describe('Bookings commands and queries (integration)', () => {
       expect(quote).toMatchObject({
         rentCents: 3000,
         depositCents: 2000,
-        totalCents: 5000,
+        feeCents: 300,
+        totalCents: 5300,
+        lenderFeeCents: 60,
+        payoutCents: 2940,
         units: { HOUR: 0, DAY: 2, WEEK: 0, MONTH: 0 },
       });
     });
@@ -165,7 +172,15 @@ describe('Bookings commands and queries (integration)', () => {
         itemTitle: 'Cordless drill',
         renter: { userId: renter, displayName: 'Rafael' },
         lender: { userId: lender, displayName: 'Lena' },
-        price: { rentCents: 600, depositCents: 5000, totalCents: 5600 },
+        // Fees fixed now (ADR-0020): the renter's on top, the lender's for the deposit.
+        price: {
+          rentCents: 600,
+          depositCents: 5000,
+          feeCents: 72,
+          totalCents: 5672,
+          lenderFeeCents: 150,
+          payoutCents: 450,
+        },
         reason: null,
       });
       // Expires in 24 hours, or at the start if sooner: here the start.
@@ -467,6 +482,142 @@ describe('Bookings commands and queries (integration)', () => {
       await expect(act('cancel', renter, booking.id)).rejects.toEqual(
         failure('INVALID_STATE'),
       );
+    });
+  });
+
+  describe('payment (ADR-0019)', () => {
+    /** An ACCEPTED booking starting in 30 hours, so it has 24 hours to be paid. */
+    async function accepted() {
+      const { lender, renter } = await people();
+      const item = await bookings.addItem(lender);
+      const requested = await request(renter, item, at(30), at(32));
+      const booking = await act('accept', lender, requested.id);
+      return { lender, renter, item, booking };
+    }
+
+    it('needs the lender’s payouts to accept a booking with something to pay', async () => {
+      const lender = await bookings.addUser({ payable: false });
+      const { renter } = await people();
+      const paidItem = await bookings.addItem(lender);
+      const freeItem = await bookings.addItem(lender, {
+        pricing: { free: true },
+        depositCents: 0,
+      });
+      const paid = await request(renter, paidItem);
+      await expect(act('accept', lender, paid.id)).rejects.toEqual(
+        failure('PAYOUTS_NOT_SET_UP'),
+      );
+      // Nothing to pay: no payouts needed.
+      const free = await request(renter, freeItem, at(10), at(12));
+      await expect(act('accept', lender, free.id)).resolves.toMatchObject({
+        status: 'CONFIRMED',
+        payBy: null,
+      });
+
+      await bookings.receive(
+        createEnvelope(PaymentAccountReadyV1, { userId: lender }),
+      );
+      await expect(act('accept', lender, paid.id)).resolves.toMatchObject({
+        status: 'ACCEPTED',
+      });
+    });
+
+    it('keeps the newest payout status, in whatever order the events arrive', async () => {
+      const lender = await bookings.addUser({ payable: false });
+      const t = (iso: string) => ({ occurredAt: new Date(iso) });
+      const ready = createEnvelope(
+        PaymentAccountReadyV1,
+        { userId: lender },
+        t('2026-11-01T10:00:00Z'),
+      );
+      const restricted = createEnvelope(
+        PaymentAccountRestrictedV1,
+        { userId: lender },
+        t('2026-11-02T10:00:00Z'),
+      );
+      await bookings.receive(restricted);
+      await bookings.receive(ready); // older: ignored
+      await bookings.receive(ready); // and only once
+      const { renter } = await people();
+      const item = await bookings.addItem(lender);
+      const booking = await request(renter, item);
+      await expect(act('accept', lender, booking.id)).rejects.toEqual(
+        failure('PAYOUTS_NOT_SET_UP'),
+      );
+    });
+
+    it('announces the pay-by time and the fees with booking.accepted', async () => {
+      const { booking } = await accepted();
+      expect(booking.payBy).not.toBeNull();
+      const [row] = await bookings.dataSource.query(
+        `SELECT envelope->'payload' AS payload FROM outbox
+          WHERE routing_key = 'booking.accepted.v1'
+            AND envelope->'payload'->>'bookingId' = $1`,
+        [booking.id],
+      );
+      expect(row.payload).toMatchObject({
+        payBy: booking.payBy,
+        feeCents: booking.price.feeCents,
+        lenderFeeCents: booking.price.lenderFeeCents,
+      });
+    });
+
+    it('goes ahead once paid: PAID, booking.paid and a chat line, once', async () => {
+      const { renter, booking } = await accepted();
+      const captured = createEnvelope(PaymentCapturedV1, {
+        bookingId: booking.id,
+        amountCents: booking.price.totalCents,
+      });
+      await bookings.receive(captured);
+      await bookings.receive(captured); // the same event again
+      expect(await act('get', renter, booking.id)).toMatchObject({
+        status: 'PAID',
+        payBy: null,
+      });
+      expect(
+        (await events(booking.id)).filter((e) => e === 'booking.paid.v1'),
+      ).toHaveLength(1);
+      const lines: Array<{ system_code: string }> =
+        await bookings.dataSource.query(
+          `SELECT system_code FROM messages WHERE booking_id = $1`,
+          [booking.id],
+        );
+      expect(lines.map((l) => l.system_code)).toContain('BOOKING_PAID');
+    });
+
+    it('leaves a booking that closed before the payment arrived, and an underpayment', async () => {
+      const closed = await accepted();
+      await act('cancel', closed.renter, closed.booking.id);
+      await bookings.pay(closed.booking.id, closed.booking.price.totalCents);
+      expect((await act('get', closed.renter, closed.booking.id)).status).toBe(
+        'CANCELLED',
+      );
+
+      const short = await accepted();
+      await bookings.pay(short.booking.id, short.booking.price.totalCents - 1);
+      expect((await act('get', short.renter, short.booking.id)).status).toBe(
+        'ACCEPTED',
+      );
+    });
+
+    it('cancels a paid booking when its item is deleted (Payments refunds it)', async () => {
+      const { renter, item, booking } = await accepted();
+      await bookings.pay(booking.id, booking.price.totalCents);
+      await bookings.deleteItem(item);
+      expect(await act('get', renter, booking.id)).toMatchObject({
+        status: 'CANCELLED',
+        reason: 'ITEM_DELETED',
+      });
+    });
+
+    it('cannot be cancelled by its people once paid, until refunds exist (PR C)', async () => {
+      const { renter, lender, booking } = await accepted();
+      await bookings.pay(booking.id, booking.price.totalCents);
+      for (const who of [renter, lender]) {
+        await expect(act('cancel', who, booking.id)).rejects.toEqual(
+          failure('INVALID_STATE'),
+        );
+      }
     });
   });
 

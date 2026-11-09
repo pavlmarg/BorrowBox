@@ -7,6 +7,7 @@ export interface StripeEventRow {
   type: string;
   source: WebhookSource;
   account_id: string | null;
+  object_id: string | null;
   attempts: number;
 }
 
@@ -21,11 +22,11 @@ export async function insertEvent(
 ): Promise<boolean> {
   // INSERT … RETURNING gives the rows (only UPDATE/DELETE add a count).
   const rows: unknown[] = await tx.query(
-    `INSERT INTO stripe_events (event_id, type, source, account_id)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO stripe_events (event_id, type, source, account_id, object_id)
+     VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (event_id) DO NOTHING
      RETURNING event_id`,
-    [event.id, event.type, source, event.accountId],
+    [event.id, event.type, source, event.accountId, event.objectId],
   );
   return rows.length > 0;
 }
@@ -48,7 +49,7 @@ export async function claimDueEvents(
                           ORDER BY received_at
                           LIMIT $1::int
                           FOR UPDATE SKIP LOCKED)
-      RETURNING event_id, type, source, account_id, attempts`,
+      RETURNING event_id, type, source, account_id, object_id, attempts`,
     [limit, leaseMs],
   );
   return rows;
