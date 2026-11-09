@@ -20,6 +20,7 @@ import { EurPipe } from '../../shared/format/eur.pipe';
 import { offeredRates } from '../../shared/format/pricing';
 import { MapView } from '../../shared/map/map-view';
 import { BookPanel } from '../bookings/book-panel';
+import { AskLender } from '../chat/ask-lender';
 import { ItemGallery } from './item-gallery';
 import { ItemStore } from './item.store';
 
@@ -41,6 +42,7 @@ import { ItemStore } from './item.store';
     MapView,
     ItemGallery,
     BookPanel,
+    AskLender,
   ],
   providers: [ItemStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -155,6 +157,7 @@ import { ItemStore } from './item.store';
                     [initialStart]="start()"
                     [initialEnd]="end()"
                   />
+                  <bb-ask-lender [itemId]="item.id" />
                 }
 
                 <div class="lender">

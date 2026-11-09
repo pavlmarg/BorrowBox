@@ -176,10 +176,10 @@ export function cancelPolicy(
               @if (b.status === 'CONFIRMED' || b.status === 'PAID') {
                 <p class="meet">
                   {{ t('bookings.detail.meet') }}
-                  <!--
-                    CHAT LINK SLOT: the chat feature adds a link to this
-                    booking's conversation here ("Open the chat").
-                  -->
+                  <!-- The booking doesn't carry its conversation's id yet: the messages list. -->
+                  <a class="bb-text-action" routerLink="/messages">{{
+                    t('bookings.detail.openMessages')
+                  }}</a>
                 </p>
               }
             </section>

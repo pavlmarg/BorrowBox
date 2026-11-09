@@ -275,7 +275,9 @@
     "previousPhoto": "Previous photo",
     "nextPhoto": "Next photo",
     "photoCount": "{{n}} / {{total}}",
-    "enlargePhoto": "Enlarge photo"
+    "enlargePhoto": "Enlarge photo",
+    "requestToBorrow": "Request to borrow",
+    "requestsSoon": "Borrowing requests open soon."
   },
   "listing": {
     "backToItems": "My items",
@@ -651,7 +653,8 @@
       "withdraw": "Withdraw request",
       "cancel": "Cancel booking",
       "changed": "This booking changed meanwhile. Here is how it stands now.",
-      "setUpPayouts": "Set up payouts"
+      "setUpPayouts": "Set up payouts",
+      "openMessages": "Open your messages"
     },
     "state": {
       "REQUESTED": {
@@ -772,5 +775,128 @@
         "confirm": "Cancel booking"
       }
     }
+  },
+  "chat": {
+    "loading": "Loading your conversations",
+    "loadingThread": "Loading the conversation",
+    "empty": "No conversations yet",
+    "emptyHint": "Ask a lender about an item and your conversation shows up here.",
+    "browse": "Explore items",
+    "deletedUser": "Deleted account",
+    "readOnly": "Read-only",
+    "youSaid": "You: {{text}}",
+    "deleted": "Message deleted",
+    "noMessages": "No messages yet",
+    "unreadCount": "{{count}} unread",
+    "unreadBadge": "{{count}} unread messages",
+    "more": "Show more",
+    "back": "All messages",
+    "backToList": "Back to messages",
+    "closedBanner": "This conversation is read-only: the item was deleted or an account was closed.",
+    "messagesLabel": "Messages",
+    "older": "Show older messages",
+    "startHint": "Say hello and ask what you’d like to know about the item.",
+    "viewBooking": "View booking",
+    "seen": "Seen",
+    "sending": "Sending…",
+    "retry": "Try again",
+    "discard": "Discard",
+    "write": "Write a message",
+    "send": "Send",
+    "enterHint": "Enter sends, Shift+Enter starts a new line.",
+    "maskedHint": "Contact details are hidden until you have a booking that goes ahead.",
+    "toSettings": "Go to Settings",
+    "ask": "Ask the lender",
+    "system": {
+      "BOOKING_REQUESTED": "A booking was requested.",
+      "BOOKING_ACCEPTED": "The lender accepted the booking. It’s waiting for payment.",
+      "BOOKING_CONFIRMED": "The booking is confirmed. Arrange here where and when to meet.",
+      "BOOKING_PAID": "The booking is paid. Arrange here where and when to meet.",
+      "BOOKING_DECLINED": "The booking request was declined.",
+      "BOOKING_CANCELLED": "The booking was cancelled.",
+      "BOOKING_EXPIRED": "The booking expired.",
+      "OFFER_WITHDRAWN": "The lender withdrew the price offer."
+    },
+    "report": {
+      "action": "Report",
+      "title": "Report this message",
+      "intro": "Why are you reporting it? We’ll review it; the other person isn’t told.",
+      "reasons": {
+        "SPAM": "Spam",
+        "SCAM": "Scam or fraud",
+        "ABUSE": "Abusive or offensive",
+        "OTHER": "Something else"
+      },
+      "cancel": "Cancel",
+      "send": "Report",
+      "done": "Thanks, the message was reported."
+    },
+    "errors": {
+      "NOT_FOUND": "This conversation doesn’t exist, or isn’t yours.",
+      "CONVERSATION_CLOSED": "This conversation is read-only now.",
+      "OFFER_UNAVAILABLE": "This offer is no longer available.",
+      "PRICE_ABOVE_LIST": "An offer can’t cost more than the item’s list price for that period.",
+      "PAYOUTS_NOT_SET_UP": "Set up payouts first, so you can be paid.",
+      "OWN_ITEM": "This is your own item.",
+      "ITEM_UNAVAILABLE": "This item isn’t available right now.",
+      "SLOT_TAKEN": "Someone has already booked that time.",
+      "INVALID_PERIOD": "This period doesn’t fit the item’s rental limits.",
+      "RATE_LIMITED": "You’re sending too fast. Please wait a minute and try again."
+    }
+  },
+  "offers": {
+    "make": "Make an offer",
+    "preview": "Price offer: {{rent}}",
+    "period": "When",
+    "startDay": "From",
+    "startHour": "Time",
+    "endDay": "Until",
+    "endHour": "Time",
+    "athensTime": "Times are in Greece’s time.",
+    "problems": {
+      "order": "The end must be after the start.",
+      "tooSoon": "The start must be at least an hour from now.",
+      "tooFar": "The start can be at most 180 days ahead.",
+      "tooLong": "A booking can last at most 90 days."
+    },
+    "makeTitle": "Make a price offer",
+    "makeIntro": "Offer a lower rent for a period. The deposit stays the same. The renter can book it at once.",
+    "quoting": "Checking the price…",
+    "listRent": "List price for this period",
+    "depositUnchanged": "Deposit (unchanged)",
+    "yourRent": "Your rent",
+    "rentHint": "At most {{max}}",
+    "rentRequired": "Enter the rent you offer.",
+    "rentUnreadable": "Enter an amount, e.g. 12.50.",
+    "rentTooHigh": "At most {{max}}, the list price for this period.",
+    "validity": "An offer is valid for 48 hours, or until an hour before its start.",
+    "replaces": "Sending it replaces your open offer.",
+    "setUpPayouts": "Set up payouts",
+    "cancel": "Cancel",
+    "send": "Send offer",
+    "sent": "Offer sent.",
+    "yourOffer": "Your offer",
+    "theirOffer": "Price offer",
+    "status": {
+      "OPEN": "Open",
+      "USED": "Booked",
+      "WITHDRAWN": "Withdrawn",
+      "REPLACED": "Replaced",
+      "EXPIRED": "Expired"
+    },
+    "rent": "Rent",
+    "deposit": "Deposit",
+    "fee": "Service fee",
+    "total": "You pay",
+    "validUntil": "Valid until {{time}}",
+    "withdraw": "Withdraw",
+    "book": "Book this offer",
+    "viewBooking": "View booking",
+    "bookTitle": "Book this offer?",
+    "bookMessage": "{{start}} – {{end}}, {{total}} in total. The lender has already agreed: you’ll be asked to pay next.",
+    "withdrawTitle": "Withdraw this offer?",
+    "withdrawMessage": "The renter won’t be able to book it any more.",
+    "keep": "Keep it",
+    "withdrawn": "Offer withdrawn."
   }
 }

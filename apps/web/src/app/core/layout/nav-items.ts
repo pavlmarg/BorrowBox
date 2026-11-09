@@ -17,7 +17,12 @@ export const MAIN_NAV: readonly NavItem[] = [
   { key: 'explore', icon: 'explore', route: '/explore' },
   { key: 'myItems', icon: 'items', route: '/my-items', requiresAuth: true },
   { key: 'rentals', icon: 'rentals', route: '/bookings', requiresAuth: true },
-  { key: 'messages', icon: 'messages' }, // Phase 3 chat (ADR-0017), same web pass
+  {
+    key: 'messages',
+    icon: 'messages',
+    route: '/messages',
+    requiresAuth: true,
+  },
   {
     key: 'profile',
     icon: 'profile',
