@@ -23,6 +23,28 @@ export const authRoutes: Route[] = [
         loadComponent: () =>
           import('./auth-callback.page').then((m) => m.AuthCallbackPage),
       },
+      // Email links (ADR-0016) and the reset request: signed in or out.
+      {
+        path: 'verify-email',
+        loadComponent: () =>
+          import('../account-emails/verify-email.page').then(
+            (m) => m.VerifyEmailPage,
+          ),
+      },
+      {
+        path: 'forgot-password',
+        loadComponent: () =>
+          import('../account-emails/forgot-password.page').then(
+            (m) => m.ForgotPasswordPage,
+          ),
+      },
+      {
+        path: 'reset-password',
+        loadComponent: () =>
+          import('../account-emails/reset-password.page').then(
+            (m) => m.ResetPasswordPage,
+          ),
+      },
       { path: '', pathMatch: 'full', redirectTo: 'register' },
     ],
   },

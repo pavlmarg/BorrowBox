@@ -50,6 +50,11 @@ import { PasswordToggle } from './password-toggle';
         @if (deleted()) {
           <p class="notice" role="status">{{ t('auth.login.deleted') }}</p>
         }
+        @if (reset()) {
+          <p class="notice" role="status">
+            {{ t('auth.login.passwordReset') }}
+          </p>
+        }
 
         <bb-google-button [returnUrl]="returnUrl() ?? null" />
         <p class="divider">{{ t('auth.or') }}</p>
@@ -84,6 +89,14 @@ import { PasswordToggle } from './password-toggle';
               <mat-error>{{ t('validation.required') }}</mat-error>
             }
           </mat-form-field>
+
+          <!-- The typed address travels in the navigation's state, not the URL. -->
+          <a
+            class="forgot"
+            routerLink="/auth/forgot-password"
+            [state]="{ email: form.controls.email.value }"
+            >{{ t('auth.login.forgotPassword') }}</a
+          >
 
           @if (error(); as code) {
             <p class="form-error" role="alert">{{ t(errorKey(code)) }}</p>
@@ -141,6 +154,11 @@ import { PasswordToggle } from './password-toggle';
       flex: 1;
       height: 1px;
     }
+    .forgot {
+      align-self: flex-end;
+      font: var(--mat-sys-body-medium);
+      margin-top: -8px;
+    }
     .submit {
       height: 48px;
       margin-top: 4px;
@@ -160,6 +178,8 @@ export class LoginPage {
   /** Query params (router input binding). */
   readonly returnUrl = input<string>();
   readonly deleted = input<string>();
+  /** After a password reset: every session was signed out. */
+  readonly reset = input<string>();
 
   private readonly auth = inject(AuthStore);
   private readonly router = inject(Router);

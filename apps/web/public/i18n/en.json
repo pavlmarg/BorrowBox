@@ -38,7 +38,9 @@
       "submit": "Sign in",
       "noAccount": "New to BorrowBox?",
       "registerLink": "Create an account",
-      "deleted": "Your account has been deleted."
+      "deleted": "Your account has been deleted.",
+      "forgotPassword": "Forgot your password?",
+      "passwordReset": "Your password has been changed and you were signed out everywhere. Sign in with your new password."
     },
     "register": {
       "title": "Create your account",
@@ -130,7 +132,10 @@
     "EMAIL_NOT_VERIFIED": "Confirm your email address first, with the link we sent you.",
     "FORBIDDEN": "You can’t do that.",
     "PAYLOAD_TOO_LARGE": "That’s too much to send at once.",
-    "UNKNOWN": "That didn’t work. Please try again."
+    "UNKNOWN": "That didn’t work. Please try again.",
+    "TOKEN_INVALID": "This link doesn’t work any more.",
+    "TOKEN_EXPIRED": "This link has expired.",
+    "PASSWORD_NOT_SET": "Your account has no password yet: you sign in with Google."
   },
   "catalog": {
     "categories": {
@@ -364,5 +369,64 @@
     "system": "Same as device",
     "light": "Light",
     "dark": "Dark"
+  },
+  "accountEmails": {
+    "toExplore": "Go to Explore",
+    "toProfile": "Your profile",
+    "toLogin": "Sign in",
+    "backToLogin": "Back to sign in",
+    "tryAgain": "Try again",
+    "sendAgain": "Send again",
+    "newPassword": "New password",
+    "notice": {
+      "title": "Confirm your email address",
+      "text": "Open the link we sent to {{email}}. You need a confirmed email to publish items, book and chat.",
+      "send": "Send verification email",
+      "sent": "Sent. Check your inbox (and the spam folder). We send at most one email a minute."
+    },
+    "verify": {
+      "verifying": "Confirming your email",
+      "wait": "This only takes a moment.",
+      "doneTitle": "Your email is confirmed",
+      "alreadyTitle": "Your email is already confirmed",
+      "doneText": "Thank you! You can now publish items, book and chat with your neighbours.",
+      "expiredTitle": "This link has expired",
+      "expiredText": "Confirmation links work for 24 hours. Ask for a new one.",
+      "invalidTitle": "This link doesn’t work any more",
+      "invalidText": "It may have been used already, or a newer link replaced it.",
+      "failedTitle": "We couldn’t confirm your email",
+      "resend": "Send a new link",
+      "resent": "We’ve sent a new link to {{email}}. Check your inbox (and the spam folder).",
+      "signInToResend": "Sign in and ask for a new link in Settings."
+    },
+    "forgot": {
+      "title": "Forgot your password?",
+      "subtitle": "Enter your account’s email and we’ll send you a link to set a new one.",
+      "submit": "Send link",
+      "sentTitle": "Check your email",
+      "sentText": "If there’s an account for {{email}}, we’ve sent it a link to set a new password.",
+      "sentHint": "The link works for 10 minutes. Nothing arrived? Check the spam folder, or ask again in a minute.",
+      "otherEmail": "Use another email"
+    },
+    "reset": {
+      "title": "Set a new password",
+      "subtitle": "Once it’s set, you’ll be signed out on every device and sign in again with the new one.",
+      "submit": "Save new password",
+      "expiredTitle": "This link has expired",
+      "expiredText": "Reset links work for 10 minutes. Ask for a new one.",
+      "invalidTitle": "This link doesn’t work any more",
+      "invalidText": "It may have been used already, or a newer link replaced it.",
+      "newLink": "Ask for a new link"
+    },
+    "password": {
+      "title": "Password",
+      "current": "Current password",
+      "submit": "Change password",
+      "changed": "Password changed. Your other devices have been signed out.",
+      "wrongCurrent": "Your current password isn’t right.",
+      "noPassword": "You sign in with Google, so there’s no password to change. We can email you a link to set one; setting it signs you out on every device, this one included.",
+      "sendLink": "Email me a link",
+      "linkSent": "We’ve sent a link to {{email}}. It works for 10 minutes."
+    }
   }
 }

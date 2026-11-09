@@ -27,6 +27,8 @@ import type { Locale } from '../../api/models';
 import { errorKey } from '../../core/api-errors';
 import { AuthStore } from '../../core/auth/auth.store';
 import { LANGUAGES, LanguageService } from '../../core/i18n/language';
+import { ChangePassword } from '../account-emails/change-password';
+import { VerifyEmailNotice } from '../account-emails/verify-email-notice';
 import { GoogleButton } from '../auth/google-button';
 import {
   DeleteAccountDialog,
@@ -50,6 +52,8 @@ import { maxCharacters } from '../../shared/forms/validators';
     MatProgressBarModule,
     MatSelectModule,
     GoogleButton,
+    VerifyEmailNotice,
+    ChangePassword,
   ],
   providers: [ProfileStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -57,6 +61,7 @@ import { maxCharacters } from '../../shared/forms/validators';
     <ng-container *transloco="let t">
       @if (auth.user(); as user) {
         <h1 class="page-title">{{ t('nav.settings') }}</h1>
+        <bb-verify-email-notice />
 
         @if (store.busy()) {
           <mat-progress-bar mode="indeterminate" />
@@ -158,6 +163,8 @@ import { maxCharacters } from '../../shared/forms/validators';
               </ul>
             </mat-card-content>
           </mat-card>
+
+          <bb-change-password />
 
           <mat-card appearance="outlined">
             <mat-card-header>
