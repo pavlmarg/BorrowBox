@@ -222,6 +222,8 @@ html {
   --bb-fast: 150ms;
   --bb-medium: 280ms;
   --bb-fade: 500ms;
+  // Light/dark and Greek/English: a slower cross-fade than a route change.
+  --bb-switch: 700ms;
 }
 html[data-theme='dark'] {
   @include dark-tokens;
@@ -649,6 +651,26 @@ a:not(.mat-mdc-button-base, .bb-text-action) {
 }
 ::view-transition-new(root) {
   animation: bb-fade-in var(--bb-fade) ease both;
+}
+
+// Theme and language switches (SmoothSwitch): the new look fades in over
+// the old one, slower than a route change; the clicked button stays live.
+html.bb-switching::view-transition-old(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html.bb-switching::view-transition-new(root) {
+  animation: bb-fade-in var(--bb-switch) var(--bb-ease) both;
+  mix-blend-mode: normal;
+}
+::view-transition-group(bb-switch-button) {
+  animation: none;
+}
+::view-transition-old(bb-switch-button) {
+  display: none;
+}
+::view-transition-new(bb-switch-button) {
+  animation: none;
 }
 
 @keyframes bb-fade-out {

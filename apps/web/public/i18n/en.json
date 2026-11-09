@@ -94,6 +94,11 @@
       "title": "Payouts",
       "description": "To accept paid bookings, set up the Stripe account BorrowBox pays you through.",
       "link": "Set up and manage payouts"
+    },
+    "appearance": {
+      "title": "Appearance",
+      "followDevice": "Follow my device's light or dark setting",
+      "hint": "Turned off, the sun and moon button in the top bar chooses light or dark."
     }
   },
   "deleteDialog": {

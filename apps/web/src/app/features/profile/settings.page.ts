@@ -20,6 +20,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { Router, RouterLink } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
 import { DISPLAY_NAME_MAX_LENGTH } from '@borrowbox/contracts';
@@ -35,6 +36,7 @@ import {
   type DeleteAccountDialogData,
   type DeleteAccountDialogResult,
 } from './delete-account.dialog';
+import { ThemeService } from '../../core/theme/theme';
 import { ProfileStore } from './profile.store';
 import { maxCharacters } from '../../shared/forms/validators';
 
@@ -55,6 +57,7 @@ import { maxCharacters } from '../../shared/forms/validators';
     GoogleButton,
     VerifyEmailNotice,
     ChangePassword,
+    MatSlideToggleModule,
   ],
   providers: [ProfileStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -169,6 +172,22 @@ import { maxCharacters } from '../../shared/forms/validators';
 
           <mat-card appearance="outlined">
             <mat-card-header>
+              <mat-card-title>{{
+                t('profile.appearance.title')
+              }}</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <mat-slide-toggle
+                [checked]="theme.preference() === 'system'"
+                (change)="followDevice($event.checked)"
+                >{{ t('profile.appearance.followDevice') }}</mat-slide-toggle
+              >
+              <p class="muted">{{ t('profile.appearance.hint') }}</p>
+            </mat-card-content>
+          </mat-card>
+
+          <mat-card appearance="outlined">
+            <mat-card-header>
               <mat-card-title>{{ t('profile.payouts.title') }}</mat-card-title>
             </mat-card-header>
             <mat-card-content>
@@ -269,6 +288,7 @@ export class SettingsPage implements OnInit {
   protected readonly language = inject(LanguageService);
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
+  protected readonly theme = inject(ThemeService);
 
   protected readonly languages = LANGUAGES;
   protected readonly errorKey = errorKey;
@@ -339,5 +359,10 @@ export class SettingsPage implements OnInit {
           });
         }
       });
+  }
+
+  /** On: follow the device. Off: keep today's look, chosen by the top bar's button. */
+  protected followDevice(on: boolean): void {
+    this.theme.use(on ? 'system' : this.theme.theme());
   }
 }

@@ -4,8 +4,10 @@ import {
   computed,
   inject,
   input,
+  signal,
 } from '@angular/core';
 import { TranslocoDirective } from '@jsverse/transloco';
+import { SmoothSwitch } from '../motion/smooth-switch';
 import { ThemeService, type Theme } from './theme';
 
 /** Sun (light) or moon (dark). */
@@ -64,7 +66,9 @@ export class ThemeIcon {
         class="toggle"
         [attr.aria-label]="t('theme.' + next())"
         [attr.title]="t('theme.' + next())"
-        (click)="theme.use(next())"
+        [class.pop]="popping()"
+        (click)="toggle($event)"
+        (animationend)="popping.set(false)"
       >
         <bb-theme-icon [name]="next()" />
       </button>
@@ -98,6 +102,20 @@ export class ThemeIcon {
       outline: 3px solid var(--bb-sky-300);
       outline-offset: 2px;
     }
+    /* A small turn of the icon on click. */
+    .toggle.pop bb-theme-icon {
+      animation: bb-theme-pop 380ms var(--bb-ease);
+    }
+    @keyframes bb-theme-pop {
+      40% {
+        transform: rotate(-35deg) scale(0.8);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .toggle.pop bb-theme-icon {
+        animation: none;
+      }
+    }
     /* In the app's top bar and drawer: a plain icon, no box or lift. */
     :host-context(bb-app-shell) .toggle {
       backdrop-filter: none;
@@ -109,9 +127,20 @@ export class ThemeIcon {
   `,
 })
 export class ThemeToggle {
-  protected readonly theme = inject(ThemeService);
+  private readonly theme = inject(ThemeService);
+  private readonly smooth = inject(SmoothSwitch);
+  protected readonly popping = signal(false);
   /** The theme a click switches to. */
   protected readonly next = computed<Theme>(() =>
     this.theme.theme() === 'dark' ? 'light' : 'dark',
   );
+
+  protected toggle(event: Event): void {
+    const next = this.next();
+    this.popping.set(true);
+    this.smooth.run(
+      () => this.theme.use(next),
+      event.currentTarget as HTMLElement,
+    );
+  }
 }
