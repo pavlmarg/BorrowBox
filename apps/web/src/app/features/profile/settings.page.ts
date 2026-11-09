@@ -20,7 +20,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
 import { DISPLAY_NAME_MAX_LENGTH } from '@borrowbox/contracts';
 import type { Locale } from '../../api/models';
@@ -41,6 +41,7 @@ import { maxCharacters } from '../../shared/forms/validators';
   imports: [
     DatePipe,
     ReactiveFormsModule,
+    RouterLink,
     TranslocoDirective,
     MatButtonModule,
     MatCardModule,
@@ -161,6 +162,24 @@ import { maxCharacters } from '../../shared/forms/validators';
 
           <mat-card appearance="outlined">
             <mat-card-header>
+              <mat-card-title>{{ t('profile.payouts.title') }}</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <p class="muted">{{ t('profile.payouts.description') }}</p>
+              <a
+                class="payouts-link bb-text-action-host"
+                routerLink="/settings/payouts"
+              >
+                <span class="bb-text-action">{{
+                  t('profile.payouts.link')
+                }}</span>
+                <span aria-hidden="true">›</span>
+              </a>
+            </mat-card-content>
+          </mat-card>
+
+          <mat-card appearance="outlined">
+            <mat-card-header>
               <mat-card-title>{{ t('profile.export.title') }}</mat-card-title>
             </mat-card-header>
             <mat-card-content>
@@ -217,6 +236,14 @@ import { maxCharacters } from '../../shared/forms/validators';
     }
     .danger {
       color: var(--mat-sys-error);
+    }
+    .payouts-link {
+      align-items: center;
+      color: var(--mat-sys-primary);
+      display: inline-flex;
+      font-weight: 500;
+      gap: 6px;
+      text-decoration: none;
     }
     mat-card-actions {
       gap: 12px;

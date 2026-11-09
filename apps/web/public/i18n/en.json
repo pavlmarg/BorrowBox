@@ -87,7 +87,12 @@
       "button": "Delete my account"
     },
     "editProfile": "Edit profile",
-    "changePhoto": "Profile photos are coming soon"
+    "changePhoto": "Profile photos are coming soon",
+    "payouts": {
+      "title": "Payouts",
+      "description": "To accept paid bookings, set up the Stripe account BorrowBox pays you through.",
+      "link": "Set up and manage payouts"
+    }
   },
   "deleteDialog": {
     "title": "Delete your account?",
@@ -357,5 +362,91 @@
     "deleteTitle": "Delete this item?",
     "deleteMessage": "“{{title}}” and its photos will be deleted for good.",
     "deleted": "Item deleted."
+  },
+  "payouts": {
+    "back": "Settings",
+    "title": "Payouts",
+    "intro": "BorrowBox pays lenders through Stripe. Stripe asks for your bank account and checks your identity on its own pages; BorrowBox never sees those details.",
+    "retry": "Try again",
+    "opening": "Opening Stripe… This can take up to a minute.",
+    "openingDashboard": "Opening your Stripe dashboard…",
+    "checking": "Welcome back. Checking with Stripe…",
+    "status": {
+      "NOT_STARTED": {
+        "title": "Not set up yet",
+        "text": "Set up payouts to accept bookings that cost something. Free bookings don’t need them."
+      },
+      "INCOMPLETE": {
+        "title": "Details missing",
+        "text": "Stripe still needs some details from you. Continue where you left off."
+      },
+      "PENDING": {
+        "title": "Being checked",
+        "text": "Stripe is checking your details. This usually takes a few minutes; come back to this page to see the result."
+      },
+      "READY": {
+        "title": "Ready",
+        "text": "Payouts are set up: you can accept paid bookings."
+      },
+      "RESTRICTED": {
+        "title": "Paused by Stripe",
+        "text": "Stripe has paused payouts to your account, usually because it needs updated details. Until then you can’t accept paid bookings."
+      }
+    },
+    "payoutsDisabled": "Stripe hasn’t enabled payouts to your bank yet. Your Stripe dashboard shows what’s missing.",
+    "updatedAt": "Last update from Stripe: {{date}}",
+    "linkExpired": "The Stripe page expired before you finished. Continue with a new one.",
+    "verifyFirst": "Confirm your email address before setting up payouts.",
+    "verifyLink": "Go to Settings",
+    "setUp": "Set up payouts",
+    "continue": "Continue setup",
+    "dashboard": "Open Stripe dashboard",
+    "dashboardHint": "The dashboard opens in this tab. There you can see your payouts and change your bank account.",
+    "how": {
+      "title": "How you get paid",
+      "stripe": "Stripe holds your payout details and pays your balance into your bank account.",
+      "transfer": "The renter pays when you accept. BorrowBox transfers the rent to you after the rental, minus a small fee if you asked for a deposit.",
+      "deposit": "The deposit goes back to the renter after the item is returned."
+    },
+    "errors": {
+      "EMAIL_NOT_VERIFIED": "Confirm your email address first, with the link we sent you.",
+      "PAYOUTS_NOT_SET_UP": "Finish setting up payouts first: the dashboard opens once Stripe has your details.",
+      "PROVIDER_UNAVAILABLE": "Stripe isn’t answering right now. Please try again in a moment."
+    }
+  },
+  "payment": {
+    "back": "Booking",
+    "title": "Pay for your booking",
+    "rent": "Rent",
+    "fee": "Service fee",
+    "deposit": "Deposit",
+    "depositHint": "Charged now, refunded after you return the item",
+    "total": "Total",
+    "payBy": "Pay by {{date}}, or the booking expires.",
+    "leftHours": "{{hours}} h {{minutes}} min left",
+    "leftMinutes": "{{minutes}} min left",
+    "loadingForm": "Loading the secure payment form…",
+    "unavailable": "Card payments aren’t available right now. Please try again later.",
+    "formFailed": "The payment form didn’t load. Check your connection and try again.",
+    "cardOnly": "Cards only. Stripe handles your card: BorrowBox never sees its number.",
+    "payButton": "Pay {{amount}}",
+    "confirming": "Confirming your payment…",
+    "paid": "Paid. Taking you to your booking…",
+    "slow": "Your payment is still being confirmed. We’ll email you as soon as it’s done.",
+    "toBooking": "Go to the booking",
+    "retry": "Try again",
+    "attemptFailed": "The payment didn’t go through. Please try again.",
+    "stripeFailed": "Something went wrong with the payment. Your card wasn’t charged; please try again.",
+    "closed": {
+      "default": "There’s nothing to pay for this booking any more.",
+      "cancelled": "This booking closed before it was paid.",
+      "refunded": "This booking closed. If you paid, the money is on its way back to your card."
+    },
+    "errors": {
+      "PAYMENT_WINDOW_CLOSED": "It’s too late to pay for this booking: paying must start at least 10 minutes before the pay-by time.",
+      "INVALID_STATE": "This booking isn’t waiting for payment: it’s already paid, being paid, or closed.",
+      "NOT_FOUND": "We couldn’t find this booking.",
+      "PROVIDER_UNAVAILABLE": "Stripe isn’t answering right now. Please try again in a moment."
+    }
   }
 }
