@@ -19,6 +19,7 @@ import {
 import { TranslocoDirective } from '@jsverse/transloco';
 import { filter, map } from 'rxjs';
 import { AuthStore } from '../auth/auth.store';
+import { UnreadBadge } from '../chat/unread-badge';
 import { AccountLanguage } from '../i18n/account-language';
 import { LanguageService } from '../i18n/language';
 import { LanguageToggle } from '../i18n/language-toggle';
@@ -46,6 +47,7 @@ const WIDE = '(min-width: 960px)';
     LanguageToggle,
     NavIcon,
     Avatar,
+    UnreadBadge,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -83,6 +85,9 @@ const WIDE = '(min-width: 960px)';
                   >
                     <bb-nav-icon [name]="item.icon" />
                     <span>{{ t('nav.' + item.key) }}</span>
+                    @if (item.key === 'messages') {
+                      <bb-unread-badge />
+                    }
                   </a>
                 } @else {
                   <span class="link soon" aria-disabled="true">
@@ -171,6 +176,9 @@ const WIDE = '(min-width: 960px)';
                       >
                         <bb-nav-icon [name]="item.icon" />
                         <span>{{ t('nav.' + item.key) }}</span>
+                        @if (item.key === 'messages') {
+                          <bb-unread-badge />
+                        }
                       </a>
                     } @else {
                       <span class="bar-link soon" aria-disabled="true">

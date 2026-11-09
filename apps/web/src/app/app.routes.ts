@@ -40,6 +40,12 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'messages',
+        canMatch: [authGuard],
+        loadChildren: () =>
+          import('./features/chat/chat.routes').then((m) => m.chatRoutes),
+      },
+      {
         path: 'profile',
         canMatch: [authGuard],
         loadChildren: () =>

@@ -1,6 +1,9 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting } from '@angular/common/http/testing';
+import {
+  HttpTestingController,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
@@ -64,6 +67,7 @@ describe('AppShell', () => {
     expect(texts).toContain('nav.register');
     expect(texts).not.toContain('nav.profile');
     expect(texts).not.toContain('nav.myItems');
+    expect(texts).not.toContain('nav.messages');
     expect(texts).not.toContain('nav.settings');
     expect(texts).not.toContain('nav.logout');
     expect(links.find((l) => l.text === 'nav.login')?.href).toBe(
@@ -134,7 +138,7 @@ describe('AppShell', () => {
         'nav.explore',
         'nav.myItems',
         'nav.rentalsnav.soon',
-        'nav.messagesnav.soon',
+        'nav.messages',
       ]);
       expect(bar.querySelector('a.bar-link.active')?.textContent).toContain(
         'nav.explore',
@@ -149,6 +153,22 @@ describe('AppShell', () => {
       );
       expect(signOut).toBeDefined();
       expect(bar.textContent).not.toContain('nav.settings');
+    });
+
+    it('shows the unread count on Messages', async () => {
+      const { el, fixture } = await render(true, '/explore', true);
+      TestBed.inject(HttpTestingController)
+        .expectOne('/api/me/unread')
+        .flush({ total: 3 });
+      await new Promise((r) => setTimeout(r, 0));
+      await fixture.whenStable();
+      const messages = [...el.querySelectorAll('.bar-link')].find((a) =>
+        a.textContent?.includes('nav.messages'),
+      );
+      expect(messages?.getAttribute('href')).toBe('/messages');
+      expect(messages?.querySelector('bb-unread-badge')?.textContent).toContain(
+        '3',
+      );
     });
 
     it('offers sign-in and sign-up in the bar to visitors', async () => {
