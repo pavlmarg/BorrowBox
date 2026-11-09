@@ -6,6 +6,7 @@ import { TranslocoDirective } from '@jsverse/transloco';
 import { AuthStore } from '../../core/auth/auth.store';
 import { LanguageService } from '../../core/i18n/language';
 import { Avatar } from '../../shared/avatar/avatar';
+import { VerifyEmailNotice } from '../account-emails/verify-email-notice';
 
 /**
  * The user's profile at a glance. Editing lives in Settings; the photo,
@@ -13,7 +14,14 @@ import { Avatar } from '../../shared/avatar/avatar';
  */
 @Component({
   selector: 'bb-profile-page',
-  imports: [DatePipe, RouterLink, TranslocoDirective, MatButtonModule, Avatar],
+  imports: [
+    DatePipe,
+    RouterLink,
+    TranslocoDirective,
+    MatButtonModule,
+    Avatar,
+    VerifyEmailNotice,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ng-container *transloco="let t">
@@ -60,6 +68,7 @@ import { Avatar } from '../../shared/avatar/avatar';
             }}</a>
           </div>
         </section>
+        <bb-verify-email-notice class="verify" />
       }
     </ng-container>
   `,
@@ -92,6 +101,9 @@ import { Avatar } from '../../shared/avatar/avatar';
     }
     .who {
       min-width: 0;
+    }
+    .verify {
+      margin-top: 32px;
     }
     .name {
       font: var(--mat-sys-headline-small);
