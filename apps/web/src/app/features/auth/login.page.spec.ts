@@ -111,6 +111,30 @@ describe('LoginPage', () => {
     );
   });
 
+  it('links to the forgotten-password page, handing over the typed email out of the URL', async () => {
+    const { fixture, el, router } = await render();
+    type(el, 'input[type=email]', 'ana@example.com');
+    await fixture.whenStable();
+    const link = find<HTMLAnchorElement>(el, 'a.forgot');
+    expect(link.getAttribute('href')).toBe('/auth/forgot-password');
+
+    const navigate = jest
+      .spyOn(router, 'navigateByUrl')
+      .mockResolvedValue(true);
+    link.click();
+    expect(navigate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ state: { email: 'ana@example.com' } }),
+    );
+  });
+
+  it('confirms a password reset', async () => {
+    const { el } = await render({ reset: '1' });
+    expect(el.querySelector('[role=status]')?.textContent).toContain(
+      'Your password has been changed',
+    );
+  });
+
   it('links Google sign-in to the gateway, not an XHR', async () => {
     const { el } = await render();
     expect(el.querySelector('bb-google-button a')?.getAttribute('href')).toBe(
