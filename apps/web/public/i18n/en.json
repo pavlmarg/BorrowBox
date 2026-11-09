@@ -412,8 +412,9 @@
       "submit": "Send link",
       "sentTitle": "Check your email",
       "sentText": "If there’s an account for {{email}}, we’ve sent it a link to set a new password.",
-      "sentHint": "The link works for 10 minutes. Nothing arrived? Check the spam folder, or ask again in a minute.",
-      "otherEmail": "Use another email"
+      "sentHint": "The link works for 10 minutes. If it doesn’t arrive, check your spam folder, or send it again once the countdown ends.",
+      "resend": "Resend",
+      "resendIn": "Resend in {{time}}"
     },
     "reset": {
       "title": "Set a new password",

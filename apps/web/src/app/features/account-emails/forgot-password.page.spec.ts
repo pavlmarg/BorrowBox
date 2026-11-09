@@ -65,6 +65,52 @@ describe('ForgotPasswordPage', () => {
     http.verify();
   });
 
+  it('lets the same address ask again only after a minute, counting down', async () => {
+    // Only the countdown's interval and the clock: the helpers wait on setTimeout.
+    jest.useFakeTimers({
+      doNotFake: [
+        'setTimeout',
+        'clearTimeout',
+        'setImmediate',
+        'queueMicrotask',
+        'nextTick',
+      ],
+    });
+    try {
+      const { el, http, input, settle, fixture } = await render();
+      input.value = 'ana@example.com';
+      input.dispatchEvent(new Event('input'));
+      submit(el);
+      http
+        .expectOne('/api/auth/password-reset')
+        .flush(null, { status: 202, statusText: 'Accepted' });
+      await settle();
+
+      const resend = () =>
+        el.querySelector<HTMLButtonElement>(
+          'button.resend',
+        ) as HTMLButtonElement;
+      expect(resend().disabled).toBe(true);
+      expect(resend().textContent).toContain('1:00');
+
+      jest.advanceTimersByTime(15_000);
+      await fixture.whenStable();
+      expect(resend().textContent).toContain('0:45');
+
+      jest.advanceTimersByTime(45_000);
+      await fixture.whenStable();
+      expect(resend().disabled).toBe(false);
+      resend().click();
+      const again = http.expectOne('/api/auth/password-reset');
+      expect(again.request.body).toEqual({ email: 'ana@example.com' });
+      again.flush(null, { status: 202, statusText: 'Accepted' });
+      await settle();
+      expect(resend().disabled).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('starts with the address typed on the login page', async () => {
     const { input } = await render({ email: 'ana@example.com' });
     expect(input.value).toBe('ana@example.com');

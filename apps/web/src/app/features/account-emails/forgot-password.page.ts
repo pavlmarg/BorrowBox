@@ -2,6 +2,8 @@ import {
   ChangeDetectionStrategy,
   Component,
   DOCUMENT,
+  DestroyRef,
+  computed,
   inject,
   signal,
 } from '@angular/core';
@@ -32,6 +34,9 @@ import { AUTH_LINK_STYLES } from './auth-link.styles';
 export interface ForgotPasswordState {
   email?: string;
 }
+
+/** Identity sends an account at most one email of a kind a minute. */
+export const RESEND_AFTER_MS = 60_000;
 
 /** The address the login page handed over, if it's a string. */
 function initialEmail(doc: Document): string {
@@ -68,12 +73,29 @@ function initialEmail(doc: Document): string {
             </p>
             <p class="message">{{ t('accountEmails.forgot.sentHint') }}</p>
           </div>
+          @if (error(); as code) {
+            <p class="form-error" role="alert">{{ t(errorKey(code)) }}</p>
+          }
           <div class="actions">
             <a mat-flat-button routerLink="/auth/login">{{
               t('accountEmails.backToLogin')
             }}</a>
-            <button mat-stroked-button type="button" (click)="again()">
-              {{ t('accountEmails.forgot.otherEmail') }}
+            <button
+              mat-stroked-button
+              type="button"
+              class="resend"
+              [disabled]="secondsLeft() > 0 || pending()"
+              (click)="send(email)"
+            >
+              @if (secondsLeft() > 0) {
+                {{
+                  t('accountEmails.forgot.resendIn', {
+                    time: countdown(secondsLeft()),
+                  })
+                }}
+              } @else {
+                {{ t('accountEmails.forgot.resend') }}
+              }
             </button>
           </div>
         } @else {
@@ -129,6 +151,20 @@ function initialEmail(doc: Document): string {
 })
 export class ForgotPasswordPage {
   private readonly api = inject(Api);
+  /** Ticks every second while the resend button waits. */
+  private readonly now = signal(Date.now());
+  /** When Resend becomes available again. */
+  private readonly resendAt = signal(0);
+  protected readonly secondsLeft = computed(() =>
+    Math.max(0, Math.ceil((this.resendAt() - this.now()) / 1000)),
+  );
+
+  constructor() {
+    const timer = setInterval(() => {
+      if (this.resendAt() > this.now()) this.now.set(Date.now());
+    }, 1000);
+    inject(DestroyRef).onDestroy(() => clearInterval(timer));
+  }
 
   protected readonly form = inject(NonNullableFormBuilder).group({
     email: [
@@ -153,7 +189,12 @@ export class ForgotPasswordPage {
       this.form.markAllAsTouched();
       return;
     }
-    const email = this.form.getRawValue().email.trim();
+    await this.send(this.form.getRawValue().email.trim());
+  }
+
+  /** First send, and Resend (same address) once the minute has passed. */
+  protected async send(email: string): Promise<void> {
+    if (this.pending()) return;
     this.pending.set(true);
     this.error.set(null);
     try {
@@ -161,6 +202,8 @@ export class ForgotPasswordPage {
         body: { email },
       });
       this.sentTo.set(email);
+      this.now.set(Date.now());
+      this.resendAt.set(this.now() + RESEND_AFTER_MS);
     } catch (err) {
       this.error.set(errorCode(err));
     } finally {
@@ -168,8 +211,8 @@ export class ForgotPasswordPage {
     }
   }
 
-  protected again(): void {
-    this.sentTo.set(null);
-    this.form.reset({ email: '' });
+  /** 0:42 */
+  protected countdown(seconds: number): string {
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
   }
 }
