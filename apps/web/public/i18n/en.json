@@ -265,12 +265,10 @@
     "yours": "This is your item.",
     "edit": "Edit",
     "about": "About this item",
-    "areaHint": "The exact spot is shared only once a booking is paid.",
+    "areaHint": "The exact spot is never shown. Once a booking goes ahead, you agree with the lender where to meet.",
     "deposit": "Deposit",
     "noDeposit": "No deposit",
     "depositHint": "Charged with the rent and refunded when the item comes back.",
-    "requestToBorrow": "Request to borrow",
-    "requestsSoon": "Borrowing requests open soon.",
     "lentBy": "Lent by",
     "listedOn": "Listed {{date}}",
     "similar": "Similar nearby",
@@ -518,6 +516,261 @@
       "INVALID_STATE": "This booking isn’t waiting for payment: it’s already paid, being paid, or closed.",
       "NOT_FOUND": "We couldn’t find this booking.",
       "PROVIDER_UNAVAILABLE": "Stripe isn’t answering right now. Please try again in a moment."
+    }
+  },
+  "bookings": {
+    "status": {
+      "REQUESTED": "Requested",
+      "ACCEPTED": "Accepted",
+      "CONFIRMED": "Confirmed",
+      "DECLINED": "Declined",
+      "EXPIRED": "Expired",
+      "CANCELLED": "Cancelled",
+      "PAID": "Paid",
+      "PICKED_UP": "Picked up",
+      "RETURNED": "Returned",
+      "COMPLETED": "Completed",
+      "DISPUTED": "Disputed"
+    },
+    "withLender": "Lender: {{name}}",
+    "withRenter": "Renter: {{name}}",
+    "deletedAccount": "Deleted account",
+    "units": {
+      "HOUR": {
+        "one": "{{n}} hour",
+        "other": "{{n}} hours"
+      },
+      "DAY": {
+        "one": "{{n}} day",
+        "other": "{{n}} days"
+      },
+      "WEEK": {
+        "one": "{{n}} week",
+        "other": "{{n}} weeks"
+      },
+      "MONTH": {
+        "one": "{{n}} month",
+        "other": "{{n}} months"
+      }
+    },
+    "price": {
+      "rent": "Rent",
+      "fee": "Service fee",
+      "deposit": "Deposit",
+      "total": "Total",
+      "lenderFee": "Deposit cost",
+      "payout": "You receive",
+      "payoutWhen": "Sent to your payout account once the booking is completed.",
+      "lenderDeposit": "The renter also pays a {{deposit}} deposit, which goes back to them when the item is returned. The deposit cost covers its card fees.",
+      "fromOffer": "The rent comes from an offer in the chat."
+    },
+    "book": {
+      "title": "When do you need it?",
+      "from": "From",
+      "until": "Until",
+      "date": "Date",
+      "time": "Time",
+      "athensTime": "Times are in Greek time (Athens).",
+      "shortest": "Shortest booking:",
+      "longest": "Longest booking:",
+      "taken": "Already booked",
+      "takenMore": "and {{count}} more",
+      "pick": "Pick a start and an end to see the price.",
+      "pricing": "Working out the price…",
+      "nothingToPay": "Nothing to pay: this one is free.",
+      "depositExplained": "The {{deposit}} deposit is charged with the rent and refunded to your card when you return the item. Your bank may take a few days to show the refund.",
+      "payLater": "Nothing is charged now. If the lender accepts, you pay within 24 hours (or before the start, if that is sooner).",
+      "request": "Request to book",
+      "sending": "Sending…",
+      "signIn": "Sign in to request",
+      "toSettings": "Go to Settings",
+      "toBookings": "See your bookings",
+      "problem": {
+        "startTooSoon": "A booking starts at least an hour from now.",
+        "startTooFar": "A booking starts at most 180 days ahead.",
+        "endBeforeStart": "The end must come after the start.",
+        "tooShort": "That is shorter than this item’s shortest booking.",
+        "tooLong": "That is longer than this item’s longest booking.",
+        "taken": "Someone has already booked part of that time."
+      }
+    },
+    "errors": {
+      "SLOT_TAKEN": "Someone has just booked part of that time. Please pick another.",
+      "DUPLICATE_REQUEST": "You already have a request or booking for this item at that time.",
+      "REQUEST_LIMIT_REACHED": "You have 10 requests waiting for an answer. Wait for some answers or withdraw one first.",
+      "OWN_ITEM": "You can’t book your own item.",
+      "ITEM_UNAVAILABLE": "This item isn’t taking bookings right now.",
+      "INVALID_PERIOD": "That time doesn’t work for this item. Please pick another.",
+      "PAYOUTS_NOT_SET_UP": "Set up payouts first, so you can be paid for this booking.",
+      "NOT_FOUND": "This booking doesn’t exist, or it isn’t yours.",
+      "INVALID_STATE": "This booking changed meanwhile.",
+      "EMAIL_NOT_VERIFIED": "Confirm your email address first, with the link we sent you. You can send a new link from Settings."
+    },
+    "list": {
+      "title": "Bookings",
+      "sides": "Renting or lending",
+      "role": {
+        "renter": "Renting",
+        "lender": "Lending"
+      },
+      "showLabel": "Show",
+      "show": {
+        "current": "Current",
+        "past": "Past",
+        "all": "All"
+      },
+      "loading": "Loading bookings…",
+      "empty": {
+        "current": "No current bookings",
+        "past": "No past bookings",
+        "all": "No bookings yet"
+      },
+      "emptyRenter": "Find something nearby and ask to borrow it.",
+      "emptyLender": "When someone asks to borrow one of your items, it shows here.",
+      "toExplore": "Explore",
+      "toMyItems": "My items",
+      "more": "Load more"
+    },
+    "detail": {
+      "back": "All bookings",
+      "loading": "Loading booking…",
+      "timeLeft": "Time left to pay: {{h}} h {{m}} min {{s}} s",
+      "payNow": "Pay now",
+      "meet": "Arrange where and when to meet in the chat.",
+      "money": "Money",
+      "summary": "Summary",
+      "requested": "Requested",
+      "answerBy": "Answer by",
+      "payBy": "Pay by",
+      "updated": "Last change",
+      "starts": "Starts",
+      "ends": "Ends",
+      "actions": "What you can do",
+      "accept": "Accept",
+      "decline": "Decline",
+      "withdraw": "Withdraw request",
+      "cancel": "Cancel booking",
+      "changed": "This booking changed meanwhile. Here is how it stands now.",
+      "setUpPayouts": "Set up payouts"
+    },
+    "state": {
+      "REQUESTED": {
+        "RENTER": "Waiting for {{name}} to answer. If they don’t by {{time}}, the request expires.",
+        "LENDER": "{{name}} would like to borrow this. Answer by {{time}}, or the request expires."
+      },
+      "ACCEPTED": {
+        "RENTER": "{{name}} accepted. Pay by {{time}} to keep the booking.",
+        "LENDER": "You accepted. {{name}} has until {{time}} to pay, or the booking expires."
+      },
+      "CONFIRMED": {
+        "RENTER": "Confirmed. There is nothing to pay.",
+        "LENDER": "Confirmed. There is nothing to pay."
+      },
+      "PAID": {
+        "RENTER": "Paid. Your booking is confirmed.",
+        "LENDER": "{{name}} has paid. The booking is confirmed."
+      },
+      "PICKED_UP": {
+        "RENTER": "You picked the item up.",
+        "LENDER": "{{name}} picked the item up."
+      },
+      "RETURNED": {
+        "RENTER": "You returned the item. The booking completes in 48 hours.",
+        "LENDER": "{{name}} returned the item. The booking completes in 48 hours."
+      },
+      "COMPLETED": {
+        "RENTER": "Completed. Any deposit goes back to your card.",
+        "LENDER": "Completed. The rent goes to your payout account."
+      },
+      "DISPUTED": {
+        "RENTER": "The lender reported a problem. BorrowBox will look into it and contact you both.",
+        "LENDER": "You reported a problem. BorrowBox will look into it and contact you both."
+      },
+      "DECLINED": {
+        "RENTER": "The request was declined.",
+        "LENDER": "The request was declined."
+      },
+      "EXPIRED": {
+        "RENTER": "The booking expired.",
+        "LENDER": "The booking expired."
+      },
+      "CANCELLED": {
+        "RENTER": "The booking was cancelled.",
+        "LENDER": "The booking was cancelled."
+      }
+    },
+    "reason": {
+      "DECLINED_LENDER": {
+        "RENTER": "{{name}} declined the request.",
+        "LENDER": "You declined this request."
+      },
+      "DECLINED_OVERLAP": {
+        "RENTER": "Declined: {{name}} accepted another booking for the same time.",
+        "LENDER": "Declined because you accepted another booking for the same time."
+      },
+      "CANCELLED_RENTER": {
+        "RENTER": "You cancelled this booking.",
+        "LENDER": "{{name}} cancelled this booking."
+      },
+      "CANCELLED_LENDER": {
+        "RENTER": "{{name}} cancelled this booking.",
+        "LENDER": "You cancelled this booking."
+      },
+      "CANCELLED_ITEM_DELETED": {
+        "RENTER": "Cancelled because the item was removed.",
+        "LENDER": "Cancelled because you removed the item."
+      },
+      "CANCELLED_ACCOUNT_DELETED": {
+        "RENTER": "Cancelled because an account was deleted.",
+        "LENDER": "Cancelled because an account was deleted."
+      },
+      "EXPIRED_NO_ANSWER": {
+        "RENTER": "Expired: {{name}} didn’t answer in time.",
+        "LENDER": "Expired: you didn’t answer in time."
+      },
+      "EXPIRED_STARTED": {
+        "RENTER": "Expired: the start time came before it went ahead.",
+        "LENDER": "Expired: the start time came before it went ahead."
+      },
+      "EXPIRED_PAYMENT_TIMEOUT": {
+        "RENTER": "Expired: it wasn’t paid in time.",
+        "LENDER": "Expired: {{name}} didn’t pay in time."
+      }
+    },
+    "policy": {
+      "renterEarly": "Cancel more than 24 hours before the start and you get everything back except the service fee.",
+      "renterLate": "Within 24 hours of the start, you get the deposit and half the rent back; the lender receives the other half.",
+      "nowEarly": "Your booking starts in more than 24 hours, so the first rule applies.",
+      "nowLate": "Your booking starts within 24 hours, so the second rule applies.",
+      "lenderPaid": "If you cancel, {{name}} gets everything back and you receive nothing for this booking.",
+      "nothingPaid": "Nothing has been paid yet, so cancelling costs nothing.",
+      "renterEarlyShort": "You get everything back except the service fee.",
+      "renterLateShort": "You get the deposit and half the rent back; the lender receives the other half.",
+      "lenderPaidShort": "{{name}} gets everything back.",
+      "nothingPaidShort": "Nothing has been paid yet."
+    },
+    "confirm": {
+      "keep": "Not now",
+      "accept": {
+        "title": "Accept this request?",
+        "message": "{{name}} asked for {{period}}. Other requests for the same time are declined.",
+        "confirm": "Accept"
+      },
+      "decline": {
+        "title": "Decline this request?",
+        "message": "{{name}} will be told the item isn’t available then.",
+        "confirm": "Decline"
+      },
+      "withdraw": {
+        "title": "Withdraw your request?",
+        "message": "{{name}} won’t be able to accept it any more.",
+        "confirm": "Withdraw"
+      },
+      "cancel": {
+        "title": "Cancel this booking?",
+        "message": "{{name}} will be told.",
+        "confirm": "Cancel booking"
+      }
     }
   }
 }

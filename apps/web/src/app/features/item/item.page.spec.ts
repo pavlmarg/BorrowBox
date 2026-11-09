@@ -32,6 +32,8 @@ const detail = (
   lender: { id: 'lender-1', displayName: 'Eleni' },
   approximateLocation: { lat: 37.98, lng: 23.73 },
   publishedAt: '2026-10-01T10:00:00.000Z',
+  minRentalHours: null,
+  maxRentalHours: null,
   ...overrides,
 });
 
@@ -50,7 +52,10 @@ async function render(userId: string | null = null) {
       },
       {
         provide: AuthStore,
-        useValue: { user: signal(userId ? { id: userId } : null) },
+        useValue: {
+          user: signal(userId ? { id: userId } : null),
+          isAuthenticated: signal(userId !== null),
+        },
       },
     ],
   });
@@ -74,6 +79,11 @@ async function render(userId: string | null = null) {
     http.expectOne('/api/items/i-1/similar').flush({ items: similar });
     await tick();
     await fixture.whenStable();
+    // The booking part (not for the owner) asks for the held periods.
+    if (item !== 'missing' && item.lender.id !== userId) {
+      http.expectOne('/api/items/i-1/busy').flush({ periods: [] });
+      await fixture.whenStable();
+    }
   };
   return { fixture, el: fixture.nativeElement as HTMLElement, respond };
 }
@@ -92,7 +102,11 @@ describe('ItemPage', () => {
     expect(el.querySelector('.description')?.textContent).toContain(
       'Line one\nLine two',
     );
-    expect(el.querySelector('.cta')?.hasAttribute('disabled')).toBe(true);
+    // Visitors can pick a period, then sign in to request it.
+    expect(el.querySelector('bb-book-panel')).not.toBeNull();
+    expect(el.querySelector('a.cta')?.getAttribute('href')).toBe(
+      '/auth/login?returnUrl=%2Fitems%2Fi-1',
+    );
     expect(el.querySelectorAll('.similar bb-result-row').length).toBe(1);
     expect(el.querySelector('.owner-note')).toBeNull();
   });
@@ -116,6 +130,8 @@ describe('ItemPage', () => {
     expect(note?.querySelector('a')?.getAttribute('href')).toBe(
       '/my-items/i-1/edit',
     );
+    // Owners don't book their own items.
+    expect(el.querySelector('bb-book-panel')).toBeNull();
   });
 
   it('says when the item is gone', async () => {

@@ -49,6 +49,14 @@ export const appRoutes: Route[] = [
           import('./features/payments/pay.page').then((m) => m.PayPage),
       },
       {
+        path: 'bookings',
+        canMatch: [authGuard],
+        loadChildren: () =>
+          import('./features/bookings/bookings.routes').then(
+            (m) => m.bookingsRoutes,
+          ),
+      },
+      {
         path: 'profile',
         canMatch: [authGuard],
         loadChildren: () =>

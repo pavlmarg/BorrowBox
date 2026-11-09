@@ -133,7 +133,7 @@ describe('AppShell', () => {
       expect(barTexts).toEqual([
         'nav.explore',
         'nav.myItems',
-        'nav.rentalsnav.soon',
+        'nav.rentals',
         'nav.messagesnav.soon',
       ]);
       expect(bar.querySelector('a.bar-link.active')?.textContent).toContain(
