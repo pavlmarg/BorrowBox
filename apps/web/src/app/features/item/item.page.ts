@@ -290,7 +290,7 @@ import { ItemStore } from './item.store';
     }
     .rate,
     .deposit {
-      border-bottom: 1px solid rgb(16 58 99 / 0.08);
+      border-bottom: 1px solid rgb(var(--bb-line-rgb) / 0.08);
       display: flex;
       justify-content: space-between;
       padding: 8px 0;
@@ -308,7 +308,7 @@ import { ItemStore } from './item.store';
     }
     .lender {
       align-items: center;
-      border-top: 1px solid rgb(16 58 99 / 0.08);
+      border-top: 1px solid rgb(var(--bb-line-rgb) / 0.08);
       display: flex;
       gap: 12px;
       margin-top: 24px;
@@ -331,7 +331,7 @@ import { ItemStore } from './item.store';
       margin-top: 40px;
     }
     .similar h2 {
-      border-bottom: 1px solid rgb(16 58 99 / 0.08);
+      border-bottom: 1px solid rgb(var(--bb-line-rgb) / 0.08);
       margin: 0;
       padding-bottom: 12px;
     }
@@ -354,7 +354,7 @@ import { ItemStore } from './item.store';
       gap: 12px;
     }
     .block {
-      background: rgb(16 58 99 / 0.07);
+      background: rgb(var(--bb-line-rgb) / 0.07);
       display: block;
     }
     .block.photo {

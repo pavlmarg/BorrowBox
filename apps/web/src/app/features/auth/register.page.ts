@@ -183,7 +183,7 @@ import { emailAddress, maxCharacters } from '../../shared/forms/validators';
     }
     .divider::before,
     .divider::after {
-      background: rgb(16 58 99 / 0.12);
+      background: rgb(var(--bb-line-rgb) / 0.12);
       content: '';
       flex: 1;
       height: 1px;

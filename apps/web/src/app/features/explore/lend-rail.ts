@@ -39,22 +39,22 @@ import { HowItWorks } from './how-it-works';
       margin: 0 0 8px;
     }
     /* The one panel on Explore (asked for, for colour): brand blue, white
-       text (5.3:1) and a white button. */
+       text (5.3:1) and a white button, in both themes. */
     .lend {
-      background: var(--bb-sky-700);
+      background: var(--bb-solid);
       border-radius: var(--bb-radius);
-      color: #fff;
+      color: var(--bb-on-solid);
       padding: 20px;
     }
     .lend p {
-      color: rgb(255 255 255 / 0.9);
+      color: color-mix(in srgb, var(--bb-on-solid) 90%, transparent);
       font: var(--mat-sys-body-medium);
       margin: 0 0 16px;
     }
     /* Long labels (Greek) wrap inside the button instead of spilling out. */
     .cta {
-      --mat-button-filled-container-color: #fff;
-      --mat-button-filled-label-text-color: var(--bb-sky-700);
+      --mat-button-filled-container-color: var(--bb-on-solid);
+      --mat-button-filled-label-text-color: var(--bb-solid);
       --mat-button-filled-hover-state-layer-opacity: 0;
       --mat-button-filled-focus-state-layer-opacity: 0;
       transition:
@@ -70,16 +70,16 @@ import { HowItWorks } from './how-it-works';
     }
     /* A slow, soft hover: pale blue, lifting a little. */
     .cta:hover {
-      background-color: var(--bb-sky-100);
+      background-color: var(--bb-solid-tint);
       box-shadow: 0 6px 16px rgb(0 0 0 / 0.18);
       transform: translateY(-2px);
     }
     .cta:focus-visible {
-      outline: 3px solid #fff;
+      outline: 3px solid var(--bb-on-solid);
       outline-offset: 3px;
     }
     .how {
-      border-top: 1px solid rgb(16 58 99 / 0.08);
+      border-top: 1px solid rgb(var(--bb-line-rgb) / 0.08);
       padding-top: 20px;
     }
   `,

@@ -218,7 +218,7 @@ export function coverOf(item: OwnItemResponse): string | null {
     }
     .row {
       align-items: flex-start;
-      border-top: 1px solid rgb(16 58 99 / 0.08);
+      border-top: 1px solid rgb(var(--bb-line-rgb) / 0.08);
       display: flex;
       gap: 24px;
       padding: 24px 0;
@@ -260,13 +260,13 @@ export function coverOf(item: OwnItemResponse): string | null {
       text-transform: uppercase;
     }
     .status[data-status='ACTIVE'] {
-      color: #1e7a3c;
+      color: var(--bb-success);
     }
     .status[data-status='DRAFT'] {
       color: var(--mat-sys-on-surface-variant);
     }
     .status[data-status='PAUSED'] {
-      color: #9a5b00;
+      color: var(--bb-warning);
     }
     .title {
       font: var(--mat-sys-title-large);
@@ -327,7 +327,7 @@ export function coverOf(item: OwnItemResponse): string | null {
     .bin:hover:not([disabled]),
     .bin:focus-visible {
       --bb-icon-stroke: 2.4;
-      color: #c00000;
+      color: var(--bb-danger);
     }
     .bin:focus-visible {
       outline: 3px solid var(--bb-sky-300);

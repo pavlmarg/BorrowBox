@@ -240,10 +240,10 @@ import { ExploreStore } from './explore.store';
     /* Solid brand blue like the Map button; a filter that is set is
        darker, with a white ring inside. */
     .filter {
-      background: var(--mat-sys-primary);
+      background: var(--bb-primary-solid);
       border: 0;
       box-shadow: var(--bb-shadow-sm);
-      color: var(--mat-sys-on-primary);
+      color: var(--bb-on-primary-solid);
       font-weight: 600;
       transition:
         background-color 400ms var(--bb-ease),
@@ -251,17 +251,18 @@ import { ExploreStore } from './explore.store';
     }
     .filter:hover,
     .filter[aria-expanded='true'] {
-      background: color-mix(in srgb, var(--mat-sys-primary) 82%, black);
+      background: color-mix(in srgb, var(--bb-primary-solid) 82%, black);
     }
     .filter.active {
-      background: color-mix(in srgb, var(--mat-sys-primary) 70%, black);
+      background: color-mix(in srgb, var(--bb-primary-solid) 70%, black);
       box-shadow:
-        inset 0 0 0 2px rgb(255 255 255 / 0.85),
+        inset 0 0 0 2px
+          color-mix(in srgb, var(--bb-on-primary-solid) 85%, transparent),
         var(--bb-shadow-sm);
     }
     .filter.active:hover,
     .filter.active[aria-expanded='true'] {
-      background: color-mix(in srgb, var(--mat-sys-primary) 60%, black);
+      background: color-mix(in srgb, var(--bb-primary-solid) 60%, black);
     }
     .filter:disabled {
       cursor: default;

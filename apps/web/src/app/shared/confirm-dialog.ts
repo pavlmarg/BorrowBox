@@ -17,7 +17,7 @@ export interface ConfirmDialogData {
 
 /**
  * "Are you sure?" with already translated texts: a title, the message and
- * two buttons on a white card. The panel is styled in styles.scss
+ * two buttons on a raised card. The panel is styled in styles.scss
  * (`.bb-confirm-panel`). Open it with `openConfirm()`.
  */
 @Component({
@@ -91,21 +91,21 @@ export interface ConfirmDialogData {
       outline-offset: 2px;
     }
     .cancel {
-      background: #fff;
-      border: 1px solid rgb(16 58 99 / 0.2);
+      background: rgb(var(--bb-surface-rgb));
+      border: 1px solid rgb(var(--bb-line-rgb) / 0.2);
       color: var(--mat-sys-on-surface);
     }
     .cancel:hover {
       background: var(--bb-sky-50);
-      border-color: rgb(16 58 99 / 0.35);
+      border-color: rgb(var(--bb-line-rgb) / 0.35);
     }
     .confirm {
-      background: var(--mat-sys-primary);
+      background: var(--bb-primary-solid);
       border: 0;
-      color: var(--mat-sys-on-primary);
+      color: var(--bb-on-primary-solid);
     }
     .confirm:hover {
-      background: color-mix(in srgb, var(--mat-sys-primary) 82%, black);
+      background: color-mix(in srgb, var(--bb-primary-solid) 82%, black);
     }
     .danger .confirm {
       background: var(--mat-sys-error);

@@ -12,8 +12,75 @@ $font:
   'Noto Sans',
   sans-serif;
 
+// Dark: the same brand on a deep navy page. The pale sky tints become dark
+// navy tints and sky-700 (text and accents) a light sky blue; every pair
+// used for text meets WCAG AA (4.5:1). Solid panels keep the brand blue.
+@mixin dark-tokens {
+  color-scheme: dark;
+  --bb-sky-50: #142339;
+  --bb-sky-100: #183050;
+  --bb-sky-200: #224268;
+  --bb-sky-300: #4f9ee0;
+  --bb-sky-500: #4aa8f0;
+  --bb-sky-700: #8ecbff;
+  --bb-page-bg: #0e1520;
+  --bb-surface-rgb: 24 33 46;
+  --bb-line-rgb: 190 215 245;
+  --bb-shadow-rgb: 0 0 0;
+  --bb-card-bg: rgb(24 33 46 / 0.86);
+  --bb-card-border: rgb(255 255 255 / 0.08);
+  --bb-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4), 0 2px 6px rgb(0 0 0 / 0.3);
+  --bb-shadow-md: 0 4px 12px rgb(0 0 0 / 0.45), 0 12px 32px rgb(0 0 0 / 0.35);
+  --bb-backdrop: rgb(0 0 0 / 0.6);
+  --bb-backdrop-light: rgb(0 0 0 / 0.45);
+  --bb-primary-solid: #1f6fb2;
+  --bb-on-primary-solid: #fff;
+  --bb-tint: 16%;
+  --bb-success: #6fd393;
+  --bb-warning: #f0b45a;
+  --bb-danger: #ff8a80;
+  --bb-success-strong: #8be0a9;
+  --bb-success-bg: #12301f;
+  --bb-success-border: #24573a;
+  --bb-check: #4ade80;
+  --bb-idle: #5b6776;
+  --bb-avatar-bg: #2a3646;
+  --bb-avatar-fg: #6c7a8c;
+  --bb-camera-bg: #eef3f8;
+  --bb-camera-fg: #111;
+  --bb-aqua-700: #5fd4c8;
+  --bb-auth-tone: 14 27 46;
+  --bb-auth-tone-soft: 10 18 31;
+  --bb-auth-glow: 31 74 120;
+  --bb-auth-login-tone: 10 34 36;
+  --bb-auth-login-tone-soft: 8 21 25;
+  --bb-auth-login-glow: 20 82 78;
+  --bb-auth-video-brightness: 0.7;
+  --bb-google-bg: #131314;
+  --bb-google-border: #8e918f;
+  --bb-google-text: #e3e3e3;
+  --bb-cat-party: #f87171;
+  --bb-cat-tools: #fb923c;
+  --bb-cat-diy-ladders: #fbbf24;
+  --bb-cat-kitchen: #e0b170;
+  --bb-cat-camping: #a3e635;
+  --bb-cat-garden: #4ade80;
+  --bb-cat-travel: #2dd4bf;
+  --bb-cat-cleaning: #22d3ee;
+  --bb-cat-sports: #60a5fa;
+  --bb-cat-electronics: #818cf8;
+  --bb-cat-photo-video: #a78bfa;
+  --bb-cat-music: #e879f9;
+  --bb-cat-kids: #f472b6;
+  --bb-cat-vehicles: #94a3b8;
+  --bb-cat-other: #a8a29e;
+}
+
+// Light by default; dark when main.ts marks <html data-theme="dark"> (the
+// user's choice, or the device's while on "same as device"; core/theme).
+// `color-scheme` flips Material's light-dark() system tokens, and
+// `dark-tokens` redefines the brand variables below.
 html {
-  // Light only for now: the light-blue look has no dark variant yet.
   color-scheme: light;
   @include mat.theme(
     (
@@ -64,25 +131,106 @@ html {
   );
 
   // Brand colours (light blue) and motion, shared by every feature.
+  // Components use only these and Material's system tokens, never colour
+  // literals, so `dark-tokens` can redefine them.
   --bb-sky-50: #f2f9ff;
   --bb-sky-100: #e1f1ff;
   --bb-sky-200: #c4e4ff;
   --bb-sky-300: #9dd1ff;
   --bb-sky-500: #4aa8f0;
+  // Brand blue for text, links and accents on the page.
   --bb-sky-700: #1f6fb2;
   // Almost white, with only a faint cool tint (was the pale sky-50).
   --bb-page-bg: #fafbfc;
+  // Raised surfaces (frosted bars, toggles, white buttons and cards), as
+  // R G B so they can take an alpha: rgb(var(--bb-surface-rgb) / 0.8).
+  --bb-surface-rgb: 255 255 255;
+  // Hairlines, faint fills and outlines (the brand's navy ink).
+  --bb-line-rgb: 16 58 99;
+  // Shadows.
+  --bb-shadow-rgb: 16 58 99;
   --bb-card-bg: rgb(255 255 255 / 0.86);
   --bb-card-border: rgb(255 255 255 / 0.7);
   --bb-shadow-sm:
     0 1px 2px rgb(16 58 99 / 0.08), 0 2px 6px rgb(16 58 99 / 0.06);
   --bb-shadow-md:
     0 4px 12px rgb(16 58 99 / 0.1), 0 12px 32px rgb(16 58 99 / 0.08);
+  // Backdrops behind dialogs and the enlarged photo.
+  --bb-backdrop: rgb(16 58 99 / 0.32);
+  --bb-backdrop-light: rgb(16 58 99 / 0.18);
+  // Solid brand blue under white text (Lend panel, price tags, badges),
+  // the same in both themes; a pale tint of it (the Lend button's hover).
+  --bb-solid: #1f6fb2;
+  --bb-on-solid: #fff;
+  --bb-solid-tint: #e1f1ff;
+  // Solid buttons in the primary colour (Explore's filters, Map button).
+  --bb-primary-solid: var(--mat-sys-primary);
+  --bb-on-primary-solid: var(--mat-sys-on-primary);
+  // A highlighted price tag on the map (both themes).
+  --bb-highlight: #ea580c;
+  // How much of a category's colour tints its chosen row or chip.
+  --bb-tint: 7%;
+  // Status words (My items) and the verified badge (Profile).
+  --bb-success: #1e7a3c;
+  --bb-warning: #9a5b00;
+  --bb-danger: #c00000;
+  --bb-success-strong: #1d6b3f;
+  --bb-success-bg: #e8f6ee;
+  --bb-success-border: #b5e1c6;
+  --bb-check: #15803d;
+  // Steps not reached yet (listing wizard); the empty avatar.
+  --bb-idle: #9aa5b1;
+  --bb-avatar-bg: #dde3ea;
+  --bb-avatar-fg: #9aa6b4;
+  // The phones' round camera button (listing wizard).
+  --bb-camera-bg: #111;
+  --bb-camera-fg: #fff;
+  // Login's aqua accent (register uses the brand blue).
+  --bb-aqua-700: #137a74;
+  // Login and register's background (features/auth/auth-scene), as R G B:
+  // register light sky blue, login light aqua; the video's brightness.
+  --bb-auth-tone: 234 245 255;
+  --bb-auth-tone-soft: 246 251 255;
+  --bb-auth-glow: 196 228 255;
+  --bb-auth-login-tone: 230 249 246;
+  --bb-auth-login-tone-soft: 245 253 251;
+  --bb-auth-login-glow: 190 238 229;
+  --bb-auth-video-brightness: 1;
+  // Google's sign-in button, per Google's branding guidance for each theme.
+  --bb-google-bg: #fff;
+  --bb-google-border: var(--mat-sys-outline);
+  --bb-google-text: var(--mat-sys-primary);
+  // One accent per category (shared/catalog/category-colors.ts), each AA
+  // (4.5:1) on the page background.
+  --bb-cat-party: #b91c1c;
+  --bb-cat-tools: #c2410c;
+  --bb-cat-diy-ladders: #b45309;
+  --bb-cat-kitchen: #854d0e;
+  --bb-cat-camping: #4d7c0f;
+  --bb-cat-garden: #15803d;
+  --bb-cat-travel: #0f766e;
+  --bb-cat-cleaning: #0e7490;
+  --bb-cat-sports: #1d4ed8;
+  --bb-cat-electronics: #4338ca;
+  --bb-cat-photo-video: #6d28d9;
+  --bb-cat-music: #a21caf;
+  --bb-cat-kids: #be185d;
+  --bb-cat-vehicles: #334155;
+  --bb-cat-other: #57534e;
   --bb-radius: 8px;
   --bb-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --bb-fast: 150ms;
   --bb-medium: 280ms;
   --bb-fade: 500ms;
+}
+html[data-theme='dark'] {
+  @include dark-tokens;
+}
+// Until main.ts has run (it sets data-theme first thing): the device's.
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) {
+    @include dark-tokens;
+  }
 }
 
 // Signed-in pages (inside the app shell) and pop-ups (dialogs, menus,
@@ -193,11 +341,11 @@ bb-app-shell,
 // the item's public point; orange while highlighted. HTML markers live
 // outside any component, so they're styled here.
 .bb-price-tag {
-  --tag: var(--bb-sky-700);
+  --tag: var(--bb-solid);
   background: var(--tag);
   border-radius: 999px;
-  box-shadow: 0 2px 6px rgb(16 58 99 / 0.3);
-  color: #fff;
+  box-shadow: 0 2px 6px rgb(var(--bb-shadow-rgb) / 0.3);
+  color: var(--bb-on-solid);
   cursor: pointer;
   font: 700 13px/1 var(--mat-sys-body-medium-font, system-ui);
   margin-bottom: 6px;
@@ -221,7 +369,7 @@ bb-app-shell,
   }
 
   &.highlight {
-    --tag: #ea580c;
+    --tag: var(--bb-highlight);
     transform: scale(1.08);
     z-index: 2;
   }
@@ -244,11 +392,11 @@ bb-app-shell,
     }
   }
   .mat-step-icon {
-    background: #9aa5b1;
-    border: 2px solid #9aa5b1;
+    background: var(--bb-idle);
+    border: 2px solid var(--bb-idle);
     border-radius: 50%;
     box-sizing: border-box;
-    color: #fff;
+    color: var(--bb-on-solid);
     font-weight: 700;
     height: 28px;
     transition:
@@ -259,11 +407,11 @@ bb-app-shell,
   }
   .mat-step-icon-state-done,
   .mat-step-icon-state-edit {
-    background: var(--mat-sys-primary);
-    border-color: var(--mat-sys-primary);
+    background: var(--bb-primary-solid);
+    border-color: var(--bb-primary-solid);
   }
   .mat-step-icon.mat-step-icon-selected {
-    background: #fff;
+    background: rgb(var(--bb-surface-rgb));
     border-color: var(--mat-sys-primary);
     color: var(--mat-sys-primary);
   }
@@ -278,18 +426,18 @@ bb-app-shell,
   }
 }
 
-// The "Are you sure?" dialog (shared/confirm-dialog): a white card with
+// The "Are you sure?" dialog (shared/confirm-dialog): a raised card with
 // softly rounded corners over a tinted page.
 .bb-confirm-panel {
   --mat-dialog-container-shape: 12px;
-  --mat-dialog-container-color: #fff;
+  --mat-dialog-container-color: rgb(var(--bb-surface-rgb));
 
   .mat-mdc-dialog-surface {
-    box-shadow: 0 16px 40px rgb(16 58 99 / 0.2);
+    box-shadow: 0 16px 40px rgb(var(--bb-shadow-rgb) / 0.2);
   }
 }
 .bb-confirm-backdrop {
-  background: rgb(16 58 99 / 0.32);
+  background: var(--bb-backdrop);
 }
 
 // Text actions (My items' Edit / View / Pause, the item page's Back and
@@ -328,7 +476,7 @@ bb-app-shell,
 }
 .bb-photo-viewer-backdrop {
   backdrop-filter: blur(6px);
-  background: rgb(16 58 99 / 0.18);
+  background: var(--bb-backdrop-light);
 }
 
 // Explore's price filter holds a form: wider than Material's 280 px menus.
@@ -354,8 +502,8 @@ bb-app-shell,
   }
   .mat-mdc-menu-item.chosen-item,
   .mat-mdc-menu-item.chosen-item:hover {
-    background: var(--mat-sys-primary);
-    color: var(--mat-sys-on-primary);
+    background: var(--bb-primary-solid);
+    color: var(--bb-on-primary-solid);
   }
 }
 

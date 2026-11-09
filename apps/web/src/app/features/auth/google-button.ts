@@ -43,8 +43,12 @@ import { rememberReturnUrl } from '../../core/auth/return-url';
     </a>
   `,
   styles: `
+    /* Google's branding guidance: white (light) or #131314 (dark) with a
+       grey outline and light text; styles.scss holds both. */
     .google {
-      background: #fff;
+      --mat-button-outlined-outline-color: var(--bb-google-border);
+      --mat-button-outlined-label-text-color: var(--bb-google-text);
+      background: var(--bb-google-bg);
       height: 48px;
     }
     .g {

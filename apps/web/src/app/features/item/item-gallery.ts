@@ -124,7 +124,7 @@ import { PhotoViewer, type PhotoViewerData } from './photo-viewer';
     }
     .arrow {
       align-items: center;
-      background: rgb(255 255 255 / 0.9);
+      background: rgb(var(--bb-surface-rgb) / 0.9);
       border: 0;
       border-radius: var(--bb-button-radius);
       box-shadow: var(--bb-shadow-sm);
@@ -161,9 +161,9 @@ import { PhotoViewer, type PhotoViewerData } from './photo-viewer';
       transform: rotate(-45deg);
     }
     .counter {
-      background: rgb(16 58 99 / 0.7);
+      background: rgb(var(--bb-shadow-rgb) / 0.7);
       bottom: calc(80px + 12px);
-      color: #fff;
+      color: var(--bb-on-solid);
       font: var(--mat-sys-label-medium);
       padding: 2px 8px;
       position: absolute;

@@ -7,7 +7,9 @@ import { circlePolygon, pixelsAtZoom0 } from './geo';
 /**
  * Sources and layers MapView adds on top of the base style. Pure data, so
  * they're testable without WebGL. Canvas layers can't read CSS variables;
- * the colours are the theme's sky tokens (styles.scss).
+ * the colours are the light theme's sky tokens (styles.scss). They stay the
+ * same in dark mode: the MapTiler tiles have no dark style, so the map
+ * itself stays light.
  */
 type CirclePaint = NonNullable<
   Extract<AddLayerObject, { type: 'circle' }>['paint']

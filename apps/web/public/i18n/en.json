@@ -357,5 +357,12 @@
     "deleteTitle": "Delete this item?",
     "deleteMessage": "“{{title}}” and its photos will be deleted for good.",
     "deleted": "Item deleted."
+  },
+  "theme": {
+    "label": "Appearance",
+    "button": "Appearance: {{choice}}",
+    "system": "Same as device",
+    "light": "Light",
+    "dark": "Dark"
   }
 }
