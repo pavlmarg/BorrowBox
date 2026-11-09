@@ -57,11 +57,6 @@ type View =
           }
           @case ('verified') {
             <div class="result" role="status">
-              <span class="icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                  <path d="m5 12.5 4.5 4.5L19 7.5" />
-                </svg>
-              </span>
               <h1 class="title">
                 {{
                   t(
@@ -94,13 +89,6 @@ type View =
           @case ('failed') {
             @let code = failedCode();
             <div class="result" role="alert">
-              <span class="icon bad" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                  <path d="M12 3 2 20h20L12 3Z" />
-                  <path d="M12 10v4.5" />
-                  <path d="M12 17.25h.01" />
-                </svg>
-              </span>
               @if (code === 'TOKEN_INVALID' || code === 'TOKEN_EXPIRED') {
                 <h1 class="title">
                   {{

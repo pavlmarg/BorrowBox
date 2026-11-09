@@ -30,30 +30,6 @@ export const AUTH_LINK_STYLES = `
   .result {
     animation: rise var(--bb-fade) var(--bb-ease) both;
   }
-  .icon {
-    align-items: center;
-    background: var(--bb-sky-100);
-    border-radius: 50%;
-    color: var(--bb-sky-700);
-    display: inline-flex;
-    height: 44px;
-    justify-content: center;
-    margin-bottom: 12px;
-    width: 44px;
-  }
-  .icon.bad {
-    background: color-mix(in srgb, var(--mat-sys-error) 10%, transparent);
-    color: var(--mat-sys-error);
-  }
-  .icon svg {
-    fill: none;
-    height: 24px;
-    stroke: currentColor;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    stroke-width: 1.8;
-    width: 24px;
-  }
   .actions {
     display: grid;
     gap: 12px;

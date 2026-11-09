@@ -62,12 +62,6 @@ function initialEmail(doc: Document): string {
       <ng-container *transloco="let t">
         @if (sentTo(); as email) {
           <div class="result" role="status">
-            <span class="icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <rect x="3" y="5.5" width="18" height="13" rx="1.5" />
-                <path d="m3.5 7 8.5 6.5L20.5 7" />
-              </svg>
-            </span>
             <h1 class="title">{{ t('accountEmails.forgot.sentTitle') }}</h1>
             <p class="message">
               {{ t('accountEmails.forgot.sentText', { email }) }}

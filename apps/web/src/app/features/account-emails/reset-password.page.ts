@@ -60,13 +60,6 @@ import { takeLinkToken } from './link-token';
       <ng-container *transloco="let t">
         @if (linkError(); as code) {
           <div class="result" role="alert">
-            <span class="icon bad" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M12 3 2 20h20L12 3Z" />
-                <path d="M12 10v4.5" />
-                <path d="M12 17.25h.01" />
-              </svg>
-            </span>
             <h1 class="title">
               {{
                 t(
