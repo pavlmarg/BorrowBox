@@ -321,6 +321,7 @@ See [ADR-0003](adr/0003-stripe-separate-charges-transfers.md).
 - **Cancellation policy** ([ADR-0021](adr/0021-refunds-and-settlement.md)): the renter more than 24 h before the start gets all but the service fee back (at least Stripe's cost kept); later, the deposit and half the rent, the lender the other half minus their deposit fee; anything not the renter's doing refunds everything.
 - **Webhooks:** raw body signature verification, stored in `payments.stripe_events` (unique on the Stripe event id) and processed asynchronously.
 - **Why not authorization holds:** card authorizations expire after about 7 days and not all EU cards support extended holds. Charging the deposit and then refunding it works for any rental length, and the UX must say so clearly.
+- **Service agreement** ([ADR-0022](adr/0022-standard-service-agreement.md)): lenders in the platform's country sign Stripe's standard agreement with only the `transfers` capability; the platform carries losses on their accounts (acknowledged in the Connect platform profile), which is small since they only receive transfers.
 - ⚠️ **Before a real launch:** confirm with Stripe or legal counsel that the flow of funds is covered under Stripe's licence (EU PSD2), and set up insurance or damage-policy terms.
 
 ## 7. Frontend (Angular PWA)

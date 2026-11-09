@@ -234,9 +234,9 @@ export class SdkStripeApi implements StripeApi {
           type: 'express',
           country,
           // Separate charges and transfers (ADR-0003): lenders only
-          // receive transfers, under the recipient service agreement.
+          // receive transfers. Stripe's standard service agreement: the
+          // recipient one is only for lenders abroad (ADR-0022).
           capabilities: { transfers: { requested: true } },
-          tos_acceptance: { service_agreement: 'recipient' },
           // Our id only (A2): Stripe asks the lender for everything else.
           metadata: { userId },
         },
