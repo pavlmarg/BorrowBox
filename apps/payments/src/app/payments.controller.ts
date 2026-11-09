@@ -20,6 +20,7 @@ import { DATA_SOURCE } from '@borrowbox/service-kit';
 import { findAccountByUser } from './accounts/accounts.repository';
 import { PayoutsService, toView } from './accounts/payouts.service';
 import { CheckoutService } from './checkout/checkout.service';
+import { listPayoutsOf, refundedSoFar } from './checkout/money-movements';
 import { listPaymentsOf } from './checkout/payments.repository';
 import { WebhooksService } from './webhooks/webhooks.service';
 
@@ -56,6 +57,10 @@ export class PayoutsController {
     const tx = this.dataSource.manager;
     const row = await findAccountByUser(tx, user.userId);
     const payments = await listPaymentsOf(tx, user.userId);
+    const payouts = await listPayoutsOf(tx, user.userId);
+    const refunded = await Promise.all(
+      payments.map((p) => refundedSoFar(tx, p.id)),
+    );
     return {
       exportedAt: new Date().toISOString(),
       payoutAccount: row
@@ -65,12 +70,19 @@ export class PayoutsController {
             createdAt: row.created_at.toISOString(),
           }
         : null,
-      payments: payments.map((p) => ({
+      payments: payments.map((p, i) => ({
         bookingId: p.booking_id,
         status: p.status,
         chargeCents: p.amount_cents,
+        refundedCents: refunded[i],
         createdAt: p.created_at.toISOString(),
         paidAt: p.paid_at?.toISOString() ?? null,
+      })),
+      payouts: payouts.map((m) => ({
+        bookingId: m.booking_id,
+        amountCents: m.amount_cents,
+        status: m.status,
+        createdAt: m.created_at.toISOString(),
       })),
     };
   }

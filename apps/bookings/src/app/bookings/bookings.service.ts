@@ -299,9 +299,9 @@ export class BookingsService {
   }
 
   /**
-   * The renter withdraws a request; either side cancels an accepted or
-   * confirmed booking before it starts. Cancelling a paid booking comes
-   * with the refund policy (Phase 4, PR C).
+   * The renter withdraws a request; either side cancels an accepted,
+   * confirmed or paid booking before it starts. Payments refunds a paid one
+   * by the refund rules (ADR-0021).
    */
   async cancel(
     user: AuthUser,
@@ -318,7 +318,11 @@ export class BookingsService {
         if (!asRenter) {
           throw invalidState('Decline the request instead of cancelling it');
         }
-      } else if (row.status === 'ACCEPTED' || row.status === 'CONFIRMED') {
+      } else if (
+        row.status === 'ACCEPTED' ||
+        row.status === 'CONFIRMED' ||
+        row.status === 'PAID'
+      ) {
         if (row.start.getTime() <= Date.now()) {
           throw invalidState(
             'A booking can only be cancelled before it starts',

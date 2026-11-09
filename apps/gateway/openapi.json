@@ -4911,6 +4911,9 @@
           "BOOKING_CONFIRMED",
           "BOOKING_PAID",
           "PAYMENT_FAILED",
+          "REFUND_ISSUED",
+          "DEPOSIT_RETURNED",
+          "PAYOUT_SENT",
           "BOOKING_DECLINED",
           "BOOKING_EXPIRED",
           "BOOKING_CANCELLED",
@@ -5030,7 +5033,9 @@
           "PROCESSING",
           "SUCCEEDED",
           "CANCELLED",
-          "NEEDS_REFUND"
+          "NEEDS_REFUND",
+          "REFUNDED",
+          "SETTLED"
         ]
       },
       "ExportedPayment": {
@@ -5050,6 +5055,9 @@
           "chargeCents": {
             "type": "number"
           },
+          "refundedCents": {
+            "type": "number"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -5064,8 +5072,47 @@
           "bookingId",
           "status",
           "chargeCents",
+          "refundedCents",
           "createdAt",
           "paidAt"
+        ]
+      },
+      "MoneyMovementStatus": {
+        "type": "string",
+        "enum": [
+          "PENDING",
+          "SUBMITTED",
+          "SUCCEEDED",
+          "FAILED"
+        ]
+      },
+      "ExportedPayout": {
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amountCents": {
+            "type": "number"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MoneyMovementStatus"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "bookingId",
+          "amountCents",
+          "status",
+          "createdAt"
         ]
       },
       "PaymentsDataExportResponse": {
@@ -5089,12 +5136,20 @@
             "items": {
               "$ref": "#/components/schemas/ExportedPayment"
             }
+          },
+          "payouts": {
+            "description": "What BorrowBox transferred to the caller as a lender",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExportedPayout"
+            }
           }
         },
         "required": [
           "exportedAt",
           "payoutAccount",
-          "payments"
+          "payments",
+          "payouts"
         ]
       },
       "DataExportResponse": {
@@ -6296,7 +6351,7 @@
             "format": "uuid"
           },
           "status": {
-            "description": "REQUIRES_PAYMENT (also after a failed attempt), PROCESSING, SUCCEEDED, CANCELLED (the booking closed unpaid), NEEDS_REFUND (paid, but the booking closed)",
+            "description": "REQUIRES_PAYMENT (also after a failed attempt), PROCESSING, SUCCEEDED, CANCELLED (the booking closed unpaid), NEEDS_REFUND (the refund is on its way), REFUNDED (a cancelled booking was refunded), SETTLED (completed: the lender was paid, the deposit returned)",
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentStatus"
@@ -6331,6 +6386,10 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          },
+          "refundedCents": {
+            "type": "number",
+            "description": "Back to the renter so far: a refund or the deposit (ADR-0021)"
           },
           "clientSecret": {
             "type": "string",
@@ -6347,6 +6406,7 @@
           "payBy",
           "lastAttemptFailed",
           "paidAt",
+          "refundedCents",
           "clientSecret"
         ]
       },
@@ -6358,7 +6418,7 @@
             "format": "uuid"
           },
           "status": {
-            "description": "REQUIRES_PAYMENT (also after a failed attempt), PROCESSING, SUCCEEDED, CANCELLED (the booking closed unpaid), NEEDS_REFUND (paid, but the booking closed)",
+            "description": "REQUIRES_PAYMENT (also after a failed attempt), PROCESSING, SUCCEEDED, CANCELLED (the booking closed unpaid), NEEDS_REFUND (the refund is on its way), REFUNDED (a cancelled booking was refunded), SETTLED (completed: the lender was paid, the deposit returned)",
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentStatus"
@@ -6393,6 +6453,10 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          },
+          "refundedCents": {
+            "type": "number",
+            "description": "Back to the renter so far: a refund or the deposit (ADR-0021)"
           }
         },
         "required": [
@@ -6404,7 +6468,8 @@
           "chargeCents",
           "payBy",
           "lastAttemptFailed",
-          "paidAt"
+          "paidAt",
+          "refundedCents"
         ]
       },
       "PayoutAccountResponse": {

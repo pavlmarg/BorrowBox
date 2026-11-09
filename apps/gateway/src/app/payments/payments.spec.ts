@@ -203,6 +203,7 @@ describe('Payout and webhook routes (integration)', () => {
       payBy: '2026-11-09T10:00:00.000Z',
       lastAttemptFailed: false,
       paidAt: null,
+      refundedCents: 0,
     };
 
     it('needs a signed-in user and a well-formed booking id', async () => {

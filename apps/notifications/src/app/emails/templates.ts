@@ -120,6 +120,36 @@ function english(input: TemplateInput): EmailContent {
         ],
         action: booking,
       };
+    case 'REFUND_ISSUED':
+      return {
+        ...base,
+        subject: `Your refund for ${item}`,
+        paragraphs: [
+          `${euros(data.amountCents, 'en')} is on its way back to your card.`,
+          'Banks usually take 5 to 10 days to show it.',
+        ],
+        action: booking,
+      };
+    case 'DEPOSIT_RETURNED':
+      return {
+        ...base,
+        subject: `Your deposit for ${item} is on its way back`,
+        paragraphs: [
+          `${euros(data.amountCents, 'en')} is on its way back to your card.`,
+          'Banks usually take 5 to 10 days to show it. Thanks for borrowing on BorrowBox.',
+        ],
+        action: booking,
+      };
+    case 'PAYOUT_SENT':
+      return {
+        ...base,
+        subject: `You've been paid for ${item}`,
+        paragraphs: [
+          `${euros(data.amountCents, 'en')} was sent to your Stripe account.`,
+          'Stripe pays it out to your bank account on its usual schedule.',
+        ],
+        action: booking,
+      };
     case 'PAYMENT_FAILED':
       return {
         ...base,
@@ -264,6 +294,36 @@ function greek(input: TemplateInput): EmailContent {
         paragraphs: [
           `${period}.`,
           `Κανόνισε με ${other} πού και πότε θα συναντηθείτε, στη συνομιλία της κράτησης.`,
+        ],
+        action: booking,
+      };
+    case 'REFUND_ISSUED':
+      return {
+        ...base,
+        subject: `Η επιστροφή χρημάτων για ${item}`,
+        paragraphs: [
+          `${euros(data.amountCents, 'el')} επιστρέφονται στην κάρτα σου.`,
+          'Οι τράπεζες συνήθως χρειάζονται 5 έως 10 ημέρες για να τα εμφανίσουν.',
+        ],
+        action: booking,
+      };
+    case 'DEPOSIT_RETURNED':
+      return {
+        ...base,
+        subject: `Η εγγύηση για ${item} επιστρέφεται`,
+        paragraphs: [
+          `${euros(data.amountCents, 'el')} επιστρέφονται στην κάρτα σου.`,
+          'Οι τράπεζες συνήθως χρειάζονται 5 έως 10 ημέρες. Ευχαριστούμε που δανείστηκες μέσω BorrowBox.',
+        ],
+        action: booking,
+      };
+    case 'PAYOUT_SENT':
+      return {
+        ...base,
+        subject: `Πληρώθηκες για ${item}`,
+        paragraphs: [
+          `${euros(data.amountCents, 'el')} στάλθηκαν στον λογαριασμό σου στο Stripe.`,
+          'Το Stripe τα μεταφέρει στον τραπεζικό σου λογαριασμό με το συνηθισμένο του πρόγραμμα.',
         ],
         action: booking,
       };

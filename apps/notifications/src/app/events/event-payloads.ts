@@ -26,6 +26,8 @@ import {
   type Locale,
   type OfferSentV1Payload,
   type PaymentFailedV1Payload,
+  type PaymentRefundedV1Payload,
+  type PaymentSettledV1Payload,
 } from '@borrowbox/contracts';
 
 /**
@@ -115,6 +117,50 @@ export class BookingPayload implements BookingSnapshotV1 {
   @IsOptional()
   @IsISO8601({ strict: true })
   payBy?: string;
+}
+
+/** `payment.refunded.v1`. */
+export class PaymentRefundedPayload implements PaymentRefundedV1Payload {
+  @IsUUID()
+  bookingId!: string;
+
+  @IsUUID()
+  renterId!: string;
+
+  @IsUUID()
+  lenderId!: string;
+
+  @IsString()
+  @MaxLength(ITEM_TITLE_MAX_LENGTH)
+  itemTitle!: string;
+
+  @IsInt()
+  @Min(0)
+  amountCents!: number;
+}
+
+/** `payment.settled.v1`. */
+export class PaymentSettledPayload implements PaymentSettledV1Payload {
+  @IsUUID()
+  bookingId!: string;
+
+  @IsUUID()
+  renterId!: string;
+
+  @IsUUID()
+  lenderId!: string;
+
+  @IsString()
+  @MaxLength(ITEM_TITLE_MAX_LENGTH)
+  itemTitle!: string;
+
+  @IsInt()
+  @Min(0)
+  payoutCents!: number;
+
+  @IsInt()
+  @Min(0)
+  depositRefundCents!: number;
 }
 
 /** `payment.failed.v1`. */

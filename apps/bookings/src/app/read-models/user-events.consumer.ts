@@ -104,7 +104,14 @@ export class UserEventsConsumer implements OnApplicationBootstrap {
             // order deadlocks when the lender is erased meanwhile.
             const offers = await lockOpenOffers(tx, { userId });
             const ids = await lockBookingsToCancel(tx, { userId });
-            await cancelBookings(tx, ids, 'ACCOUNT_DELETED', envelope, pushes);
+            await cancelBookings(
+              tx,
+              ids,
+              'ACCOUNT_DELETED',
+              envelope,
+              pushes,
+              userId,
+            );
             cancelled = ids.length;
             await withdrawOffers(
               tx,

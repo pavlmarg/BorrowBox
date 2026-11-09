@@ -23,6 +23,9 @@ export const HANDLED_EVENT_TYPES: Record<WebhookSource, readonly string[]> = {
     'payment_intent.payment_failed',
     'payment_intent.processing',
     'payment_intent.canceled',
+    // Refunds that were pending at first (ADR-0021).
+    'refund.updated',
+    'refund.failed',
   ],
   connect: ['account.updated'],
 };

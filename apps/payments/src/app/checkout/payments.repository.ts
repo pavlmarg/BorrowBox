@@ -19,6 +19,11 @@ export interface PaymentRow {
   paid_at: Date | null;
   stripe_cancel_pending: boolean;
   stripe_cancel_attempts: number;
+  /** The charge transfers are paid from (ADR-0021). */
+  stripe_charge_id: string | null;
+  /** Planned so far (never more than the charge together). */
+  refunded_cents: number;
+  transferred_cents: number;
 }
 
 export async function findPaymentByBooking(
@@ -99,6 +104,7 @@ export async function updatePayment(
     lastAttemptFailed?: boolean;
     paid?: boolean;
     cancelPending?: boolean;
+    chargeId?: string | null;
   },
 ): Promise<void> {
   await tx.query(
@@ -108,7 +114,8 @@ export async function updatePayment(
             paid_at = CASE WHEN $4 THEN COALESCE(paid_at, now()) ELSE paid_at END,
             stripe_cancel_pending = COALESCE($5, stripe_cancel_pending),
             next_stripe_cancel_at = CASE WHEN $5 THEN now()
-                                         ELSE next_stripe_cancel_at END
+                                         ELSE next_stripe_cancel_at END,
+            stripe_charge_id = COALESCE($6, stripe_charge_id)
       WHERE id = $1`,
     [
       id,
@@ -116,6 +123,7 @@ export async function updatePayment(
       changes.lastAttemptFailed ?? null,
       changes.paid ?? false,
       changes.cancelPending ?? null,
+      changes.chargeId ?? null,
     ],
   );
 }

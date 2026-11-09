@@ -87,8 +87,34 @@ export const BookingExpiredV1 = defineEvent<BookingExpiredV1Payload>()(
 
 export interface BookingCancelledV1Payload extends BookingSnapshotV1 {
   reason: BookingCancelReason;
+  /**
+   * With `ACCOUNT_DELETED`: whose account was erased, so Payments can tell
+   * a renter's erasure (their cancellation) from a lender's (ADR-0021).
+   */
+  erasedUserId?: string;
 }
 export const BookingCancelledV1 = defineEvent<BookingCancelledV1Payload>()(
   'booking.cancelled',
+  1,
+);
+
+/**
+ * The claim window after the return passed (or a dispute was resolved):
+ * the lender is paid and the deposit goes back (ADR-0021). Emitted from
+ * Phase 5 (handoff); Payments consumes it from Phase 4.
+ */
+export type BookingCompletedV1Payload = BookingSnapshotV1;
+export const BookingCompletedV1 = defineEvent<BookingCompletedV1Payload>()(
+  'booking.completed',
+  1,
+);
+
+/**
+ * The lender filed a damage claim within the claim window: settlement waits
+ * for the dispute's outcome (ADR-0021). Emitted from Phase 5.
+ */
+export type BookingDisputedV1Payload = BookingSnapshotV1;
+export const BookingDisputedV1 = defineEvent<BookingDisputedV1Payload>()(
+  'booking.disputed',
   1,
 );

@@ -31,10 +31,15 @@ export interface CheckoutResponse {
    * When the booking expires unless paid
    */
   payBy: string | null;
+
+  /**
+   * Back to the renter so far: a refund or the deposit (ADR-0021)
+   */
+  refundedCents: number;
   rentCents: number;
 
   /**
-   * REQUIRES_PAYMENT (also after a failed attempt), PROCESSING, SUCCEEDED, CANCELLED (the booking closed unpaid), NEEDS_REFUND (paid, but the booking closed)
+   * REQUIRES_PAYMENT (also after a failed attempt), PROCESSING, SUCCEEDED, CANCELLED (the booking closed unpaid), NEEDS_REFUND (the refund is on its way), REFUNDED (a cancelled booking was refunded), SETTLED (completed: the lender was paid, the deposit returned)
    */
   status: PaymentStatus;
 }

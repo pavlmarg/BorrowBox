@@ -7,8 +7,18 @@ import {
 } from '@nestjs/common';
 import type { DataSource } from 'typeorm';
 import { DATA_SOURCE } from '@borrowbox/service-kit';
+import type { MoneyMovementStatus } from '@borrowbox/contracts';
 import { syncAccount } from './accounts/account-sync';
 import { findBooking } from './checkout/bookings.repository';
+import {
+  claimDueMovements,
+  findMovementByStripeObject,
+  finishIfDone,
+  lockMovement,
+  recordMovement,
+  retryMovementLater,
+  type MoneyMovementRow,
+} from './checkout/money-movements';
 import { applyIntentState } from './checkout/payment-sync';
 import {
   claimDueCancels,
@@ -19,8 +29,10 @@ import {
 } from './checkout/payments.repository';
 import {
   claimDueDeletions,
+  findAccountByUser,
   markStripeDeleted,
   retryDeletionLater,
+  setStripeAccountId,
   type DeletionJob,
 } from './accounts/accounts.repository';
 import {
@@ -57,13 +69,20 @@ const WAIT_FOR_STRIPE_ID_MS = 10 * 60 * 1000;
 /** A Stripe account deletion failing this many times is logged as an error. */
 const DELETION_ALERT_ATTEMPTS = 10;
 const PRUNE_EVERY_MS = 60 * 60 * 1000;
+/** Orphaned Stripe accounts are looked for once a day (ADR-0021). */
+const RECONCILE_EVERY_MS = 24 * 60 * 60 * 1000;
+/** A transfer waiting for the lender's payouts is retried at most this far apart, */
+const HOLD_RETRY_MAX_MS = 6 * 60 * 60 * 1000;
+/** and logged as an error once it has waited this long. */
+const HOLD_ALERT_MS = 7 * 24 * 60 * 60 * 1000;
 /** Processed events are kept this long to recognise Stripe's resends (it retries for 3 days). */
 export const KEEP_STRIPE_EVENTS_DAYS = 30;
 
 /**
  * Payments' background work: processes stored Stripe events (P9, A3),
- * cancels the PaymentIntents of bookings that closed unpaid (ADR-0019) and
- * deletes erased lenders' Stripe accounts (A7). All retry with backoff.
+ * cancels the PaymentIntents of bookings that closed unpaid (ADR-0019),
+ * carries out refunds and transfers (ADR-0021), deletes erased lenders'
+ * Stripe accounts (A7) and, daily, orphaned ones. All retry with backoff.
  * Logs carry ids and what identifies an error, never Stripe data.
  */
 @Injectable()
@@ -73,6 +92,7 @@ export class PaymentsWorker
   private readonly logger = new Logger('PaymentsWorker');
   private pollTimer?: NodeJS.Timeout;
   private pruneTimer?: NodeJS.Timeout;
+  private reconcileTimer?: NodeJS.Timeout;
   private running?: Promise<void>;
   private stopped = false;
 
@@ -86,6 +106,11 @@ export class PaymentsWorker
     this.pollTimer.unref();
     this.pruneTimer = setInterval(() => void this.prune(), PRUNE_EVERY_MS);
     this.pruneTimer.unref();
+    this.reconcileTimer = setInterval(
+      () => void this.reconcileAccounts(),
+      RECONCILE_EVERY_MS,
+    );
+    this.reconcileTimer.unref();
   }
 
   /** Does everything due now. One run at a time. */
@@ -122,6 +147,13 @@ export class PaymentsWorker
       if (jobs.length < BATCH || this.stopped) break;
     }
     for (;;) {
+      const movements = await this.dataSource.transaction((tx) =>
+        claimDueMovements(tx, BATCH, LEASE_MS),
+      );
+      for (const m of movements) await this.executeMovement(m, now);
+      if (movements.length < BATCH || this.stopped) break;
+    }
+    for (;;) {
       const jobs = await this.dataSource.transaction((tx) =>
         claimDueDeletions(tx, BATCH, LEASE_MS),
       );
@@ -140,6 +172,8 @@ export class PaymentsWorker
           event.account_id,
           `stripe:${event.event_id}`,
         );
+      } else if (event.type.startsWith('refund.') && event.object_id) {
+        await this.syncRefund(event.object_id);
       } else if (event.type.startsWith('payment_intent.') && event.object_id) {
         const intentId = event.object_id;
         await this.syncPayment(
@@ -196,6 +230,133 @@ export class PaymentsWorker
         stripeEventType,
       );
     });
+  }
+
+  /**
+   * Carries out one refund or transfer (ADR-0021), with its own id as
+   * Stripe's idempotency key, so a retry never moves money twice. A transfer
+   * waits while the lender can't be paid (C6).
+   */
+  private async executeMovement(m: MoneyMovementRow, now: Date): Promise<void> {
+    const tx = this.dataSource.manager;
+    try {
+      const [payment] = await tx.query(
+        `SELECT stripe_payment_intent_id, stripe_charge_id FROM payments WHERE id = $1`,
+        [m.payment_id],
+      );
+      let status: MoneyMovementStatus;
+      let objectId: string;
+      if (m.kind === 'REFUND') {
+        const refund = await this.stripe.createRefund({
+          paymentIntentId: payment.stripe_payment_intent_id,
+          amountCents: m.amount_cents,
+          bookingId: m.booking_id,
+          idempotencyKey: `movement-${m.id}`,
+        });
+        status =
+          refund.status === 'SUCCEEDED'
+            ? 'SUCCEEDED'
+            : refund.status === 'FAILED'
+              ? 'FAILED'
+              : 'SUBMITTED';
+        objectId = refund.id;
+      } else {
+        const account = await findAccountByUser(tx, m.recipient_id);
+        if (
+          !account?.stripe_account_id ||
+          !account.ready ||
+          account.deleted_at ||
+          !payment.stripe_charge_id
+        ) {
+          await this.holdTransfer(m, now);
+          return;
+        }
+        const transfer = await this.stripe.createTransfer({
+          amountCents: m.amount_cents,
+          destinationAccountId: account.stripe_account_id,
+          bookingId: m.booking_id,
+          sourceChargeId: payment.stripe_charge_id,
+          idempotencyKey: `movement-${m.id}`,
+        });
+        status = 'SUCCEEDED';
+        objectId = transfer.id;
+      }
+      await this.dataSource.transaction(async (t) => {
+        const locked = await lockMovement(t, m.id);
+        if (!locked || locked.status !== 'PENDING') return;
+        await recordMovement(t, locked, status, objectId);
+        const booking = await findBooking(t, m.booking_id);
+        if (booking) {
+          await finishIfDone(t, m.payment_id, booking, {
+            correlationId: `movement:${m.id}`,
+          });
+        }
+      });
+    } catch (err) {
+      const attempt = m.attempts + 1;
+      const message = `${m.kind} ${m.id} of booking ${m.booking_id} failed (attempt ${attempt}): ${describe(err)}`;
+      if (attempt >= DELETION_ALERT_ATTEMPTS) this.logger.error(message);
+      else this.logger.warn(message);
+      await retryMovementLater(tx, m.id, backoff(m.attempts));
+    }
+  }
+
+  /** The lender can't be paid yet: try again later, and say so loudly after a week. */
+  private async holdTransfer(m: MoneyMovementRow, now: Date): Promise<void> {
+    const waited = now.getTime() - new Date(m.created_at).getTime();
+    const days = Math.floor(waited / (24 * 60 * 60 * 1000));
+    const message = `Transfer ${m.id} of booking ${m.booking_id} waits for the lender's payouts (${days} day(s))`;
+    if (waited >= HOLD_ALERT_MS) this.logger.error(message);
+    else this.logger.warn(message);
+    await retryMovementLater(
+      this.dataSource.manager,
+      m.id,
+      Math.min(HOLD_RETRY_MAX_MS, backoff(m.attempts)),
+    );
+  }
+
+  /** A refund changed at Stripe (it arrived, or it failed): fetches and records it. */
+  private async syncRefund(refundId: string): Promise<void> {
+    const known = await findMovementByStripeObject(
+      this.dataSource.manager,
+      refundId,
+    );
+    if (!known || known.status !== 'SUBMITTED') return;
+    const refund = await this.stripe.retrieveRefund(refundId);
+    if (refund.status === 'PENDING') return;
+    await this.dataSource.transaction(async (tx) => {
+      const locked = await lockMovement(tx, known.id);
+      if (!locked || locked.status !== 'SUBMITTED') return;
+      await recordMovement(tx, locked, refund.status, null);
+    });
+  }
+
+  /**
+   * Finds connected accounts at Stripe that Payments has lost track of
+   * (C9): an id never saved (a crash mid-onboarding), a second account for
+   * the same lender (an expired idempotency key), or one left behind by an
+   * erasure. Only accounts carrying our user id are touched. Never throws.
+   */
+  async reconcileAccounts(): Promise<void> {
+    try {
+      const tx = this.dataSource.manager;
+      for (const listed of await this.stripe.listConnectedAccounts()) {
+        if (!listed.userId) continue;
+        const row = await findAccountByUser(tx, listed.userId);
+        if (row?.stripe_account_id === listed.id) continue;
+        if (row && !row.stripe_account_id && !row.stripe_deleted_at) {
+          await setStripeAccountId(tx, row.id, listed.id);
+          this.logger.warn(
+            `Saved the missing Stripe account id of row ${row.id}`,
+          );
+          continue;
+        }
+        await this.stripe.deleteAccount(listed.id);
+        this.logger.warn(`Deleted an orphaned Stripe account (${listed.id})`);
+      }
+    } catch (err) {
+      this.logger.error(`Account reconciliation failed: ${describe(err)}`);
+    }
   }
 
   /**
@@ -291,6 +452,7 @@ export class PaymentsWorker
     this.stopped = true;
     clearInterval(this.pollTimer);
     clearInterval(this.pruneTimer);
+    clearInterval(this.reconcileTimer);
     await this.running?.catch(() => undefined);
   }
 }

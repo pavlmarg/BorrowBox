@@ -62,3 +62,38 @@ export const PaymentFailedV1 = defineEvent<PaymentFailedV1Payload>()(
   'payment.failed',
   1,
 );
+
+/**
+ * Money went back to the renter's card for a cancelled booking, or for a
+ * payment that arrived after the booking closed (ADR-0021). Stripe has
+ * accepted the refund; banks take a few days to show it.
+ */
+export interface PaymentRefundedV1Payload {
+  bookingId: string;
+  renterId: string;
+  lenderId: string;
+  itemTitle: string;
+  amountCents: number;
+}
+export const PaymentRefundedV1 = defineEvent<PaymentRefundedV1Payload>()(
+  'payment.refunded',
+  1,
+);
+
+/**
+ * A completed booking is settled (ADR-0021): the lender was paid
+ * (`payoutCents`, possibly 0) and the deposit went back to the renter
+ * (`depositRefundCents`, possibly 0).
+ */
+export interface PaymentSettledV1Payload {
+  bookingId: string;
+  renterId: string;
+  lenderId: string;
+  itemTitle: string;
+  payoutCents: number;
+  depositRefundCents: number;
+}
+export const PaymentSettledV1 = defineEvent<PaymentSettledV1Payload>()(
+  'payment.settled',
+  1,
+);

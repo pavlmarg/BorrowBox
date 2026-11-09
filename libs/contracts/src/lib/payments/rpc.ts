@@ -6,6 +6,7 @@
  */
 import type {
   CheckoutView,
+  MoneyMovementStatus,
   PaymentStatus,
   PaymentView,
   PayoutAccountView,
@@ -80,8 +81,16 @@ export interface PaymentsDataExport {
     bookingId: string;
     status: PaymentStatus;
     chargeCents: number;
+    refundedCents: number;
     createdAt: string;
     paidAt: string | null;
+  }>;
+  /** What BorrowBox transferred to the caller as a lender. */
+  payouts: Array<{
+    bookingId: string;
+    amountCents: number;
+    status: MoneyMovementStatus;
+    createdAt: string;
   }>;
 }
 

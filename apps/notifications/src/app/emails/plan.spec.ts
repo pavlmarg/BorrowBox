@@ -8,7 +8,9 @@ import {
   onExpired,
   onPaid,
   onPaymentFailed,
+  onRefunded,
   onRequested,
+  onSettled,
 } from './plan';
 
 const booking: BookingSnapshotV1 = {
@@ -98,6 +100,50 @@ describe('which booking emails go to whom (N1)', () => {
         payBy: '2026-11-01T09:00:00.000Z',
       },
     });
+  });
+
+  it('tells the renter their refund is on its way', () => {
+    expect(
+      onRefunded({
+        bookingId: booking.bookingId,
+        renterId: 'renter',
+        lenderId: 'lender',
+        itemTitle: 'Drill',
+        amountCents: 7000,
+      }),
+    ).toEqual([
+      {
+        kind: 'REFUND_ISSUED',
+        recipientId: 'renter',
+        data: {
+          otherId: 'lender',
+          itemTitle: 'Drill',
+          bookingId: booking.bookingId,
+          amountCents: 7000,
+        },
+      },
+    ]);
+  });
+
+  it('tells the renter the deposit is back and the lender they were paid, skipping zeros', () => {
+    const settled = {
+      bookingId: booking.bookingId,
+      renterId: 'renter',
+      lenderId: 'lender',
+      itemTitle: 'Drill',
+    };
+    expect(
+      who(
+        onSettled({ ...settled, payoutCents: 1850, depositRefundCents: 5000 }),
+      ),
+    ).toEqual(['DEPOSIT_RETURNED>renter', 'PAYOUT_SENT>lender']);
+    expect(
+      who(onSettled({ ...settled, payoutCents: 1850, depositRefundCents: 0 })),
+    ).toEqual(['PAYOUT_SENT>lender']);
+    expect(
+      onSettled({ ...settled, payoutCents: 0, depositRefundCents: 5000 })[0]
+        .data.amountCents,
+    ).toBe(5000);
   });
 
   it('carries the fee and the pay-by time of an accepted booking', () => {

@@ -1,8 +1,10 @@
 import {
   BookingAcceptedV1,
   BookingCancelledV1,
+  BookingCompletedV1,
   BookingConfirmedV1,
   BookingDeclinedV1,
+  BookingDisputedV1,
   BookingExpiredV1,
   BookingPaidV1,
   BookingRequestedV1,
@@ -54,6 +56,8 @@ describe('booking events', () => {
         BookingExpiredV1,
         BookingCancelledV1,
         BookingPaidV1,
+        BookingCompletedV1,
+        BookingDisputedV1,
       ].map((e) => e.routingKey),
     ).toEqual([
       'booking.requested.v1',
@@ -63,6 +67,8 @@ describe('booking events', () => {
       'booking.expired.v1',
       'booking.cancelled.v1',
       'booking.paid.v1',
+      'booking.completed.v1',
+      'booking.disputed.v1',
     ]);
   });
 });

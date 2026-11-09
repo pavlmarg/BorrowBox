@@ -417,9 +417,13 @@ describe('Identity email links (integration)', () => {
         }),
       ).resolves.toBeDefined();
 
+      // Picked by subject: two emails sent close together may come back in
+      // either order.
       const emails = await mailpit.waitForEmails(s.user.email, 2);
-      expect(emails[1].subject).toBe('Ο κωδικός σου στο BorrowBox άλλαξε');
-      expect(emails[1].text).toContain('οι άλλες συσκευές σου αποσυνδέθηκαν');
+      const notice = emails.find(
+        (e) => e.subject === 'Ο κωδικός σου στο BorrowBox άλλαξε',
+      );
+      expect(notice?.text).toContain('οι άλλες συσκευές σου αποσυνδέθηκαν');
     });
   });
 

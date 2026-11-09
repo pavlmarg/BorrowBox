@@ -20,6 +20,7 @@ import {
   lockBooking,
   type PaymentBookingRow,
 } from './bookings.repository';
+import { refundedSoFar } from './money-movements';
 import {
   ensurePayment,
   findPaymentByBooking,
@@ -95,7 +96,10 @@ export class CheckoutService {
       throw invalidState('This booking is no longer waiting for payment');
     }
     const current = (await findPaymentByBooking(tx, bookingId)) as PaymentRow;
-    return { ...toView(booking, current), clientSecret: intent.clientSecret };
+    return {
+      ...toView(booking, current, 0),
+      clientSecret: intent.clientSecret,
+    };
   }
 
   /** The payment as the renter sees it; never calls Stripe. */
@@ -104,13 +108,19 @@ export class CheckoutService {
     await assertLive(tx, userId);
     const booking = await findBooking(tx, bookingId);
     if (!booking || booking.renter_id !== userId) throw notFound();
-    return toView(booking, await findPaymentByBooking(tx, bookingId));
+    const payment = await findPaymentByBooking(tx, bookingId);
+    return toView(
+      booking,
+      payment,
+      payment ? await refundedSoFar(tx, payment.id) : 0,
+    );
   }
 }
 
 export function toView(
   booking: PaymentBookingRow,
   payment: PaymentRow | null,
+  refundedCents: number,
 ): PaymentView {
   const amounts = payment ?? booking;
   return {
@@ -126,6 +136,7 @@ export function toView(
         : null,
     lastAttemptFailed: payment?.last_attempt_failed ?? false,
     paidAt: payment?.paid_at?.toISOString() ?? null,
+    refundedCents,
   };
 }
 
@@ -135,6 +146,8 @@ function statusWithoutPayment(booking: PaymentBookingRow): PaymentStatus {
     case 'AWAITING_PAYMENT':
       return 'REQUIRES_PAYMENT';
     case 'PAID':
+    case 'DISPUTED':
+    case 'COMPLETED':
       return 'SUCCEEDED';
     case 'CLOSED':
       return 'CANCELLED';
