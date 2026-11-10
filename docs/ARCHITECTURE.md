@@ -1,11 +1,8 @@
 # BorrowBox – System Architecture
 
-This document describes the target architecture of BorrowBox. Decisions with meaningful trade-offs are recorded as ADRs in [`adr/`](adr).
+Target architecture. Decisions with trade-offs are ADRs in [`adr/`](adr); they hold the detail this file only summarises.
 
-**Design constraints**
-- Built by a **single developer**, and meant as a portfolio/learning project that could grow into a real product.
-- Launch market is **Greece / EU**, so GDPR, PSD2/SCA and DAC7 apply.
-- Microservices and event-driven design are deliberate choices. Operational cost is kept low with one monorepo, one Postgres instance and one `docker compose up`.
+**Constraints:** one developer; portfolio/learning project that could become a product; launch in Greece/EU (GDPR, PSD2/SCA, DAC7). Microservices and events are deliberate; cost stays low with one monorepo, one Postgres and one `docker compose up`.
 
 ---
 
@@ -18,221 +15,128 @@ flowchart LR
     admin([Admin]) --> pwa
     pwa --> bb[BorrowBox Platform]
     bb --> stripe[Stripe Connect / Identity]
-    bb --> email[Email provider<br/>Resend / Postmark]
-    bb --> push[Web Push services]
-    pwa --> tiles[Map tiles<br/>MapTiler]
+    bb --> email[Email provider]
+    bb --> push[Web Push]
+    pwa --> tiles[MapTiler tiles]
     stripe -- webhooks --> bb
 ```
 
-## 2. Containers
+## 2. Containers and communication
 
 ```mermaid
 flowchart TB
-    pwa[Angular PWA]
-    gw[API Gateway / BFF<br/>NestJS + Socket.IO]
-    pwa -- HTTPS / WSS --> gw
-
-    subgraph services[Microservices - NestJS]
-        idn[Identity]
-        cat[Catalog]
-        bok[Bookings]
-        pay[Payments]
-        msg[Messaging]
-        ntf[Notifications]
-        rev[Reviews / Trust]
+    pwa[Angular PWA] -- HTTPS / WSS --> gw[Gateway / BFF<br/>NestJS + Socket.IO]
+    subgraph services[NestJS services]
+        idn[Identity]; cat[Catalog]; bok[Bookings + Messaging]; pay[Payments]; ntf[Notifications]; rev[Reviews]
     end
-
-    gw -- sync RPC --> idn & cat & bok & pay & msg & rev
+    gw -- TCP RPC --> idn & cat & bok & pay & rev
     mq[(RabbitMQ<br/>borrowbox.events)]
-    idn & cat & bok & pay & msg & rev -- outbox relay --> mq
+    idn & cat & bok & pay & rev -- outbox relay --> mq
     mq --> ntf & bok & pay & rev & cat
-
-    pg[(PostgreSQL + PostGIS<br/>schema per service)]
-    redis[(Redis<br/>pub/sub, BullMQ, nonces)]
-    s3[(Object storage<br/>SeaweedFS locally / R2)]
-    services --> pg
-    services --> redis
+    pg[(Postgres + PostGIS<br/>schema per service)]
+    redis[(Redis: pub/sub, BullMQ, nonces)]
+    s3[(Object storage: SeaweedFS / R2)]
+    services --> pg & redis
     gw --> redis
     cat & bok --> s3
-    stripe[Stripe] -- webhooks --> pay
+    stripe[Stripe] -- webhooks via gateway --> pay
 ```
 
-### Communication rules
-- **Client → system:** always through the gateway (REST + Socket.IO).
-- **Gateway → service:** synchronous request/response over the NestJS TCP transport ([ADR-0005](adr/0005-gateway-service-transport-tcp.md)), used only for queries and user-initiated commands.
-- **Service → service:** asynchronous **events** over RabbitMQ, on the topic exchange `borrowbox.events` with routing keys such as `booking.accepted.v1`. Services never call each other synchronously during a business flow.
-- **Data:** each service owns one Postgres schema with its own DB role. Cross-schema reads are forbidden. When a service needs another service's data, it keeps a local read model built from events (for example, Bookings stores item title, lender id and deposit from `item.*` events).
+- Client → system only through the gateway (REST + Socket.IO).
+- Gateway → service: NestJS TCP request/response ([ADR-0005](adr/0005-gateway-service-transport-tcp.md)), only for queries and user-initiated commands.
+- Service → service: only events on topic exchange `borrowbox.events`, keys `<aggregate>.<event>.v<N>`. No synchronous calls in a business flow.
+- Each service owns one Postgres schema and DB role; no cross-schema reads. Other services' data comes from local read models built from events.
 
 ## 3. Services
 
 | Service | Owns | Publishes | Consumes |
 |---|---|---|---|
-| **Gateway** | nothing (stateless) | – | Redis pub/sub (fan-out to sockets) |
-| **Identity** | users, credentials, refresh tokens, email tokens, verification status; sends its own account-security emails | `user.registered`, `user.profile_updated`, `user.email_verified`, `user.verified` (ID check), `user.deletion_requested` | – |
-| **Catalog** | items, categories, photos, location | `item.created`, `item.updated`, `item.deleted` | `user.registered`, `.profile_updated` (lender names), `.email_verified` (to publish), `.deletion_requested`, `booking.accepted` / `.confirmed` (featured items), `review.created` (item rating) |
-| **Bookings** | bookings, availability, handoffs, condition photos | `booking.requested`, `.accepted`, `.confirmed`, `.paid`, `.declined`, `.expired`, `.cancelled`, `.picked_up`, `.returned`, `.completed`, `.disputed` | `item.*`, `user.registered`, `.profile_updated` (names), `.email_verified` (to book), `.deletion_requested`, `payment.account_ready` / `.account_restricted` (payable lenders), `payment.captured` |
-| **Payments** | Stripe connected accounts, payments, transfers, refunds, `stripe_events` | `payment.account_ready`, `payment.account_restricted`, `payment.captured`, `payment.failed`, `payment.settled` | `user.email_verified`, `.deletion_requested`, `booking.accepted`, `.paid`, `.expired`, `.cancelled`, `.completed`, `.disputed`, `dispute.resolved` |
-| **Messaging** (a module of Bookings for now, [ADR-0017](adr/0017-in-app-chat.md)) | conversations, messages, price offers, reports | `message.sent`, `conversation.unread`, `offer.sent`, `offer.withdrawn` | booking changes (system lines, in-process), `item.deleted`, `user.deletion_requested` |
-| **Notifications** | recipients (from `user.*` events), email jobs; later preferences, push subscriptions, in-app inbox | – | `user.registered`, `.profile_updated`, `.deletion_requested`, `booking.*`, `payment.failed`, `.refunded`, `.settled`, `offer.sent`, `conversation.unread` |
-| **Reviews / Trust** | reviews, trust scores | `review.created` | `booking.completed`, `user.verified`, `booking.disputed` |
+| **Gateway** | nothing | – | Redis `chat:*` |
+| **Identity** | users, credentials, refresh tokens, email tokens, verification; its own security emails | `user.registered`, `.profile_updated`, `.email_verified`, `.verified`, `.deletion_requested` | – |
+| **Catalog** | items, categories, photos, locations | `item.created`, `.updated`, `.deleted` | `user.registered`, `.profile_updated`, `.email_verified`, `.deletion_requested`; `booking.accepted`/`.confirmed` (featured); `review.created` |
+| **Bookings** | bookings, availability, handoffs, condition photos | `booking.requested`, `.accepted`, `.confirmed`, `.paid`, `.declined`, `.expired`, `.cancelled`, `.picked_up`, `.returned`, `.completed`, `.disputed` | `item.*`, `user.registered`, `.profile_updated`, `.email_verified`, `.deletion_requested`, `payment.account_ready`/`.account_restricted`, `payment.captured` |
+| **Payments** | connected accounts, payments, money movements, `stripe_events` | `payment.account_ready`, `.account_restricted`, `.captured`, `.failed`, `.refunded`, `.settled` | `user.email_verified`, `.deletion_requested`, `booking.accepted`, `.paid`, `.expired`, `.cancelled`, `.completed`, `.disputed`, `dispute.resolved` |
+| **Messaging** (module of Bookings, [ADR-0017](adr/0017-in-app-chat.md)) | conversations, messages, offers, reports | `message.sent`, `conversation.unread`, `offer.sent`, `.withdrawn` | booking changes (in-process), `item.deleted`, `user.deletion_requested` |
+| **Notifications** | recipients, email jobs (later: preferences, push, inbox) | – | `user.registered`, `.profile_updated`, `.deletion_requested`, `booking.*`, `payment.failed`, `.refunded`, `.settled`, `offer.sent`, `conversation.unread` |
+| **Reviews** | reviews, trust scores | `review.created` | `booking.completed`, `.disputed`, `user.verified` |
 
-**Media** is a shared library, not a service. It issues presigned upload URLs into a private uploads bucket, and runs a BullMQ worker (inside the owning service) that strips all metadata with `sharp` and writes resized versions to a separate public-read bucket. Only processed photos are served. Stripping EXIF matters because photo GPS data would leak home locations. See [ADR-0009](adr/0009-photo-pipeline.md).
-- **Formats** ([ADR-0013](adr/0013-wider-photo-formats.md)): JPEG, PNG, WebP, AVIF, GIF and TIFF (never SVG); the PWA re-encodes photos, iPhone HEIC included, to JPEG before uploading. Photos narrower than 320 px, unreadable or of another real type than declared end `FAILED`; the owner sees them and removes them.
-- **No orphaned files:** removing a photo (itself, its item, or its owner's account) deletes the row and lists its files in `photo_file_deletions` in one transaction; a job deletes the files, then the entry. The worker lists the files it is about to write with a delay, so a crash mid-processing is cleaned up too.
-- **Sweeper** (every 10 minutes): re-queues confirmed photos whose processing was interrupted, removes uploads abandoned for a day, and retries due file deletions.
+**Media** (shared lib, [ADR-0009](adr/0009-photo-pipeline.md), [ADR-0013](adr/0013-wider-photo-formats.md)): presigned uploads to a private bucket; a BullMQ worker in the owning service strips all metadata with `sharp` and writes resized copies to a public bucket. Only processed photos are served. JPEG/PNG/WebP/AVIF/GIF/TIFF (never SVG); the PWA re-encodes to JPEG (HEIC included). Under 320 px, unreadable or mislabelled → `FAILED`. Removing a photo, item or account deletes the row and queues its files in `photo_file_deletions` in one transaction; the worker also pre-registers files it's writing. A sweeper (10 min) re-queues interrupted photos, removes day-old abandoned uploads and retries deletions.
 
 ### Gateway
-- REST under `/api`, calling services through typed clients (e.g. `IdentityClient`) over NestJS TCP ([ADR-0005](adr/0005-gateway-service-transport-tcp.md)). It forwards the caller's access token and an `X-Request-Id` correlation id with every call.
-- **Service clients** all extend one `ServiceClient` base:
-  - Each service's error codes map to HTTP statuses through a table typed against its contract, so an unmapped code is a compile error. A code that still slips through at runtime becomes `500 INTERNAL` and is logged. So does a call the service has no handler for (e.g. the gateway and the service deployed out of step).
-  - No answer (timeout or connection failure) becomes `503 SERVICE_UNAVAILABLE` with a generic message; the service's name only appears in logs.
-  - Calls wait `RPC_TIMEOUT_MS` (5 s) by default. Calls that are slow by nature get a longer timeout in code, which must exceed everything the service itself waits for (e.g. Google sign-in: 35 s, derived in `libs/contracts` from Identity's 10 s per Google request × up to three requests, plus a margin).
-  - No automatic retries: a command may already have run.
-- Phase 1 endpoints:
-  - `POST /api/auth/register`, `/login`, `/refresh`, `/logout`
-  - `GET /api/auth/google` and `/google/callback`
-  - `GET` / `PATCH` / `DELETE /api/me`, `GET /api/me/export`
-  - `GET /api/health`
-- Phase 2 endpoints (Catalog):
-  - Public, no sign-in: `POST /api/items/search`, `/suggest`, `/featured` and `/category-counts` (the searcher's point travels in the body, so it never lands in URLs, access logs or browser history), `GET /api/items/:id` and `/:id/similar`.
-  - The signed-in lender's own items under `/api/me/items`: list, create, get, `PATCH`, `DELETE`, `PUT /:id/location`, `POST /:id/publish` / `pause` / `unpause`, and photos (`POST /:id/photos` for an upload URL, `POST …/photos/:photoId/confirm`, `DELETE …/photos/:photoId`, `PUT /:id/photos/order`).
-  - Catalog's state and limit refusals (`INVALID_STATE`, `NOT_PUBLISHABLE`, `ITEM_LIMIT_REACHED`, `PHOTO_LIMIT_REACHED`) are `409`; the PWA tells them apart by `code`.
-  - `GET /api/me/export` has one section per service (`identity`, `catalog`, from Phase 3 `bookings`, `messaging`, `notifications`, and from Phase 4 `payments`). If any service doesn't answer, the whole export fails with `503` rather than returning partial data.
-- Phase 3 endpoints (Identity's email links, [ADR-0016](adr/0016-notifications-and-email.md)):
-  - No sign-in: `POST /api/auth/verify-email` and `/password-reset/confirm` (the token from the link is the proof; the confirm also clears the refresh cookie), and `POST /api/auth/password-reset`, which always answers `202`.
-  - Signed in: `POST /api/me/verification-email` (`202`) and `POST /api/me/password`.
-  - `TOKEN_INVALID` and `TOKEN_EXPIRED` are `400`, `PASSWORD_NOT_SET` is `409`, and Catalog's `EMAIL_NOT_VERIFIED` is `403`.
-- Phase 3 endpoints (Bookings, [ADR-0015](adr/0015-booking-model.md); chat and offers, [ADR-0017](adr/0017-in-app-chat.md), [ADR-0018](adr/0018-price-offers.md)):
-  - Public: `GET /api/items/:id/quote?start=&end=` and `GET /api/items/:id/busy`.
-  - Signed in: `POST /api/bookings` (the client picks the id), `GET /api/bookings/:id`, `POST /api/bookings/:id/accept`, `/decline`, `/cancel`, and `GET /api/me/bookings?role=&statuses=&cursor=`.
-  - Chat: `POST /api/items/:id/conversations` (start or get mine), `GET /api/me/conversations`, `GET /api/me/unread`, `GET /api/conversations/:id`, `GET` / `POST /api/conversations/:id/messages`, `POST /api/conversations/:id/read`, `POST /api/messages/:id/report`.
-  - Offers: `POST /api/conversations/:id/offers`, `POST /api/offers/:id/withdraw`, `POST /api/offers/:id/book`.
-  - `INVALID_PERIOD` is `400`, `EMAIL_NOT_VERIFIED` `403`, and the state and limit refusals (`SLOT_TAKEN`, `DUPLICATE_REQUEST`, `REQUEST_LIMIT_REACHED`, `OWN_ITEM`, `ITEM_UNAVAILABLE`, `INVALID_STATE`, `CONVERSATION_CLOSED`, `OFFER_UNAVAILABLE`, `PRICE_ABOVE_LIST`) `409`.
-  - Per user, on top of the per-IP limits: 30 booking requests (and offer bookings) per hour, 30 messages (and offers) per minute, 20 new conversations per day.
-- Phase 4 endpoints (Payments, [ADR-0019](adr/0019-payments-fees-and-policies.md)):
-  - Signed in: `GET /api/me/payouts` (status), `POST /api/me/payouts/onboarding` and `/dashboard` (each returns a single-use Stripe link; 10 per minute).
-  - The renter, signed in: `POST /api/bookings/:id/payment` (start or come back to paying: amounts, pay-by time and the client secret for Stripe's form; 10 per minute) and `GET` (the payment's status).
-  - Stripe only: `POST /api/webhooks/stripe` (platform events) and `/api/webhooks/stripe-connect` (connected accounts). The raw body (`rawBody`, within the 100 kB limit) and the `Stripe-Signature` header go to Payments, which verifies them; no rate limit, not in the OpenAPI spec.
-  - `PAYOUTS_NOT_SET_UP` (also from Bookings and Messaging), `INVALID_STATE` and `PAYMENT_WINDOW_CLOSED` are `409`, Payments' `NOT_FOUND` `404`, `INVALID_SIGNATURE` `400`, and `PROVIDER_UNAVAILABLE` (Stripe didn't answer) `503`. Onboarding waits up to 46 s and the dashboard 25.5 s, derived in `libs/contracts` from Payments' Stripe timeouts and the SDK's sleep before a retry.
-- **Live chat:** Socket.IO on the gateway's server, namespace `/chat`. The access token goes in the handshake (`auth.token`), the Origin must be on the CORS allow-list, and each socket joins its user's room; it is disconnected when the token expires and reconnects with a fresh one. Every gateway instance subscribes to Redis `chat:*` (also when Redis only comes up after the gateway) and emits to its own sockets. Clients only listen: sending is REST.
-- **Cookies:**
-  - The refresh token is set only as `bb_refresh` (httpOnly, Secure, SameSite=Strict, `Path=/api/auth`) and never appears in a response body.
-  - Google sign-in keeps its state, nonce and PKCE verifier in a signed, 10-minute `bb_oauth` cookie. It is SameSite=Lax because Google's redirect back is a cross-site navigation.
-- **Security:**
-  - Helmet, a CORS allow-list, a 100 kB body limit and `class-validator` DTOs.
-  - Redis-backed rate limits per IP: 10/min for login, register, Google, email links and password changes, 30/min for refresh, 300/min for search-as-you-type, 120/min otherwise.
-  - While Redis is unreachable, each gateway instance counts in memory instead, so the limits stay in force and the API keeps answering. It switches back to Redis by itself once Redis recovers.
-  - Every error has the shape `{ statusCode, code, message }` and never echoes the request body.
-  - A malformed id in a URL is `400 VALIDATION_FAILED`, naming the parameter. Past the rate limit, Google sign-in's browser routes redirect back to the web app with `?error=RATE_LIMITED` instead of answering JSON.
-- **OpenAPI:** `apps/gateway/openapi.json` is committed and regenerated with `nx run gateway:openapi`. A test fails if it drifts from the code. The PWA's API client is generated from it with `nx run web:api-client`.
+- REST under `/api`; typed clients per service extend one `ServiceClient`. Forwards the access token and `X-Request-Id`.
+- Error mapping: each service's codes map to HTTP via a table typed against its contract (unmapped = compile error; at runtime → `500 INTERNAL`, logged). No answer → `503 SERVICE_UNAVAILABLE` (service named only in logs). Timeout `RPC_TIMEOUT_MS` 5 s; slow calls get longer timeouts derived in `libs/contracts` (Google sign-in 35 s, payout onboarding 46 s, dashboard 25.5 s). No automatic retries.
+- Every error is `{ statusCode, code, message }`, never echoing the body. Malformed URL ids → `400 VALIDATION_FAILED`.
+- Security: Helmet, CORS allow-list, 100 kB body limit, `class-validator` DTOs. Redis rate limits per IP: 10/min (login, register, Google, email links, password changes), 30/min refresh, 300/min suggest, 120/min otherwise; per-user limits on bookings (30/h), messages and offers (30/min), new conversations (20/day), payment/payout links (10/min). If Redis is down each instance counts in memory and switches back by itself. Over the limit, Google's browser routes redirect with `?error=RATE_LIMITED`.
+- Cookies: refresh token only in `bb_refresh` (httpOnly, Secure, SameSite=Strict, `Path=/api/auth`), never in a body. Google sign-in state/nonce/PKCE in a signed 10-min `bb_oauth` cookie (SameSite=Lax).
+- OpenAPI: `apps/gateway/openapi.json` is committed (`nx run gateway:openapi`; a test fails on drift); the PWA client is generated from it (`nx run web:api-client`).
+- Live chat: Socket.IO namespace `/chat`, token in `auth.token`, Origin on the allow-list, one room per user, disconnected at token expiry. Every instance subscribes to Redis `chat:*` (also if Redis comes up later). Clients only listen; sending is REST.
+- Endpoints (signed in unless marked public):
+  - **Auth/account:** `POST /auth/register|login|refresh|logout`, `GET /auth/google` + `/google/callback`; public `POST /auth/verify-email`, `/password-reset` (always `202`), `/password-reset/confirm` (also clears the cookie); `GET|PATCH|DELETE /me`, `GET /me/export`, `POST /me/verification-email` (`202`), `/me/password`; `GET /health`.
+  - **Catalog:** public `POST /items/search|suggest|featured|category-counts` (the point travels in the body, never in URLs or logs), `GET /items/:id`, `/items/:id/similar`; lender's `/me/items` (list, create, get, `PATCH`, `DELETE`, `PUT /:id/location`, `POST /:id/publish|pause|unpause`, photos: `POST /:id/photos`, `POST …/:photoId/confirm`, `DELETE …/:photoId`, `PUT /:id/photos/order`).
+  - **Bookings:** public `GET /items/:id/quote?start=&end=`, `/items/:id/busy`; `POST /bookings` (client picks the id), `GET /bookings/:id`, `POST /bookings/:id/accept|decline|cancel`, `GET /me/bookings?role=&statuses=&cursor=`.
+  - **Chat/offers:** `POST /items/:id/conversations`, `GET /me/conversations`, `/me/unread`, `GET /conversations/:id`, `GET|POST /conversations/:id/messages`, `POST /conversations/:id/read`, `/messages/:id/report`, `/conversations/:id/offers`, `/offers/:id/withdraw`, `/offers/:id/book`.
+  - **Payments:** `GET /me/payouts`, `POST /me/payouts/onboarding|dashboard` (single-use Stripe links); renter `POST|GET /bookings/:id/payment`; Stripe-only `POST /webhooks/stripe` and `/webhooks/stripe-connect` (raw body + `Stripe-Signature` to Payments, no rate limit, not in OpenAPI).
+  - `GET /me/export` has one section per service (identity, catalog, bookings, messaging, notifications, payments); any missing → `503`, never partial.
+- Status codes: `400` `VALIDATION_FAILED`, `INVALID_PERIOD`, `TOKEN_INVALID`, `TOKEN_EXPIRED`, `INVALID_SIGNATURE`; `403` `EMAIL_NOT_VERIFIED`; `404` `NOT_FOUND`; `409` state/limit refusals (`INVALID_STATE`, `NOT_PUBLISHABLE`, `ITEM_LIMIT_REACHED`, `PHOTO_LIMIT_REACHED`, `PASSWORD_NOT_SET`, `SLOT_TAKEN`, `DUPLICATE_REQUEST`, `REQUEST_LIMIT_REACHED`, `OWN_ITEM`, `ITEM_UNAVAILABLE`, `CONVERSATION_CLOSED`, `OFFER_UNAVAILABLE`, `PRICE_ABOVE_LIST`, `PAYOUTS_NOT_SET_UP`, `PAYMENT_WINDOW_CLOSED`), told apart by `code`; `503` `PROVIDER_UNAVAILABLE` (Stripe didn't answer).
 
 ### Identity
-- **Passwords:**
-  - Email + password: 8–64 characters with at least one letter and one digit. The rule is shared in `libs/contracts`, so the PWA, the gateway and Identity all check the same thing.
-  - Hashed with argon2id at m=19 MiB, t=2, p=1 (the OWASP minimum), and rehashed on login if the parameters change.
-  - Login failures take the same work and return the same error whatever the cause.
-- **Access token:**
-  - A JWT signed with Ed25519 (`EdDSA`), valid for 15 minutes, carrying `iss`, `aud`, `sub`, `jti`, `sid` and a `kid` header.
-  - `sid` is the sign-in session (the refresh-token family).
-  - Identity alone holds the private key; the gateway and services verify with the public key (`libs/auth`).
-- **Refresh token:**
-  - An opaque 256-bit value, stored only as a SHA-256 hash.
-  - Each use rotates it within its family, and the family expires 30 days after sign-in; rotation never extends it.
-  - Presenting a revoked token, or one rotated 30 seconds ago or more, revokes the whole family (reuse detection). Within those 30 seconds a retry gets another token in the same family, so a lost answer doesn't sign the user out.
-- **Google sign-in (OIDC):**
-  - Authorization code + PKCE + nonce, exchanged by Identity (`openid-client`). Accounts are matched on Google's `sub`, never on the email alone.
-  - A verified Google email **auto-links** to an existing account with that email.
-  - If that account's email was never verified, Google's proof is treated as the first real proof of ownership: the password is cleared and every session revoked. This defeats account pre-hijacking.
-  - An email already linked to a different Google account is refused.
-  - Unverified Google emails are rejected.
-- **Email links** ([ADR-0016](adr/0016-notifications-and-email.md)):
-  - Identity sends its own account-security emails through `libs/mailer`, in the account's language, after the transaction commits; a failed send is only logged and the user asks again.
-  - A link's token (256 bits) travels only in the email and in the link's fragment (`#t=…`), so it never reaches an access log or a `Referer` header. Identity stores its SHA-256 hash in `email_tokens`.
-  - A verification link lasts 24 hours, a reset link 10 minutes; each works once, and a new link replaces older ones of its kind. Each account gets at most one email of a kind per minute; extra requests succeed without sending.
-  - Registering with a password sends a verification link. Confirming one, a password reset, or Google's proof sets `email_verified_at` and emits `user.email_verified` once.
-  - Asking for a reset answers the same whether or not the email has an account, and does the work in the background so the timing doesn't tell either. A reset signs out every session, also gives Google-only accounts a password, and sends a notice.
-  - Changing the password needs the current one, signs out the other sessions and sends a notice.
-- Lender ID verification through **Stripe Identity**, required before listing items above a deposit threshold.
-- **GDPR:**
-  - `GET /me/export` returns everything Identity holds, without hashes or tokens.
-  - `DELETE /me` requires re-authentication: the password, or for accounts without one, a sign-in less than 5 minutes old, on a session that is still live.
-  - In one transaction it anonymises the user row, deletes OAuth identities and refresh tokens, redacts the stored `user.registered` outbox payload, and emits `user.deletion_requested`.
-  - Every other service anonymises or deletes its own data. Financial records are kept as long as the law requires.
+- Passwords: 8–64 chars, ≥1 letter and digit (shared rule in `libs/contracts`); argon2id m=19 MiB, t=2, p=1, rehashed on login if parameters change; failures take the same work and error whatever the cause.
+- Access token: Ed25519 JWT (`EdDSA`), 15 min, `iss aud sub jti sid` + `kid`; `sid` = refresh-token family. Only Identity holds the private key.
+- Refresh token: opaque 256-bit, stored as SHA-256; rotates per use; family expires 30 days after sign-in. A revoked token, or one rotated ≥30 s ago, revokes the family; within 30 s a retry gets another token in the family.
+- Google OIDC: code + PKCE + nonce (`openid-client`); matched on `sub`. A verified Google email auto-links to the account with that email; if that account was unverified, its password is cleared and sessions revoked (anti pre-hijacking). An email linked to another Google account is refused; unverified Google emails are rejected.
+- Email links ([ADR-0016](adr/0016-notifications-and-email.md)): sent by Identity via `libs/mailer` after commit (failure only logged). 256-bit token only in the email and the link fragment `#t=`; stored as SHA-256 in `email_tokens`. Verification 24 h, reset 10 min, single use, newest replaces older; ≤1 email per kind per account per minute (extra requests succeed silently). Verifying (link, reset or Google) sets `email_verified_at` and emits `user.email_verified` once. Reset requests answer the same and take the same time whether or not the account exists; a reset signs out every session, gives Google-only accounts a password and sends a notice. Changing the password needs the current one, signs out other sessions and sends a notice.
+- Lender ID verification via Stripe Identity above a deposit threshold (later).
+- GDPR: export without hashes/tokens. `DELETE /me` needs the password, or for password-less accounts a sign-in <5 min old on a live session. One transaction anonymises the user, deletes OAuth identities and refresh tokens, redacts the stored `user.registered` payload and emits `user.deletion_requested`; every service then erases its own data (financial records kept as the law requires).
 
 ### Catalog
-- `items.location` (private) and `items.location_public` are `geography(Point, 4326)`. Search uses `ST_DWithin(location_public, :point, :radius)` with a GiST index, combined with a Greek + English `tsvector` full-text index and category/price filters.
-- **Search** is public (no sign-in needed) and shows only `ACTIVE` items of known, non-deleted lenders. Results are nearest first by the public point, paged with an opaque cursor (the last item's distance and id). A maximum-price filter also matches free items ([ADR-0012](adr/0012-free-items-match-price-limits.md)). A search can also ask for what lies beyond its radius, with no upper limit and the same filters ("Further away", [ADR-0023](adr/0023-further-away-results.md)). The searcher's point and text are never stored or logged.
-- **Search as you type:** the 5 nearest visible items whose words all start with (or share a Greek/English stem with) what has been typed, from 2 characters.
-- **Category counts:** how many results each category would give with the search's other filters, for Explore's category menu and rail. The search and the counts share one filter clause, so the numbers match.
-- **Featured items** on Explore: up to 10 visible items within the searcher's radius, whatever the other filters: the most often booked in the last 90 days, then the most recently published. Catalog counts `booking.accepted` and `booking.confirmed` per item (one row per booking, no people, pruned after 90 days); later cancellations still count.
-- **Similar items** on an item's page: up to 8 other lenders' items in the same category within 10 km of the item's public point, most shared title words first, then nearest. People are never searchable by name.
-- **Location privacy** ([ADR-0004](adr/0004-location-fuzzing.md), [ADR-0007](adr/0007-location-privacy-search.md)):
-  - `location_public` is the exact point moved by one random offset (150–300 m, random direction), stored per item. A pin moved by less than 300 m keeps the same offset.
-  - A lender's items in one place (exact points within 300 m) share one offset, so averaging their public points reveals nothing ([ADR-0011](adr/0011-one-offset-per-place.md)).
-  - Public responses and **all searches** use only `location_public`. The search radius is one of 1, 2, 5, 10, 25 or 50 km, and distances are shown as bands.
-  - The exact point is visible to its owner only, never to renters: once a booking goes ahead, the two people arrange where to meet ([ADR-0015](adr/0015-booking-model.md)).
-- **Setting the location:** lenders drop a pin on the map or use their device location; no address is geocoded ([ADR-0008](adr/0008-maps-pin-drop.md)).
-- **Pricing:** a rate card per item: any of hourly, daily, weekly and monthly rates (each €0.10–€1,000), or free, plus a separate deposit. Bookings computes what a booking costs ([ADR-0010](adr/0010-flexible-pricing.md)).
-- **Rental limits:** each item may set a shortest and a longest booking in whole hours (1 hour to 90 days, `BOOKING_MAX_HOURS`), which Bookings will enforce.
-- **Item lifecycle:** `DRAFT` → `ACTIVE` (publishing and unpausing need a verified email, a location and a processed photo) ⇄ `PAUSED`; any of them → `DELETED`, a tombstone without location or description. `item.created` / `item.updated` carry a snapshot without location or description; `item.updated` is only sent when the snapshot changes.
-- **Commands are safe to repeat:** the client picks a new item's id (a UUID), so a retried create returns the same item; repeating a publish, pause, unpause or delete that already took effect succeeds without a second event.
-- **Limits:** a lender may have 10 items at once, drafts included (`ITEM_FREE_LIMIT`). Creates and the account's erasure share a per-lender lock, so parallel creates can't exceed the limit and an item can't slip past an erasure.
-- **Verified lenders:** Catalog keeps which accounts have a verified email from `user.email_verified`, apart from the lender names (the event may arrive first), and forgets it on `user.deletion_requested`. Items already published when the rule came in stay published.
-- **Deleted accounts:** access tokens stay valid for up to 15 minutes, so once Catalog has processed `user.deletion_requested`, it refuses that account's write commands.
+- `items.location` (private) and `location_public` are `geography(Point, 4326)`. Search: `ST_DWithin(location_public, point, radius)` (GiST) + Greek/English `tsvector` + category/price filters.
+- Search is public; only `ACTIVE` items of known, non-deleted lenders; nearest first by the public point; opaque cursor (distance + id). A max price also matches free items ([ADR-0012](adr/0012-free-items-match-price-limits.md)). `beyond: true` lists what's past the radius, no upper limit, same filters ([ADR-0023](adr/0023-further-away-results.md)). The searcher's point and text are never stored or logged.
+- Suggest: the 5 nearest items whose words all prefix-match (or share a Greek/English stem with) the typed text, from 2 chars. Category counts share the search's filter clause. Featured: up to 10 items in the radius, most booked in 90 days (from `booking.accepted`/`.confirmed`, one row per booking, pruned at 90 days), then newest. Similar: up to 8 other lenders' items, same category, within 10 km, most shared title words then nearest. People are never searchable by name.
+- Location privacy ([ADR-0004](adr/0004-location-fuzzing.md), [ADR-0007](adr/0007-location-privacy-search.md), [ADR-0011](adr/0011-one-offset-per-place.md)): `location_public` = exact point + one stored random offset (150–300 m); a move under 300 m keeps it; a lender's items within 300 m share one offset. All public responses and searches use only `location_public`; radius ∈ {1, 2, 5, 10, 25, 50} km; distances shown as bands. The exact point is for its owner only, never renters (they arrange where to meet, [ADR-0015](adr/0015-booking-model.md)). Lenders drop a pin or use device location; nothing is geocoded ([ADR-0008](adr/0008-maps-pin-drop.md)).
+- Pricing ([ADR-0010](adr/0010-flexible-pricing.md)): any of hourly/daily/weekly/monthly rates (€0.10–€1,000 each) or free, plus a deposit; optional min/max booking length in whole hours (1 h–90 days).
+- Lifecycle: `DRAFT` → `ACTIVE` (needs verified email, location, a processed photo) ⇄ `PAUSED`; any → `DELETED` (tombstone without location/description). `item.created`/`.updated` carry a snapshot without location or description; `.updated` only when it changes. Client-picked ids; repeated commands succeed without a second event.
+- Limits: 10 items per lender incl. drafts; creates and erasure share a per-lender lock. Verified lenders kept from `user.email_verified` (apart from names); after `user.deletion_requested` that account's writes are refused (tokens live ≤15 min).
 
 ### Bookings
-- **Periods and prices** ([ADR-0015](adr/0015-booking-model.md)): whole hours `[start, end)` as a `tstzrange`, shown in Europe/Athens time; 1 hour to 90 days long (and within the item's own limits), starting 1 hour to 180 days ahead. The rent is the cheapest combination of the item's rates that covers the period (a day is 24 h, a week 7 days, a month 30 days), fixed with the deposit, the rate card and the fees ([ADR-0020](adr/0020-booking-fees.md)) when the booking is requested.
-- Double-booking is prevented at the DB level (it needs the `btree_gist` extension, created by the infra init script):
+- Periods and prices ([ADR-0015](adr/0015-booking-model.md), [ADR-0020](adr/0020-booking-fees.md)): whole hours `[start, end)` as `tstzrange`, shown in Europe/Athens; 1 h–90 days (and the item's limits), starting 1 h–180 days ahead. Rent = cheapest combination of rates (day 24 h, week 7 d, month 30 d); rent, deposit, rate card and fees fixed at request.
+- Double-booking is impossible at DB level (`btree_gist`, created by the infra init script):
   ```sql
   EXCLUDE USING gist (item_id WITH =, period WITH &&)
   WHERE (status IN ('ACCEPTED','CONFIRMED','PAID','PICKED_UP'))
   ```
-- Owns the booking state machine (§4) and the QR handoff protocol (§5). Every status change goes through one function that checks the state machine and writes the event to the outbox.
-- **Read models:** items (Catalog's snapshots; the newest wins, deletion is final) and users (names and verified emails from Identity's events). Services started after the data existed are filled with `nx run catalog:republish-items` and `nx run identity:republish-users`, which re-announce the current state through the outbox.
-- **Requests:** a renter with a verified email asks for a period of an `ACTIVE` item that isn't their own. The client picks the booking's id, so a retried request returns the same booking. At most 10 open requests per renter, no second overlapping request for the same item, and a period someone already holds is refused (`SLOT_TAKEN`). Requests are serialised per renter, so parallel ones can't pass the limit.
-- **Answers:** the lender accepts (`CONFIRMED` when rent and deposit are 0, else `ACCEPTED`) or declines. Accepting a booking with something to pay needs the lender's payouts set up (`PAYOUTS_NOT_SET_UP`), known from `payment.account_ready` / `.account_restricted` (the newest wins). Accepting declines the item's other overlapping requests in the same transaction (reason `OVERLAP`); accepts are serialised per item, and the constraint turns any race into `SLOT_TAKEN`. The renter withdraws a request; either side cancels an `ACCEPTED`, `CONFIRMED` or `PAID` booking before it starts (Payments refunds a paid one, [ADR-0021](adr/0021-refunds-and-settlement.md)).
-- **Expiry:** a request expires 24 hours after it was made or at its start, whichever is sooner; an `ACCEPTED` booking not paid by its pay-by time (24 hours after the acceptance, or its start if sooner) expires with `PAYMENT_TIMEOUT`.
-- **Payment** ([ADR-0019](adr/0019-payments-fees-and-policies.md)): `payment.captured` moves an `ACCEPTED` booking to `PAID` (`booking.paid`, and a chat line asking both to arrange where to meet). A payment for a booking that closed meanwhile is left alone: Payments refunds it. Each is a BullMQ delayed job that re-checks the booking under its row lock, and a sweeper every 10 minutes catches lost jobs.
-- **Public queries:** a price quote for a period, and an item's held periods (start and end only, never who or which state), for the date picker.
-- **Events** (`booking.*.v1`) carry the booking (ids, item title, period, rent, deposit) and a reason where one applies, but no names, emails or locations.
-- **Items and accounts:** pausing an item only stops new requests. `item.deleted` and `user.deletion_requested` cancel the open and paid bookings (`ITEM_DELETED`, `ACCOUNT_DELETED`, either side for an account, with `erasedUserId` naming whose); Payments refunds the paid ones. Finished bookings stay, without the deleted person's name; once the deletion is processed, the account's still-valid tokens can't write.
-- **GDPR:** the export has the stored name, the email verification and every booking on both sides.
+- Every status change goes through one function that checks the state machine (§4) and writes the outbox event. Owns the QR handoff (§5).
+- Read models: items (Catalog snapshots, newest wins, deletion final) and users (names, verified emails). Backfill with `nx run catalog:republish-items` / `identity:republish-users`.
+- Requests: verified renter, `ACTIVE` item not their own, client-picked id. ≤10 open requests per renter, no second overlapping request for the item, held periods refused (`SLOT_TAKEN`); serialised per renter.
+- Answers: accept → `CONFIRMED` if rent and deposit are 0, else `ACCEPTED` (needs the lender's payouts ready, from `payment.account_ready`/`.account_restricted`, else `PAYOUTS_NOT_SET_UP`). Accepting declines overlapping requests (`OVERLAP`) in the same transaction; accepts serialised per item, the constraint turns races into `SLOT_TAKEN`. Renter withdraws a request; either side cancels `ACCEPTED`/`CONFIRMED`/`PAID` before the start (Payments refunds, [ADR-0021](adr/0021-refunds-and-settlement.md)).
+- Expiry: a request after 24 h or at its start, whichever first; `ACCEPTED` unpaid by its pay-by time (24 h after acceptance or the start) → `EXPIRED` `PAYMENT_TIMEOUT`. `payment.captured` moves `ACCEPTED` → `PAID` (`booking.paid` + a chat line to arrange where to meet); a payment for a closed booking is left to Payments to refund. All timers are BullMQ delayed jobs that re-check under the row lock; a 10-min sweeper catches lost jobs.
+- Public queries: a price quote, and an item's held periods (start/end only).
+- Events (`booking.*.v1`) carry ids, item title, period, rent, deposit, fees, reason; never names, emails or locations.
+- `item.deleted` / `user.deletion_requested` cancel open and paid bookings (`ITEM_DELETED`, `ACCOUNT_DELETED` with `erasedUserId`); finished bookings stay without the erased name. Pausing an item only stops new requests. Export: stored name, verification, all bookings on both sides.
 
 ### Payments
-See §6 and [ADR-0019](adr/0019-payments-fees-and-policies.md). Stripe test mode only: a live key stops the service from starting.
-- **Lender onboarding:** the first "Set up payouts" creates the lender's Express account (country `GR`, `transfers` only, our user id as metadata, nothing personal) and returns a link to Stripe's onboarding, which leads back to `/settings/payouts`. It needs a verified email (from `user.email_verified`). The row is written before Stripe is called and its id is Stripe's idempotency key, so retries never create a second account.
-- **Webhooks:** stored by Stripe's event id (type and object id only, never the payload) and processed by a worker that fetches the object's current state from Stripe, with retries and backoff. Events about accounts Payments doesn't know, or whose lender was erased, are skipped without asking Stripe. Processed events are pruned after 30 days.
-- **Erasure:** `user.deletion_requested` closes the lender's account (their still-valid tokens are refused) and the worker deletes the Stripe account, retrying until it succeeds; only Stripe's "no such account" counts as already gone, and from the 10th failed attempt each failure is logged as an error. An onboarding call overlapping the erasure hands out no link. The row stays.
-- **Stripe errors:** logged with the error's class, Stripe's code, the HTTP status and Stripe's request id, never Stripe's message (it can echo request data). For a user's request, Stripe unreachable is `PROVIDER_UNAVAILABLE` and Stripe refusing the call is `INTERNAL`.
-- **GDPR:** the export has the payout account (Stripe account id, status, dates).
-- **Checkout** ([ADR-0019](adr/0019-payments-fees-and-policies.md), [ADR-0020](adr/0020-booking-fees.md)): Payments keeps the bookings it takes money for from `booking.*` events (a closed booking stays closed, whatever order they arrive in). When the renter starts paying, it creates one card PaymentIntent per booking for rent + deposit + fee (charged at once, `transfer_group = booking_<id>`, only the booking id as metadata, our row's id as idempotency key) and returns its client secret to the renter only; it's never stored or logged. Paying can't start in the last 10 minutes before the pay-by time.
-- **Outcome:** the PaymentIntent webhooks are processed like the others, from Stripe's current state: success writes `payment.captured`, a failed attempt `payment.failed` (the renter may try again). When a booking closes unpaid, the worker cancels its PaymentIntent; a payment that still succeeds for a closed booking is refunded in full.
-- **Backfill:** `nx run payments:republish-accounts` re-announces the payable lenders for services started later (Bookings).
-- **GDPR:** the export also lists the renter's payments and refunds, and the lender's payouts (amounts and dates, no card details).
-- **Refunds and settlement** ([ADR-0021](adr/0021-refunds-and-settlement.md)): every refund and transfer is one `money_movements` row, planned in the same transaction as the booking event that causes it (once per payment and purpose) and carried out by the worker with the row's id as Stripe's idempotency key. A payment's planned refunds and transfers can never exceed its charge (a database check).
-  - A cancelled paid booking: the renter more than 24 hours ahead gets all but the service fee back (never less than Stripe's cost kept); later, the deposit and half the rent, and the lender the other half minus their deposit fee; a lender's cancellation, a deleted item, a lender's erasure, or a payment that came after the booking closed, refunds everything. A renter's erasure counts as their cancellation (`erasedUserId` tells which side).
-  - A completed booking: the lender gets the rent minus their deposit fee, transferred from the renter's charge (`source_transaction`), and the deposit goes back. A transfer waits while the lender can't be paid (an error log after 7 days); a disputed booking waits for the dispute's outcome.
-  - `payment.refunded` (the renter's refund is on its way) and `payment.settled` go out once all of a payment's movements went through; refunds that are pending at first are followed by webhook, failures logged for a person to check.
-- **Orphaned Stripe accounts:** once a day the worker lists the platform's connected accounts and, for those carrying our user id, saves an id Payments lost or deletes accounts nobody owns any more. Accounts made by hand are left alone.
+Stripe test mode only (a live key stops the service). [ADR-0003](adr/0003-stripe-separate-charges-transfers.md), [ADR-0019](adr/0019-payments-fees-and-policies.md)–[0022](adr/0022-standard-service-agreement.md); see §6.
+- Onboarding: the first "Set up payouts" creates an Express account (country `GR`, `transfers` only, our user id as metadata, nothing personal) and returns an onboarding link back to `/settings/payouts`. Needs a verified email. The row is written first and its id is the idempotency key, so retries never create a second account; a refused creation drops the row so the next try uses a new key.
+- Webhooks: stored by Stripe event id (type and object id only), processed by a worker that fetches current state from Stripe with backoff; events for unknown or erased accounts skipped; pruned after 30 days.
+- Checkout: Payments tracks the bookings it charges from `booking.*` (a closed booking stays closed whatever the order). Starting to pay creates one card PaymentIntent per booking for rent + deposit + fee (`transfer_group = booking_<id>`, booking id as only metadata, row id as idempotency key); its client secret goes to the renter only and is never stored or logged. Not in the last 10 min before pay-by. Success → `payment.captured`; failure → `payment.failed` (retry allowed). A booking closing unpaid cancels its PaymentIntent; a late success is fully refunded.
+- Refunds and settlement ([ADR-0021](adr/0021-refunds-and-settlement.md)): each refund/transfer is one `money_movements` row, planned in the transaction of the causing event (once per payment and purpose) and executed by the worker with the row id as idempotency key; a DB check keeps planned movements ≤ the charge. Cancellation and settlement rules: §6. Transfers use `source_transaction` and wait while the lender can't be paid (error log after 7 days) or a dispute is open. `payment.refunded` / `.settled` go out once a payment's movements went through; pending refunds followed by webhook, failures logged for a person.
+- Erasure: `user.deletion_requested` closes the account (tokens refused) and the worker deletes the Stripe account until it succeeds (only "no such account" counts as gone; errors logged from the 10th try). Overlapping onboarding hands out no link. The row stays. A daily job lists connected accounts carrying our user id: saves ids we lost, deletes ones nobody owns; hand-made accounts are left alone.
+- Stripe errors logged with class, code, status and request id, never the message. For user requests: unreachable → `PROVIDER_UNAVAILABLE`, refused → `INTERNAL`.
+- Backfill: `nx run payments:republish-accounts`. Export: payout account, renter's payments and refunds, lender's payouts (no card data).
 
 ### Messaging
-See [ADR-0017](adr/0017-in-app-chat.md) and [ADR-0018](adr/0018-price-offers.md). A module of `apps/bookings`, with tables in the `bookings` schema, until its contracts settle.
-- **One conversation per item and asker**, open before any booking: someone with a verified email asks about an `ACTIVE` item that isn't theirs, and the lender replies. It carries on into every booking between them for that item; a request without a chat creates it. It becomes read-only when the item is deleted or an account erased.
-- Text messages (1–2000 characters, the client picks the id), read state for unread counts and "seen", and system lines with a code for booking moments and withdrawn offers (`BOOKING_CONFIRMED` asks both to arrange where and when to meet).
-- **Contact details** (phone numbers of 10 or more digits, email addresses, links and bare domains) are masked when read until the two have a booking of the item that went ahead (`CONFIRMED`, `PAID` or later). A sender always sees their own text.
-- **Live delivery:** after the commit, Bookings publishes each change, shaped for each reader, on Redis `chat:<userId>`; the gateway pushes it to sockets. A lost push is fetched on reconnect.
-- **Unread email:** 2 minutes after a message, if it's unread and the recipient wasn't reminded about the conversation in the last 30 minutes, `conversation.unread.v1` goes out; Notifications emails a link. Events never carry message text.
-- **Price offers:** the lender offers a rent (at most the rate card's, deposit unchanged) for a period, which needs their payouts set up if there's anything to pay; one open offer per conversation, valid 48 hours or until an hour before its start, single use. Booking it creates the booking and accepts it in one transaction (`REQUESTED` → `ACCEPTED`, or `CONFIRMED` with nothing to pay), with `offerId` on the price and the events.
-- **Retention and GDPR:** a daily sweep deletes conversations idle for 2 years. Erasing an account removes its messages' text ("[deleted]"), withdraws its open offers and deletes its reports. The export has the caller's conversations, own messages, offers and reports. Reports wait for the admin area.
+A Bookings module with tables in `bookings` until its contracts settle ([ADR-0017](adr/0017-in-app-chat.md), [ADR-0018](adr/0018-price-offers.md)).
+- One conversation per item and asker, opened by a verified user about an `ACTIVE` item not theirs (a request without one creates it); continues across their bookings of that item; read-only once the item is deleted or an account erased.
+- Text 1–2000 chars (client-picked id), read state (unread counts, "seen"), system lines with codes for booking moments and withdrawn offers.
+- Contact details (phone numbers ≥10 digits, emails, links, bare domains) are masked on read until the two have a booking that went ahead (`CONFIRMED`, `PAID` or later); senders see their own text.
+- Live: after commit, each change is published per reader on Redis `chat:<userId>`; missed pushes are fetched on reconnect. 2 min after a message, if unread and not reminded in 30 min, `conversation.unread.v1` → Notifications emails a link. Events never carry message text.
+- Offers: the lender offers a rent ≤ the rate card's (deposit unchanged) for a period; needs payouts if anything is paid; one open per conversation; valid 48 h or until 1 h before start; single use. Booking one creates and accepts the booking in one transaction (`offerId` on price and events).
+- Retention/GDPR: conversations idle 2 years are deleted daily. Erasure blanks the person's messages ("[deleted]"), withdraws their open offers and deletes their reports. Export: conversations, own messages, offers, reports. Reports wait for the admin area.
 
 ### Notifications
-See [ADR-0016](adr/0016-notifications-and-email.md).
-- Its own service, consuming events. It knows recipients (email, name, language `el`/`en`) from `user.*` events, and forgets them on `user.deletion_requested`.
-- Email over SMTP with `nodemailer` (Mailpit locally), from plain TypeScript templates in Greek and English, with times in Europe/Athens. Phase 3 sends email only; preferences, an in-app inbox and Web Push come later.
-- **Which emails:** a new request (lender), accepted (renter, with what to pay and by when; for an offer, the lender learns it was booked), confirmed and paid (both: arrange where to meet), a failed payment (renter, who may try again), a refund on its way (renter), the deposit back and the lender paid on settlement, declined (renter), expired (renter, and the lender if they never answered or it wasn't paid), cancelled (the other side; for a deleted item the renter), a new offer (renter), unread messages (recipient). No welcome email.
-- **Sending:** the consumer writes `email_jobs` in the same transaction as `processed_events`. A polling sender claims due jobs with a lease, renders them in the recipient's language when sending, and retries with backoff for up to a day; a job for a recipient not known yet waits. Without an SMTP host nothing counts as sent: jobs retry like failed sends. A job that can't be rendered is dropped and logged. Cancellations caused by an erasure wait 10 minutes, so the erased person's copy is dropped. At least once: a crash mid-send can repeat an email. Sent jobs are kept 30 days.
-- Jobs store ids, the item title, times and amounts, never names or message text. The export has the recipient's details and their emails; erasure forgets both.
-- **Account-security emails** (email verification, password reset, password change) are sent by Identity itself, so their tokens never travel in events. Identity stores only a hash of each token; a reset link lasts 10 minutes, a verification link 24 hours, each works once, and a new one cancels the older ones. Both senders share `libs/mailer`.
+[ADR-0016](adr/0016-notifications-and-email.md). Recipients (email, name, `el`/`en`) from `user.*` events, forgotten on deletion. Email over SMTP (`nodemailer`, Mailpit locally) from TypeScript templates in Greek and English, times in Europe/Athens.
+- Emails: new request (lender); accepted (renter, with amount and pay-by; for an offer the lender is told); confirmed/paid (both: arrange where to meet); failed payment, refund on its way, declined (renter); deposit back and lender paid at settlement; expired (renter, and lender if unanswered or unpaid); cancelled (the other side; deleted item → renter); new offer (renter); unread messages. No welcome email.
+- Sending: the consumer writes `email_jobs` with `processed_events`; a polling sender claims due jobs with a lease, renders in the recipient's language, retries with backoff up to a day. Jobs for unknown recipients wait; no SMTP host = never sent (retries); unrenderable jobs are dropped and logged. Erasure-caused cancellations wait 10 min so the erased person's copy is dropped. At least once. Sent jobs kept 30 days.
+- Jobs store ids, item title, times and amounts, never names or message text. Export and erasure cover recipient and emails.
 
 ## 4. Booking lifecycle
 
@@ -258,161 +162,85 @@ stateDiagram-v2
     COMPLETED --> [*]
 ```
 
-### Happy-path saga
+Happy path: request → `booking.requested` (lender emailed) → accept → `booking.accepted` (Payments; renter emailed "pay by …") → renter pays (PaymentIntent, SCA) → webhook → `payment.captured` → `booking.paid` (arrange where to meet) → pickup QR → return QR → 48 h claim window (BullMQ) → `booking.completed` → transfer rent − lender's deposit fee, refund deposit → `payment.settled`.
 
-```mermaid
-sequenceDiagram
-    participant R as Renter
-    participant L as Lender
-    participant B as Bookings
-    participant P as Payments
-    participant S as Stripe
-    participant N as Notifications
-
-    R->>B: request booking
-    B-->>N: booking.requested
-    N-->>L: "New request"
-    L->>B: accept
-    B-->>P: booking.accepted (fees, pay-by time)
-    B-->>N: booking.accepted
-    N-->>R: "Pay by …"
-    R->>P: start paying
-    P->>S: create PaymentIntent (rent + deposit + fee)
-    R->>S: pay (SCA / 3DS)
-    S->>P: webhook payment_intent.succeeded
-    P-->>B: payment.captured
-    B-->>N: booking.paid → "arrange where to meet" (email + chat line)
-    L->>R: shows pickup QR
-    R->>B: scan → booking.picked_up
-    R->>L: shows return QR
-    L->>B: scan → booking.returned
-    Note over B: 48h claim window (BullMQ delayed job)
-    B-->>P: booking.completed
-    P->>S: Transfer rent − lender's deposit fee, Refund deposit
-    P-->>N: payment.settled
-```
-
-### Reliability patterns
-- **Transactional outbox:** every state change and its event are written in one DB transaction to `<schema>.outbox`. A relay (polling or `LISTEN/NOTIFY`) publishes to RabbitMQ and marks rows as sent. This gives at-least-once delivery. When a service runs several instances, one relay publishes at a time (an advisory lock keyed by the schema), so events leave in the order they were written.
-- **Idempotent consumers:** each consumer records `event_id` in `<schema>.processed_events` in the same transaction as its side effect.
-- **Retention:** published outbox rows and `processed_events` entries are deleted after 7 days (the relay prunes the outbox hourly). Old envelopes can hold personal data, and redeliveries arrive within minutes.
-- **Retries and DLQ:** each queue has a retry queue with TTL-based backoff (3 attempts) and a dead-letter queue, surfaced in Grafana.
-- **Event envelope:** `{ eventId, type, version, occurredAt, correlationId, causationId, payload }`, with types defined in `libs/contracts`.
+**Reliability:**
+- Transactional outbox: state change + event in one transaction to `<schema>.outbox`; a relay publishes (at least once), one relay per schema at a time (advisory lock) so order holds.
+- Idempotent consumers: `event_id` in `<schema>.processed_events` in the same transaction as the side effect.
+- Published outbox rows and `processed_events` are deleted after 7 days.
+- Each queue: retry queue with TTL backoff (3 attempts) + DLQ.
+- Envelope `{ eventId, type, version, occurredAt, correlationId, causationId, payload }`, types in `libs/contracts`.
 
 ## 5. QR handoff protocol
-
-1. The showing party opens the handoff screen: the lender at pickup, the renter at return.
-2. The client polls `GET /bookings/:id/handoff-token?phase=pickup` every 30 s. Bookings returns a compact signed token (Ed25519): `{ b: bookingId, ph: "pickup", n: nonce, exp: now+45s }`.
-3. The scanning party scans it with `BarcodeDetector`, falling back to `@zxing/browser`, and sends `POST /bookings/:id/handoff { token }`.
-4. Bookings checks the signature, `exp`, phase against current state, that the scanner is the counterparty, and that the nonce is unused (`SET NX` in Redis with a TTL). It then transitions state and emits the event.
-5. Both parties upload 1–3 **condition photos**, which are stored with server timestamps as dispute evidence.
-6. **Fallback:** a 6-digit code derived from the same token, for when the camera fails.
-
-This proves both people were physically present with the item, so neither side can mark a handoff alone.
+1. The showing party opens the handoff screen (lender at pickup, renter at return) and polls `GET /bookings/:id/handoff-token?phase=pickup` every 30 s: an Ed25519-signed `{ b, ph, n: nonce, exp: now+45s }`.
+2. The other party scans it (`BarcodeDetector`, fallback `@zxing/browser`) and sends `POST /bookings/:id/handoff { token }`.
+3. Bookings checks signature, `exp`, phase vs state, that the scanner is the counterparty, and the nonce (`SET NX` in Redis with TTL); then transitions and emits.
+4. Both upload 1–3 condition photos (server timestamps, dispute evidence). Fallback: a 6-digit code derived from the token.
 
 ## 6. Payments (Stripe Connect, EU)
-
-See [ADR-0003](adr/0003-stripe-separate-charges-transfers.md).
-
-- **Lenders** onboard as **Express connected accounts**. Stripe handles KYC, payouts to IBAN, SCA and DAC7 data collection. An account is ready when its `transfers` capability is active (the one separate charges and transfers need): becoming ready emits `payment.account_ready`, losing it `payment.account_restricted` ([ADR-0019](adr/0019-payments-fees-and-policies.md)).
-- **Checkout:** one PaymentIntent on the platform account for `rent + deposit + service fee`, with `transfer_group = booking_<id>`, created when the renter starts paying. The fee always covers Stripe's cost ([ADR-0020](adr/0020-booking-fees.md)).
-- **Settlement** on `booking.completed`: `Transfer(rent − lender's deposit fee)` to the lender ([ADR-0020](adr/0020-booking-fees.md)), then `Refund(deposit)` to the renter.
-- **Damage claim:** an admin decides the amount. Payments transfers that part of the deposit to the lender and refunds the rest.
-- **Cancellation policy** ([ADR-0021](adr/0021-refunds-and-settlement.md)): the renter more than 24 h before the start gets all but the service fee back (at least Stripe's cost kept); later, the deposit and half the rent, the lender the other half minus their deposit fee; anything not the renter's doing refunds everything.
-- **Webhooks:** raw body signature verification, stored in `payments.stripe_events` (unique on the Stripe event id) and processed asynchronously.
-- **Why not authorization holds:** card authorizations expire after about 7 days and not all EU cards support extended holds. Charging the deposit and then refunding it works for any rental length, and the UX must say so clearly.
-- **Service agreement** ([ADR-0022](adr/0022-standard-service-agreement.md)): lenders in the platform's country sign Stripe's standard agreement with only the `transfers` capability; the platform carries losses on their accounts (acknowledged in the Connect platform profile), which is small since they only receive transfers.
-- ⚠️ **Before a real launch:** confirm with Stripe or legal counsel that the flow of funds is covered under Stripe's licence (EU PSD2), and set up insurance or damage-policy terms.
+[ADR-0003](adr/0003-stripe-separate-charges-transfers.md), [ADR-0019](adr/0019-payments-fees-and-policies.md)–[0022](adr/0022-standard-service-agreement.md).
+- Lenders are Express accounts (Stripe does KYC, IBAN payouts, SCA, DAC7). Ready = `transfers` capability active (`payment.account_ready`; losing it `.account_restricted`). Standard service agreement, `transfers` only; the platform carries losses on their accounts (small: they only receive transfers).
+- Checkout: one PaymentIntent on the platform for rent + deposit + service fee, created when the renter starts paying. The fee always covers Stripe's cost ([ADR-0020](adr/0020-booking-fees.md)).
+- Settlement on `booking.completed`: transfer rent − lender's deposit fee, refund the deposit. Damage claim: an admin decides; that part of the deposit goes to the lender, the rest back.
+- Cancellation ([ADR-0021](adr/0021-refunds-and-settlement.md)): renter >24 h before start gets all but the service fee (Stripe's cost always kept); later, deposit + half the rent back, lender gets the other half minus their deposit fee; anything not the renter's doing (lender cancels, item deleted, lender erased, payment after close) refunds everything. A renter's erasure counts as their cancellation.
+- Deposits are charged and refunded, not held (authorisations expire after ~7 days); the UX must say so.
+- ⚠️ Before launch: confirm the flow of funds is covered by Stripe's licence (PSD2) and set up insurance/damage terms.
 
 ## 7. Frontend (Angular PWA)
-
-- **Structure:** standalone components, lazy-loaded feature routes, NgRx SignalStore per feature, and a typed API client generated from the gateway's OpenAPI spec.
-- **Layout:** the app's pages share a lazy-loaded app shell with a top bar across the full width. On desktop the bar holds the navigation, the avatar (leading to Profile, and from there to Settings) and a Sign out button; on phones its ☰ button opens the navigation (and the language) as a drawer without Profile, since the bar keeps the avatar (to Profile) or Sign in / Sign up. The BorrowBox name, here and on the sign-in and register pages, leads to Explore. Features plug into it (`core/layout/nav-items.ts`); ones from later phases show as "Soon" until built.
-  - Explore (`/explore`) is public and the start page, signed in or not. Signed-out visitors see "Sign in" / "Create account" instead of the account pages, and come back to where they were after signing in.
-- **Explore:** a list of results or, switched with a floating button, a map of them. Filters (category, distance, price, free only) sit in one line of dropdown buttons above the list. Between the filters and the list, unless text is being searched for, a carousel of featured items moves on by itself every 5 seconds, with ‹ › arrows and a pause button; it waits while pointed at or focused and doesn't move by itself for reduced motion. On screens 1400 px and wider, a rail on each side of the column runs the page's length and scrolls with it (the search head stays on top): categories in their colours on the left (setting the Category filter); on the right, a blue "Lend your things" panel and how BorrowBox works, three animated steps that move on by themselves (with dots and a pause button; still for reduced motion). The filters are round, solid-blue buttons (darker with a white ring when set); their pale-blue menus unroll downwards and roll back up, the category menu scrolls after about seven entries, and both it and the rail show how many results each category gives. Once the results run out (or there are none), a "Further away" list follows with the matching items beyond the radius, nearest first ([ADR-0023](adr/0023-further-away-results.md)). The filters go into the URL so a search can be shared; the searcher's point stays in memory only. "Search this area" (after panning or zooming the map) searches from the map's centre with the smallest allowed radius that contains the whole view, and leaves the map where it is. Results, area and scroll position survive a visit to an item page.
-- **Item page** (`/items/:id`, public): photos (clicking one enlarges it over the blurred page; a click zooms back out), rates, deposit, the lender's name, the approximate area on a map and similar items nearby. The borrow button stays disabled until Phase 3; the owner sees a link to edit.
-- **Listing wizard** (`/my-items/new`, `/my-items/:id/edit`): details → price → location → photos → publish. The browser picks the new item's id, and the draft is created once it has a price, so retries never duplicate it. The pin is placed on the map (or from the device's precise location); the owner sees the approximate area others get. Photos are dropped on a drop area or chosen (with a mouse), or taken with a round camera button or chosen from the gallery (phones); they're re-encoded to JPEG (≤ 2048 px) in the browser where possible, uploaded straight to object storage with progress, then wait for Catalog's processing; they can be reordered by dragging. Leaving with unsaved changes asks first.
-- **My items** (`/my-items`): the lender's items with their status, one rate and what's next: edit, publish (with what a draft still needs), pause/unpause, view and delete (confirmed in a dialog). Shows "n of 10" and disables "New item" at the limit.
-- **Session handling:**
-  - The access token lives in memory only (`AuthStore`), never in web storage. The refresh token is the httpOnly cookie, so page loads restore the session with `POST /api/auth/refresh`.
-  - Refresh is single-flight: one per tab, serialised across tabs with a Web Lock, with tabs sharing sign-ins and sign-outs over `BroadcastChannel`. Refresh tokens are single-use, so two tabs refreshing at once would otherwise look like reuse.
-  - An interceptor adds the bearer token and retries once after a refresh on `401 UNAUTHENTICATED`.
-  - Google sign-in is a full-page redirect through the gateway, which returns the browser to `/auth/callback`. No token ever appears in a URL.
-- **Dev:** `nx serve web` on port 4200 proxies `/api` to the gateway on 3000, so cookies stay same-origin, as they are behind Caddy in production.
-- **Dark mode:** light, dark or the device's setting (the default), chosen with a sun/moon button beside the language toggle (top bar, phone drawer, sign-in and register) and kept in this browser's `localStorage` (`core/theme`). `main.ts` sets `data-theme` on `<html>` before Angular starts, so pages never flash; it switches `color-scheme`, which flips Material's tokens, and styles.scss redefines the brand variables that components use instead of colour literals. Map tiles stay light (no dark MapTiler style), and so do the circles and bubbles drawn on them; the price tags keep their blue, and the hover card follows the theme.
-- **Fonts and icons:** system fonts, and no fonts or icon fonts from Google's CDN, which would share visitors' IPs with Google (a GDPR issue).
-- **Features:** `auth`, `explore` (map + list), `item-detail`, `listing-wizard`, `bookings` (renter/lender tabs), `handoff` (show/scan QR, condition photos), `chat`, `notifications`, `profile` (verification, Stripe onboarding, payouts), `admin` (disputes).
-- **Map:** MapLibre GL with MapTiler tiles, lazy-loaded. Fuzzed locations are clustered when zoomed out. Zoomed in, Explore shows price tags at the public points, with the item's area circle on hover ([ADR-0014](adr/0014-price-tags-on-explore-map.md)); the item page shows the area circle. Never a precise pin. Radius search, and pin-drop to set an item's location ([ADR-0008](adr/0008-maps-pin-drop.md)).
-  - One `MapView` component (`shared/map`) with three modes: browse (Explore), area (item page) and pin (the owner's own item in the listing wizard).
-  - Each area circle has the largest offset's radius (`LOCATION_OFFSET_MAX_M`, 300 m) around the public point, so the exact point is always inside it.
-  - Explore, with a mouse: hovering a price tag turns it orange, draws its area and shows a small card above it (photo, category, title, price) linking to the item; it closes shortly after the pointer leaves both, or when the map moves. Clicking a tag opens the item. Bubbles last to street level (zoom 17, the map's closest): clicking one zooms in, or, when its items share a place, shows their cards.
-  - The style URL comes from `/config.json` at runtime, loaded the first time a map is shown; without it, maps say they're unavailable and pages keep working. Place names follow the UI language.
-  - MapLibre's worker and stylesheet are served from our own origin (`/vendor/maplibre/`).
-- **PWA:** `@angular/pwa` service worker, installable, offline shell, Web Push (VAPID). iOS supports push only for installed PWAs (16.4+), so email is always the fallback.
-- **i18n:** Greek + English (Transloco), with EUR formatting and the `el-GR` locale.
-- **UI kit:** Angular Material ([ADR-0006](adr/0006-ui-kit-angular-material.md)).
+- Standalone components, lazy feature routes, NgRx SignalStore per feature, API client generated from OpenAPI, Angular Material ([ADR-0006](adr/0006-ui-kit-angular-material.md)), Transloco Greek + English, EUR, `el-GR`.
+- Shell: a top bar (navigation, avatar → Profile → Settings, Sign out; phones: ☰ drawer). Features plug in via `core/layout/nav-items.ts`. Explore (`/explore`) is public and the start page; signed-out visitors get Sign in / Create account and return where they were.
+- Look: signed-in pages are flat and slightly rounded (6 px; cards 8, dialogs 12), content on the page background without panels; login/register softer. Colours only through CSS variables. Dark mode: the device's setting by default, a one-click sun/moon button in the top bar, "Follow my device" in Settings, kept in `localStorage` (`core/theme`); `main.ts` sets `data-theme` before Angular starts. Theme and language switches cross-fade (View Transitions; instant with reduced motion). Map tiles stay light.
+- Explore: list or map (floating switch); filters (category, distance, price, free only) in the URL, the searcher's point in memory only; a featured carousel; category counts; side rails ≥1400 px. "Search this area" uses the smallest allowed radius covering the view. After the last page a "Further away" list ([ADR-0023](adr/0023-further-away-results.md)). Results, area and scroll survive visiting an item.
+- Item page (`/items/:id`, public): photos, rates, deposit, lender, approximate area, similar items; a period picker (Athens time, held periods disabled) with the quote and "Request to book"; "Ask the lender". Owners get an edit link instead.
+- Listing wizard (`/my-items/new`, `/:id/edit`): details → price → location (pin) → photos → publish; browser-picked id, draft created once priced; photos re-encoded to JPEG ≤2048 px, uploaded straight to storage, reorderable. My items (`/my-items`): status, next actions, "n of 10".
+- Account: `/auth/verify-email`, `/auth/forgot-password` (resend after a 60 s countdown), `/auth/reset-password` (tokens read from `#t=` and removed from the URL); Settings: details, password, appearance, payouts, export, delete; a verify-email notice until verified.
+- Bookings: `/bookings` (renting/lending tabs, current/past filter), `/bookings/:id` (status and reason, money by role, accept/decline/withdraw/cancel with the policy in words, pay-by countdown). Payments: `/bookings/:id/pay` (Stripe Payment Element, publishable `pk_test_` key from `/config.json`; 3-D Secure return params stripped from the URL and from login return URLs), `/settings/payouts` (status, onboarding, dashboard, `?stripe=return|refresh`).
+- Messages: `/messages` and `/messages/:id` share one layout: opening a conversation slides the list into a left column (wide screens; phones one at a time). Live via Socket.IO (dev proxy `/socket.io`), red unread badges, masked-details hint, reports, offers in the thread.
+- Session: access token in memory only (`AuthStore`); page loads restore via `POST /api/auth/refresh`. Refresh is single-flight per tab and serialised across tabs (Web Lock, `BroadcastChannel` for sign-in/out). The interceptor retries once after a refresh on `401 UNAUTHENTICATED`. Google sign-in is a full-page redirect back to `/auth/callback`; no token ever in a URL.
+- Map: MapLibre GL + MapTiler, lazy; one `MapView` (`shared/map`) in browse, area and pin modes. Never a precise pin: Explore shows price tags (orange + area circle + small card on hover; clusters until zoom 17), the item page an area circle of radius `LOCATION_OFFSET_MAX_M` (300 m) ([ADR-0014](adr/0014-price-tags-on-explore-map.md)). Style URL from `/config.json` (maps say unavailable without it); place names follow the UI language; MapLibre's worker and CSS served from `/vendor/maplibre/`.
+- Dev: `nx serve web` (4200) proxies `/api` and `/socket.io` to the gateway (3000), same-origin like Caddy in production.
+- No fonts or icons from Google's CDN (GDPR). PWA: service worker, installable, offline shell, Web Push (VAPID); email is always the fallback (iOS push only for installed PWAs).
+- Later features: `handoff` (QR, condition photos), `notifications`, `admin` (disputes).
 
 ## 8. Cross-cutting concerns
 
 | Concern | Approach |
 |---|---|
-| AuthN/AuthZ | The gateway verifies JWTs, and each service re-verifies with the public key (defence in depth). Resource-level checks (e.g. "is this user the booking's lender?") live in the owning service. |
-| Security | Helmet, CORS allow-list, rate limiting (`@nestjs/throttler` + Redis), input validation (`class-validator`), parameterised SQL only (a lint rule rejects `${…}` in query text), EXIF stripping, signed URLs for private photos, secrets via env / Docker secrets. |
-| Observability | pino JSON logs with `correlationId`, OpenTelemetry traces propagated over HTTP and AMQP headers, Prometheus metrics, and a Grafana + Loki + Tempo compose profile. |
-| Testing | Jest unit tests, **Testcontainers** integration tests (Postgres, RabbitMQ, Redis), contract safety through shared `libs/contracts` types, and **Playwright** e2e for the golden path with Stripe test mode. |
-| CI/CD | GitHub Actions: `nx affected -t lint test build`, Docker images to GHCR, deploy on tag. |
-| Deployment | One EU VPS (e.g. Hetzner) running Docker Compose + Caddy (auto TLS). Postgres backups to R2. k3s is optional later. |
-| GDPR | EU hosting, data export and deletion flows, consent for non-essential cookies, DPAs with processors (Stripe, email, hosting), retention policy. |
-| Admin | Minimal admin area in the PWA for disputes, reported listings and user suspension. |
+| AuthN/AuthZ | Gateway verifies JWTs; each service re-verifies with the public key. Resource-level checks live in the owning service. |
+| Security | Helmet, CORS allow-list, Redis rate limits, `class-validator`, parameterised SQL only (lint rejects `${…}` in query text), EXIF stripping, signed URLs for private photos, secrets via env / Docker secrets. |
+| Observability | pino JSON logs with `correlationId`, OpenTelemetry over HTTP and AMQP, Prometheus, Grafana + Loki + Tempo profile. |
+| Testing | Jest units; Testcontainers integration (Postgres, RabbitMQ, Redis); shared contract types; Playwright e2e for the golden path in Stripe test mode. |
+| CI/CD | GitHub Actions `nx affected -t lint test build`, images to GHCR, deploy on tag. |
+| Deployment | One EU VPS with Docker Compose + Caddy (TLS; must forward `/socket.io` websockets). Postgres backups to R2. |
+| GDPR | EU hosting, export and deletion flows, consent for non-essential cookies, DPAs, retention policy. |
+| Admin | Minimal PWA area for disputes, reported listings, suspensions. |
 
 ## 9. Repository layout (Nx)
 
 ```
-apps/
-  web/                 Angular PWA
-  gateway/             NestJS API gateway / BFF
-  identity/  catalog/  bookings/  payments/
-  messaging/ notifications/  reviews/
-libs/
-  contracts/           event + DTO types (versioned)
-  auth/                JWT guards, user context
-  outbox/              outbox entity, relay, idempotent consumer helper
-  messaging/           RabbitMQ setup, retry/DLQ topology
-  media/               presigned uploads, image worker
-  service-kit/         a service's config, database, events, RPC errors, startup, test harness
-  mailer/              SMTP transport + email layout (Identity, Notifications)
-  observability/       logger, OpenTelemetry bootstrap
-  testing/             Testcontainers helpers, factories
-infra/
-  docker-compose.yml   postgres+postgis, rabbitmq, redis, seaweedfs (S3) + storage-init, mailpit
-  docker-compose.observability.yml
-  postgres/init/       schemas + roles per service
-  storage/             SeaweedFS identities, bucket/CORS/expiry setup (also for R2)
-docs/
-  ARCHITECTURE.md
-  adr/
+apps/     web, gateway, identity, catalog, bookings, payments, notifications (messaging, reviews later)
+libs/     contracts (events, DTOs, RPC), auth, outbox, messaging (RabbitMQ), media, service-kit,
+          mailer, observability, testing (Testcontainers)
+infra/    docker-compose.yml (postgres+postgis, rabbitmq, redis, seaweedfs, mailpit),
+          docker-compose.observability.yml, postgres/init (schemas + roles), storage (buckets, CORS)
+docs/     ARCHITECTURE.md, adr/
 ```
 
-Messaging and Reviews can start as modules inside Bookings and move into their own apps once the event contracts settle.
+## 10. Future work and side decisions
+Future: Kafka/event log for analytics and replay; insurance for high-value items; Capacitor wrapper; Meilisearch if Postgres FTS isn't enough; neighbourhood groups and "wanted" requests.
 
-## 10. Future work
-- Kafka (or an event log) for analytics and event replay.
-- Insurance partner integration for high-value items.
-- Capacitor wrapper for app-store presence and better push support on iOS.
-- Meilisearch if Postgres full-text search stops being enough.
-- Community features: neighbourhood groups, "wanted" requests.
-
-### Side decisions (revisit once all phases are done)
-- **Rate-limiting algorithm.** The Redis store counts in a fixed window that starts at a client's first request, so a client can get about 2× the limit in a burst across a window boundary. The in-memory fallback is a sliding-window log, so it's slightly stricter. That's fine for brute-force protection today. Decide whether to switch Redis to a sliding window or a token bucket (a custom Lua script) for smoother limits.
-- **Retries and a circuit breaker for gateway → service calls (revisit in Phase 7).** Today a failed call is not retried. Options: retry read-only calls once on a connection error, and/or a circuit breaker that fails fast while a service is down. Commands must not be retried blindly (they may already have run).
-- **Offsets derived from a secret (revisit in Phase 7).** A lender who moves a pin 300 m or more away and back draws a new offset each time, so someone recording one item's public point over weeks could average several offsets for the same home ([ADR-0011](adr/0011-one-offset-per-place.md)). The robust fix derives the offset from a server secret, the lender and a coarse area, so a place always gets the same offset.
-- **Stripe Connect costs (revisit before launch).** Stripe charges per payout to a lender's bank and per active connected account each month; payouts are batched per lender, so no per-booking fee covers them ([ADR-0021](adr/0021-refunds-and-settlement.md)). Likewise, a full refund that isn't the renter's doing loses Stripe's processing fee. Options: a small monthly lender fee, or recovering costs from a lender's next transfers (needs a running balance per lender).
-- **How long payment records are kept (before launch).** Payments keeps payments, refunds and transfers (ids and amounts only). Confirm the Greek legal retention period, then add a setting and a pruning job.
-- **CDN caching of public photos (decide at deployment, Phase 7).** If a CDN caches the public photo bucket, a deleted photo stays reachable at its old URL until its cache entry expires, which delays GDPR erasure. Choose a short cache lifetime, or purge the CDN on delete. Photo keys are random and never reused, so caching can't show the wrong photo.
-- **Dead-letter queues (Phase 7).** Messages that end in a DLQ raise no alert, there is no tool to replay them, and they never expire, although envelopes can hold personal data (the 7-day retention doesn't reach them). Options: a Grafana alert on DLQ depth, a replay command, and a TTL matching the outbox retention.
-- **Registration reveals accounts.** `POST /auth/register` answers `EMAIL_TAKEN`, so anyone can test whether an email has an account (the password reset is careful not to). Options: answer as if registered and email the owner instead, or accept it behind the rate limit.
-- **One signing key.** Access tokens carry a `kid`, but the gateway and services trust a single public key, so rotating it signs everyone out. Options: a list of public keys by `kid`, with the old one kept for 15 minutes.
-- **Open sockets after sign-out.** A chat socket stays connected until its access token expires (up to 15 minutes), even after logout, a password reset or erasure. Options: publish revoked sessions on Redis and disconnect their sockets.
-- **Indexes for pruning.** Pruning deletes published outbox rows and `processed_events` older than 7 days without an index on those timestamps, so each run scans the table. Fine at today's volume; add partial indexes if the tables grow.
-- **Angular schematics version.** `@schematics/angular` is pinned a minor behind `@angular/core` and `@angular/cli` (generators only, not the build). Align it at the next Angular update.
-- **Redis password on the command line.** Locally the password is passed as `--requirepass`, so it shows in `docker inspect` and process lists. Use a config file or a Docker secret in deployment (Phase 7).
+Side decisions (revisit after all phases unless noted):
+- **Rate limiting:** Redis uses a fixed window (≈2× burst at boundaries); the in-memory fallback a sliding log. Consider sliding window or token bucket (Lua).
+- **Gateway retries/circuit breaker (Phase 7):** maybe retry read-only calls once, and/or fail fast while a service is down; never retry commands blindly.
+- **Offsets from a secret (Phase 7):** pins moved ≥300 m and back draw new offsets, which could be averaged; derive them from a secret, the lender and a coarse area.
+- **Stripe Connect costs (before launch):** per-payout and per-active-account fees, and lost fees on full refunds; a monthly lender fee or recovery from later transfers.
+- **Payment record retention (before launch):** confirm the Greek period, add a setting and pruning.
+- **CDN caching of public photos (Phase 7):** short cache lifetime or purge on delete (keys are random, never reused).
+- **DLQs (Phase 7):** no alert, replay or expiry yet; add a depth alert, a replay command and a TTL matching outbox retention.
+- **Registration reveals accounts:** `EMAIL_TAKEN`; answer as registered and email the owner, or accept behind the rate limit.
+- **One signing key:** rotating signs everyone out; trust a list of keys by `kid`.
+- **Open sockets after sign-out:** up to 15 min; publish revoked sessions on Redis to disconnect them.
+- **Pruning indexes:** add partial indexes on outbox/processed_events timestamps if the tables grow.
+- **Angular schematics** pinned a minor behind; align at the next update.
+- **Redis password** on the command line locally; config file or secret in deployment (Phase 7).
+- **Web bundle** 530 kB vs a 500 kB budget (the chat socket loads at start-up); load it lazily.
