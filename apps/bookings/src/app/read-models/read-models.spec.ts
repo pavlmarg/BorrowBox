@@ -119,7 +119,7 @@ describe('Read model consumers (integration)', () => {
 
   async function storedUser(userId: string) {
     const [row] = await bookings.dataSource.query(
-      `SELECT display_name, email_verified_at, deleted_at FROM users WHERE user_id = $1`,
+      `SELECT display_name, photo, email_verified_at, deleted_at FROM users WHERE user_id = $1`,
       [userId],
     );
     return row;
@@ -225,6 +225,47 @@ describe('Read model consumers (integration)', () => {
       const user = await storedUser(userId);
       expect(user.display_name).toBe('Newer');
       expect(user.email_verified_at).toEqual(minute(0).occurredAt);
+    });
+
+    it('keeps the newest profile photo, and forgets it on deletion', async () => {
+      const userId = randomUUID();
+      const photo = (key: string) => ({
+        small: `https://media.test/profiles/${key}/96.webp`,
+        large: `https://media.test/profiles/${key}/512.webp`,
+      });
+      const updated = (m: number, value: unknown, displayName = 'Maria') =>
+        createEnvelope(
+          UserProfileUpdatedV1,
+          { userId, displayName, locale: 'el', photo: value } as never,
+          minute(m),
+        );
+
+      await deliver(updated(10, photo('a')));
+      expect((await storedUser(userId)).photo).toEqual(photo('a'));
+      // Older, arriving late: ignored.
+      await deliver(updated(5, photo('old')));
+      expect((await storedUser(userId)).photo).toEqual(photo('a'));
+      // An event without the field (older Identity) keeps the photo.
+      await deliver(
+        createEnvelope(
+          UserProfileUpdatedV1,
+          { userId, displayName: 'Maria P.', locale: 'el' },
+          minute(20),
+        ),
+      );
+      expect(await storedUser(userId)).toMatchObject({
+        display_name: 'Maria P.',
+        photo: photo('a'),
+      });
+      // Removed.
+      await deliver(updated(30, null));
+      expect((await storedUser(userId)).photo).toBeNull();
+
+      await deliver(updated(40, photo('b')));
+      await deliver(
+        createEnvelope(UserDeletionRequestedV1, { userId }, minute(50)),
+      );
+      expect((await storedUser(userId)).photo).toBeNull();
     });
 
     it('forgets a deleted user for good', async () => {

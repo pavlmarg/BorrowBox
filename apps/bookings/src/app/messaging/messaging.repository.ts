@@ -2,6 +2,7 @@ import type { EntityManager } from 'typeorm';
 import type {
   MessageKind,
   OfferStatus,
+  ProfilePhotoUrls,
   ReportReason,
   SystemMessageCode,
 } from '@borrowbox/contracts';
@@ -35,6 +36,8 @@ export interface ConversationRow {
   lender_reminded_at: Date | null;
   renter_name: string | null;
   lender_name: string | null;
+  renter_photo: ProfilePhotoUrls | null;
+  lender_photo: ProfilePhotoUrls | null;
   /** The item is deleted or an account erased: read-only. */
   closed: boolean;
   /** The two have a booking of the item that went ahead (ADR-0017). */
@@ -78,6 +81,7 @@ const SELECT_CONVERSATIONS = `
          c.created_at, c.last_message_at, c.renter_read_at, c.lender_read_at,
          c.renter_reminded_at, c.lender_reminded_at,
          r.display_name AS renter_name, l.display_name AS lender_name,
+         r.photo AS renter_photo, l.photo AS lender_photo,
          (COALESCE(i.status = 'DELETED', false)
           OR r.deleted_at IS NOT NULL OR l.deleted_at IS NOT NULL) AS closed,
          EXISTS (SELECT 1 FROM bookings b

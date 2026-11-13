@@ -1,5 +1,10 @@
 import type { EntityManager } from 'typeorm';
-import type { GeoPoint, ItemCategory, PriceUnit } from '@borrowbox/contracts';
+import type {
+  GeoPoint,
+  ItemCategory,
+  PriceUnit,
+  ProfilePhotoUrls,
+} from '@borrowbox/contracts';
 import type { ItemRow } from '../items/items.repository';
 import type { SearchCursor } from './search-paging';
 
@@ -32,6 +37,7 @@ export type PublicItemRow = Pick<
 > & {
   lender_id: string;
   lender_name: string;
+  lender_photo: ProfilePhotoUrls | null;
   /** The first READY photo's key, if any. */
   cover_key: string | null;
   /** Metres from the reference point to the public point. */
@@ -61,6 +67,7 @@ const PUBLIC_COLUMNS =
   ' ST_Y(i.location_public::geometry) AS public_lat,' +
   ' ST_X(i.location_public::geometry) AS public_lng,' +
   ' l.user_id AS lender_id, l.display_name AS lender_name,' +
+  ' l.photo AS lender_photo,' +
   ' (SELECT ph.public_key FROM item_photos ph' +
   "   WHERE ph.item_id = i.id AND ph.status = 'READY'" +
   '   ORDER BY ph.position LIMIT 1) AS cover_key';

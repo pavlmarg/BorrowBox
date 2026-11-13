@@ -7,6 +7,7 @@ import {
   type BookingView,
   type ItemPricing,
   type PriceUnits,
+  type ProfilePhotoUrls,
 } from '@borrowbox/contracts';
 import { OPEN_STATUSES } from './booking-state';
 
@@ -36,6 +37,8 @@ export interface BookingRow {
   updated_at: Date;
   renter_name: string | null;
   lender_name: string | null;
+  renter_photo: ProfilePhotoUrls | null;
+  lender_photo: ProfilePhotoUrls | null;
 }
 
 export interface NewBooking {
@@ -64,7 +67,8 @@ const SELECT_BOOKINGS = `
          b.status, b.reason, b.expires_at, b.offer_id, b.fee_cents,
          b.lender_fee_cents, b.pay_by, b.created_at,
          b.updated_at,
-         r.display_name AS renter_name, l.display_name AS lender_name
+         r.display_name AS renter_name, l.display_name AS lender_name,
+         r.photo AS renter_photo, l.photo AS lender_photo
     FROM bookings b
     LEFT JOIN users r ON r.user_id = b.renter_id
     LEFT JOIN users l ON l.user_id = b.lender_id`;
@@ -352,8 +356,16 @@ export function toView(row: BookingRow, userId: string): BookingView {
     role: row.renter_id === userId ? 'RENTER' : 'LENDER',
     itemId: row.item_id,
     itemTitle: row.item_title,
-    renter: { userId: row.renter_id, displayName: row.renter_name },
-    lender: { userId: row.lender_id, displayName: row.lender_name },
+    renter: {
+      userId: row.renter_id,
+      displayName: row.renter_name,
+      photo: row.renter_photo ?? null,
+    },
+    lender: {
+      userId: row.lender_id,
+      displayName: row.lender_name,
+      photo: row.lender_photo ?? null,
+    },
     start: row.start.toISOString(),
     end: row.end.toISOString(),
     status: row.status,

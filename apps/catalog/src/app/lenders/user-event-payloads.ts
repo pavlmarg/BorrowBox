@@ -1,5 +1,30 @@
-import { IsNotEmpty, IsString, IsUUID, MaxLength } from 'class-validator';
-import { DISPLAY_NAME_MAX_LENGTH } from '@borrowbox/contracts';
+import { Type } from 'class-transformer';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  MaxLength,
+  ValidateNested,
+} from 'class-validator';
+import {
+  DISPLAY_NAME_MAX_LENGTH,
+  type ProfilePhotoUrls,
+} from '@borrowbox/contracts';
+
+const HTTP_URL = /^https?:\/\/\S+$/;
+
+/** A profile photo's addresses (ADR-0024), as Identity publishes them. */
+export class ProfilePhotoPayload implements ProfilePhotoUrls {
+  @Matches(HTTP_URL)
+  @MaxLength(2048)
+  small!: string;
+
+  @Matches(HTTP_URL)
+  @MaxLength(2048)
+  large!: string;
+}
 
 /**
  * Identity's events as Catalog reads them, checked at runtime with
@@ -15,6 +40,15 @@ export class UserNamePayload {
   @IsNotEmpty()
   @MaxLength(DISPLAY_NAME_MAX_LENGTH)
   displayName!: string;
+
+  /**
+   * `user.profile_updated` only: null for none; absent (`user.registered`,
+   * older events) means "unknown, keep what we have".
+   */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ProfilePhotoPayload)
+  photo?: ProfilePhotoPayload | null;
 }
 
 /** `user.email_verified.v1`. */

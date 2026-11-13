@@ -69,6 +69,6 @@ describe('IdentityRpc patterns', () => {
   it('each have a contract entry', () => {
     // Compile-time check: every pattern is a key of IdentityRpcContract.
     const typed: IdentityRpcPattern[] = patterns;
-    expect(typed).toHaveLength(14);
+    expect(typed).toHaveLength(17);
   });
 });

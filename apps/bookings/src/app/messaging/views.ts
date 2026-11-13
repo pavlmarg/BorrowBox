@@ -92,8 +92,16 @@ export function toConversationView(
     role,
     other:
       role === 'RENTER'
-        ? { userId: c.lender_id, displayName: c.lender_name }
-        : { userId: c.renter_id, displayName: c.renter_name },
+        ? {
+            userId: c.lender_id,
+            displayName: c.lender_name,
+            photo: c.lender_photo ?? null,
+          }
+        : {
+            userId: c.renter_id,
+            displayName: c.renter_name,
+            photo: c.renter_photo ?? null,
+          },
     lastMessage: extra.lastMessage
       ? toMessageView(extra.lastMessage, readerId, c.unlocked)
       : null,

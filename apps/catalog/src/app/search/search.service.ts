@@ -130,7 +130,11 @@ export class SearchService {
         id: p.id,
         urls: photoUrls(this.photosBaseUrl, p.public_key),
       })),
-      lender: { id: row.lender_id, displayName: row.lender_name },
+      lender: {
+        id: row.lender_id,
+        displayName: row.lender_name,
+        photo: row.lender_photo ?? null,
+      },
       approximateLocation: { lat: row.public_lat, lng: row.public_lng },
       // ACTIVE items always have one (a database CHECK).
       publishedAt: (row.published_at as Date).toISOString(),
@@ -200,7 +204,11 @@ export class SearchService {
       coverPhoto: row.cover_key
         ? photoUrls(this.photosBaseUrl, row.cover_key)
         : null,
-      lender: { id: row.lender_id, displayName: row.lender_name },
+      lender: {
+        id: row.lender_id,
+        displayName: row.lender_name,
+        photo: row.lender_photo ?? null,
+      },
       // ACTIVE items always have a location (a database CHECK).
       approximateLocation: {
         lat: row.public_lat as number,
