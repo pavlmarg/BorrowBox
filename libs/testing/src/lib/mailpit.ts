@@ -80,7 +80,10 @@ export async function startMailpit(): Promise<TestMailpit> {
 
   return {
     container,
-    smtpHost: container.getHost(),
+    // An IP, not "localhost": under load, resolving the name sometimes fails
+    // (nodemailer's EDNS) and the email silently never arrives.
+    smtpHost:
+      container.getHost() === 'localhost' ? '127.0.0.1' : container.getHost(),
     smtpPort: container.getMappedPort(1025),
     emailsTo,
     waitForEmails: async (address, count = 1, timeoutMs = 10_000) => {
