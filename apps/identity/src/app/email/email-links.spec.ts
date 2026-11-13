@@ -8,10 +8,12 @@ import {
   startMailpit,
   startPostgres,
   startRabbitMq,
+  startRedis,
   type CaughtEmail,
   type TestMailpit,
   type TestPostgres,
   type TestRabbitMq,
+  type TestRedis,
 } from '@borrowbox/testing';
 import {
   startIdentity,
@@ -24,19 +26,22 @@ import { hashEmailToken } from './email-tokens';
 describe('Identity email links (integration)', () => {
   let pg: TestPostgres;
   let rabbit: TestRabbitMq;
+  let redis: TestRedis;
   let mailpit: TestMailpit;
   let identity: IdentityHarness;
   const savedEnv = { ...process.env };
 
   beforeAll(async () => {
-    [pg, rabbit, mailpit] = await Promise.all([
+    [pg, rabbit, redis, mailpit] = await Promise.all([
       startPostgres(),
       startRabbitMq(),
+      startRedis(),
       startMailpit(),
     ]);
     identity = await startIdentity({
       databaseUrl: pg.urlFor('identity'),
       rabbitmqUrl: rabbit.url,
+      redisUrl: redis.url,
       env: {
         SMTP_HOST: mailpit.smtpHost,
         SMTP_PORT: String(mailpit.smtpPort),
@@ -48,7 +53,12 @@ describe('Identity email links (integration)', () => {
   afterAll(async () => {
     await identity?.close();
     process.env = savedEnv;
-    await Promise.all([pg?.stop(), rabbit?.stop(), mailpit?.stop()]);
+    await Promise.all([
+      pg?.stop(),
+      rabbit?.stop(),
+      redis?.stop(),
+      mailpit?.stop(),
+    ]);
   });
 
   const PASSWORD = 'correct horse 42';

@@ -1,4 +1,5 @@
 import type { ItemPricing, PriceUnit } from '../catalog/items';
+import type { ProfilePhotoUrls } from '../identity/photos';
 
 /**
  * Shapes shared by Bookings, the gateway and the PWA (ADR-0015). Plain types
@@ -88,6 +89,8 @@ export interface BookingParty {
   userId: string;
   /** Null once the account is deleted, or if Bookings hasn't heard the name yet. */
   displayName: string | null;
+  /** Their public profile photo (ADR-0024), or null. */
+  photo: ProfilePhotoUrls | null;
 }
 
 /** A booking as either of its two people sees it. */

@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import type { DataSource } from 'typeorm';
 import { createServiceDataSource } from '@borrowbox/service-kit';
 import { startPostgres, type TestPostgres } from '@borrowbox/testing';
@@ -8,6 +9,8 @@ import { republishRegistered, republishUsers } from './republish-users';
 describe('republishUsers (integration)', () => {
   let pg: TestPostgres;
   let db: DataSource;
+  const BASE = 'https://photos.test/borrowbox-public';
+  const config = new ConfigService({ PHOTOS_BASE_URL: BASE });
 
   beforeAll(async () => {
     pg = await startPostgres();
@@ -24,8 +27,8 @@ describe('republishUsers (integration)', () => {
   it('announces each live account, its verification, and never an email', async () => {
     await db.query(`DELETE FROM outbox`);
     const [verified] = await db.query(
-      `INSERT INTO users (email, display_name, locale, email_verified_at)
-       VALUES ('v@example.com', 'Vera', 'en', now()) RETURNING id`,
+      `INSERT INTO users (email, display_name, locale, email_verified_at, photo_key)
+       VALUES ('v@example.com', 'Vera', 'en', now(), 'k1') RETURNING id`,
     );
     const [unverified] = await db.query(
       `INSERT INTO users (email, display_name) VALUES ('u@example.com', 'Ugo')
@@ -36,7 +39,7 @@ describe('republishUsers (integration)', () => {
        VALUES ('d@example.com', NULL, now(), now())`,
     );
 
-    expect(await republishUsers(db)).toBe(
+    expect(await republishUsers(db, config)).toBe(
       '2 account(s) (1 verified) written to the outbox',
     );
     const rows: Array<{ routing_key: string; payload: unknown }> =
@@ -46,7 +49,15 @@ describe('republishUsers (integration)', () => {
     expect(rows).toEqual([
       {
         routing_key: 'user.profile_updated.v1',
-        payload: { userId: verified.id, displayName: 'Vera', locale: 'en' },
+        payload: {
+          userId: verified.id,
+          displayName: 'Vera',
+          locale: 'en',
+          photo: {
+            small: `${BASE}/profiles/k1/96.webp`,
+            large: `${BASE}/profiles/k1/512.webp`,
+          },
+        },
       },
       {
         routing_key: 'user.email_verified.v1',
@@ -54,7 +65,12 @@ describe('republishUsers (integration)', () => {
       },
       {
         routing_key: 'user.profile_updated.v1',
-        payload: { userId: unverified.id, displayName: 'Ugo', locale: 'el' },
+        payload: {
+          userId: unverified.id,
+          displayName: 'Ugo',
+          locale: 'el',
+          photo: null,
+        },
       },
     ]);
     expect(JSON.stringify(rows)).not.toContain('@example.com');
@@ -62,7 +78,7 @@ describe('republishUsers (integration)', () => {
 
   it('re-sends user.registered with the email when asked to', async () => {
     await db.query(`DELETE FROM outbox`);
-    await republishRegistered(db);
+    await republishRegistered(db, config);
     const rows: Array<{ routing_key: string; email: string | null }> =
       await db.query(
         `SELECT routing_key, envelope->'payload'->>'email' AS email

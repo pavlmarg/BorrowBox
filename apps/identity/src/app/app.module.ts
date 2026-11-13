@@ -12,6 +12,7 @@ import { PasswordAuthModule } from './auth/password-auth.module';
 import { validateConfig, type IdentityConfig } from './config';
 import { IdentityDatabaseModule } from './database/database.module';
 import { EmailLinksModule } from './email/email-links.module';
+import { PhotosModule } from './photos/photos.module';
 import { MeModule } from './users/me.module';
 import { GoogleAuthModule } from './oauth/google-auth.module';
 
@@ -33,6 +34,7 @@ export const configModule = serviceConfigModule('identity', validateConfig);
       }),
     }),
     PasswordAuthModule,
+    PhotosModule,
     MeModule,
     GoogleAuthModule,
     EmailLinksModule,
