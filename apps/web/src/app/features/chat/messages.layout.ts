@@ -47,6 +47,8 @@ export function openConversationId(url: string): string | null {
   `,
   styles: `
     :host {
+      /* Opening a conversation: slow and even, so the list visibly glides aside. */
+      --slide: 700ms cubic-bezier(0.4, 0, 0.2, 1);
       display: block;
       /* The screen under the top bar: each pane scrolls on its own. */
       height: calc(100dvh - 64px);
@@ -55,7 +57,7 @@ export function openConversationId(url: string): string | null {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 0fr);
       height: 100%;
-      transition: grid-template-columns 450ms var(--bb-ease);
+      transition: grid-template-columns var(--slide);
     }
     .list-pane {
       min-width: 0;
@@ -68,14 +70,14 @@ export function openConversationId(url: string): string | null {
       margin: 0 auto;
       max-width: 960px;
       padding: 32px 40px 48px;
-      transition: padding 450ms var(--bb-ease);
+      transition: padding var(--slide);
     }
     .thread-pane {
       min-width: 0;
       overflow: hidden;
     }
     .thread-enter {
-      animation: bb-thread-in 450ms var(--bb-ease) both;
+      animation: bb-thread-in var(--slide) both;
       height: 100%;
     }
     .thread-enter > :not(router-outlet) {
