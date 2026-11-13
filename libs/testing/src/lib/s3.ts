@@ -28,6 +28,8 @@ export interface TestS3 {
   admin: S3Credentials;
   /** Read/write on the two buckets only, like Catalog's key in dev/prod. */
   catalog: S3Credentials;
+  /** The same rights as Catalog's, for Identity's profile photos. */
+  identity: S3Credentials;
   /** Public URL of an object in the public bucket. */
   publicUrl(key: string): string;
   stop(): Promise<void>;
@@ -44,6 +46,8 @@ export async function startS3(): Promise<TestS3> {
     S3_ADMIN_SECRET_ACCESS_KEY: 'test-admin-secret',
     S3_CATALOG_ACCESS_KEY_ID: 'test-catalog',
     S3_CATALOG_SECRET_ACCESS_KEY: 'test-catalog-secret',
+    S3_IDENTITY_ACCESS_KEY_ID: 'test-identity',
+    S3_IDENTITY_SECRET_ACCESS_KEY: 'test-identity-secret',
     S3_UPLOADS_BUCKET: 'borrowbox-uploads',
     S3_PUBLIC_BUCKET: 'borrowbox-public',
   };
@@ -133,6 +137,10 @@ export async function startS3(): Promise<TestS3> {
     catalog: {
       accessKeyId: env.S3_CATALOG_ACCESS_KEY_ID,
       secretAccessKey: env.S3_CATALOG_SECRET_ACCESS_KEY,
+    },
+    identity: {
+      accessKeyId: env.S3_IDENTITY_ACCESS_KEY_ID,
+      secretAccessKey: env.S3_IDENTITY_SECRET_ACCESS_KEY,
     },
     publicUrl: (key) => `${endpoint}/${env.S3_PUBLIC_BUCKET}/${key}`,
     stop: async () => {
