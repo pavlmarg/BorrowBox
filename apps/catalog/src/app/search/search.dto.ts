@@ -6,6 +6,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -28,6 +29,8 @@ import {
   type SearchItemsRequest,
   type SearchRadiusKm,
   type SuggestItemsRequest,
+  type LenderItemsRequest,
+  type SuggestPeopleRequest,
 } from '@borrowbox/contracts';
 import { CharLength, GeoPointDto } from '../items/items.dto';
 
@@ -108,6 +111,19 @@ export class SuggestItemsDto implements SuggestItemsRequest {
   @IsString()
   @CharLength(SUGGEST_MIN_LENGTH, SEARCH_QUERY_MAX_LENGTH)
   q!: string;
+}
+
+/** Name search (ADR-0025): the text is never stored or logged. */
+export class SuggestPeopleDto implements SuggestPeopleRequest {
+  @Transform(trim)
+  @IsString()
+  @CharLength(SUGGEST_MIN_LENGTH, SEARCH_QUERY_MAX_LENGTH)
+  q!: string;
+}
+
+export class LenderItemsDto implements LenderItemsRequest {
+  @IsUUID()
+  lenderId!: string;
 }
 
 export class FeaturedItemsDto implements FeaturedItemsRequest {

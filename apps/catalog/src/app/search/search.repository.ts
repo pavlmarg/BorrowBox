@@ -38,6 +38,7 @@ export type PublicItemRow = Pick<
   lender_id: string;
   lender_name: string;
   lender_photo: ProfilePhotoUrls | null;
+  lender_bio: string | null;
   /** The first READY photo's key, if any. */
   cover_key: string | null;
   /** Metres from the reference point to the public point. */
@@ -67,7 +68,7 @@ const PUBLIC_COLUMNS =
   ' ST_Y(i.location_public::geometry) AS public_lat,' +
   ' ST_X(i.location_public::geometry) AS public_lng,' +
   ' l.user_id AS lender_id, l.display_name AS lender_name,' +
-  ' l.photo AS lender_photo,' +
+  ' l.photo AS lender_photo, l.bio AS lender_bio,' +
   ' (SELECT ph.public_key FROM item_photos ph' +
   "   WHERE ph.item_id = i.id AND ph.status = 'READY'" +
   '   ORDER BY ph.position LIMIT 1) AS cover_key';
@@ -305,6 +306,67 @@ export async function findPublicItem(
     [itemId],
   );
   return row ?? null;
+}
+
+/**
+ * The lender's visible items, newest first (ADR-0025). Empty for unknown
+ * and deleted lenders. No distance: `distance_m` is 0.
+ */
+export async function lenderItems(
+  tx: EntityManager,
+  lenderId: string,
+  limit: number,
+): Promise<PublicItemRow[]> {
+  return tx.query(
+    'SELECT ' +
+      PUBLIC_COLUMNS +
+      ', 0 AS distance_m' +
+      VISIBLE +
+      ` WHERE i.lender_id = $1 AND i.status = 'ACTIVE'
+        ORDER BY i.published_at DESC, i.id
+        LIMIT $2::int`,
+    [lenderId, limit],
+  );
+}
+
+export interface PersonRow {
+  user_id: string;
+  display_name: string;
+  photo: ProfilePhotoUrls | null;
+  item_count: number;
+}
+
+/**
+ * Name search (ADR-0025): known, live lenders with at least one ACTIVE item
+ * in which every word of `words` starts a word of the name. Names are
+ * lower-cased and Greek-folded with `foldFrom`/`foldTo` (see name-words.ts),
+ * like `words`. Most items first, then by name and id.
+ */
+export async function suggestPeople(
+  tx: EntityManager,
+  words: string[],
+  foldFrom: string,
+  foldTo: string,
+  limit: number,
+): Promise<PersonRow[]> {
+  return tx.query(
+    `SELECT l.user_id, l.display_name, l.photo, count(*)::int AS item_count
+       FROM lenders l
+       JOIN items i ON i.lender_id = l.user_id AND i.status = 'ACTIVE'
+      WHERE l.deleted_at IS NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM unnest($1::text[]) AS w(word)
+           WHERE NOT EXISTS (
+             SELECT 1
+               FROM regexp_split_to_table(
+                      translate(lower(l.display_name), $2::text, $3::text),
+                      '[^[:alnum:]]+') AS n(part)
+              WHERE starts_with(n.part, w.word)))
+      GROUP BY l.user_id
+      ORDER BY item_count DESC, l.display_name, l.user_id
+      LIMIT $4::int`,
+    [words, foldFrom, foldTo, limit],
+  );
 }
 
 /** READY photos of a public item, in display order. */

@@ -4,17 +4,21 @@ import type { DataSource } from 'typeorm';
 import {
   DESCRIPTION_EXCERPT_MAX_LENGTH,
   FEATURED_ITEMS_MAX,
+  ITEM_FREE_LIMIT,
+  PEOPLE_SUGGEST_LIMIT,
   SEARCH_PAGE_SIZE_DEFAULT,
   SIMILAR_ITEMS_MAX,
   SIMILAR_ITEMS_RADIUS_KM,
   SUGGEST_LIMIT,
   type CategoryCountsResponse,
   type FeaturedItemsResponse,
+  type LenderItemsResponse,
   type PublicItemDetail,
   type PublicItemSummary,
   type SearchItemsResponse,
   type SimilarItemsResponse,
   type SuggestItemsResponse,
+  type SuggestPeopleResponse,
 } from '@borrowbox/contracts';
 import type { CatalogConfig } from '../config';
 import { DATA_SOURCE } from '@borrowbox/service-kit';
@@ -23,20 +27,24 @@ import { CatalogError } from '../rpc/rpc-errors';
 import { decodeCursor, distanceBand, encodeCursor } from './search-paging';
 import { excerpt } from './excerpt';
 import { typedWords } from './typed-words';
+import { GREEK_FOLD_FROM, GREEK_FOLD_TO, nameWords } from './name-words';
 import type {
   CategoryCountsDto,
   FeaturedItemsDto,
   SearchItemsDto,
   SuggestItemsDto,
+  SuggestPeopleDto,
 } from './search.dto';
 import {
   countByCategory,
   featuredItems,
   findPublicItem,
+  lenderItems,
   listPublicPhotos,
   searchItems,
   similarItems,
   suggestItems,
+  suggestPeople,
   type PublicItemRow,
 } from './search.repository';
 
@@ -134,6 +142,7 @@ export class SearchService {
         id: row.lender_id,
         displayName: row.lender_name,
         photo: row.lender_photo ?? null,
+        bio: row.lender_bio ?? null,
       },
       approximateLocation: { lat: row.public_lat, lng: row.public_lng },
       // ACTIVE items always have one (a database CHECK).
@@ -175,6 +184,51 @@ export class SearchService {
       counts: counts.sort(
         (a, b) => b.count - a.count || a.category.localeCompare(b.category),
       ),
+    };
+  }
+
+  /**
+   * People whose name matches what was typed (ADR-0025): only lenders with
+   * a visible item. The text is never stored or logged.
+   */
+  async suggestPeople(dto: SuggestPeopleDto): Promise<SuggestPeopleResponse> {
+    const words = nameWords(dto.q);
+    if (words.length === 0) return { people: [] };
+    const rows = await suggestPeople(
+      this.dataSource.manager,
+      words,
+      GREEK_FOLD_FROM,
+      GREEK_FOLD_TO,
+      PEOPLE_SUGGEST_LIMIT,
+    );
+    return {
+      people: rows.map((row) => ({
+        id: row.user_id,
+        displayName: row.display_name,
+        photoUrl: row.photo?.small ?? null,
+        itemCount: row.item_count,
+      })),
+    };
+  }
+
+  /** A lender's visible items for their profile and item pages; empty if none. */
+  async lenderItems(lenderId: string): Promise<LenderItemsResponse> {
+    const rows = await lenderItems(
+      this.dataSource.manager,
+      lenderId,
+      ITEM_FREE_LIMIT,
+    );
+    return {
+      items: rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        category: row.category,
+        pricing: toPricing(row),
+        depositCents: row.deposit_cents,
+        coverPhoto: row.cover_key
+          ? photoUrls(this.photosBaseUrl, row.cover_key)
+          : null,
+      })),
     };
   }
 

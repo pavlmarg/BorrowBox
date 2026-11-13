@@ -200,6 +200,38 @@ describe('User events consumer (integration)', () => {
     expect(await photoOf()).toBeNull();
   });
 
+  it('keeps the newest bio, and forgets it on deletion (ADR-0025)', async () => {
+    const userId = randomUUID();
+    const updated = (minute: number, bio: unknown) =>
+      createEnvelope(
+        UserProfileUpdatedV1,
+        { userId, displayName: 'Maria', locale: 'el', bio } as never,
+        at(minute),
+      );
+    const bioOf = async () =>
+      (
+        await catalog.dataSource.query(
+          `SELECT bio FROM lenders WHERE user_id = $1`,
+          [userId],
+        )
+      )[0]?.bio;
+
+    await deliver(registered(userId, 'Maria', 0));
+    expect(await bioOf()).toBeNull();
+    await deliver(updated(10, 'After 9, please'));
+    expect(await bioOf()).toBe('After 9, please');
+    // Older, arriving late: ignored. Without the field: the bio stays.
+    await deliver(updated(5, 'Old bio'));
+    await deliver(renamed(userId, 'Maria P.', 20));
+    expect(await bioOf()).toBe('After 9, please');
+    await deliver(updated(30, null));
+    expect(await bioOf()).toBeNull();
+
+    await deliver(updated(40, 'Back again'));
+    await deliver(deleted(userId, 50));
+    expect(await bioOf()).toBeNull();
+  });
+
   it('creates the row from a profile update if the registration was missed', async () => {
     const userId = randomUUID();
     await deliver(renamed(userId, 'Nikos', 1));
