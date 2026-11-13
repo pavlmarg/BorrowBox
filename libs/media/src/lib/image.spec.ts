@@ -228,4 +228,35 @@ describe('processImage', () => {
       .toBuffer();
     expect(await reason(processImage(turned, rules()))).toBe('TOO_SMALL');
   });
+
+  describe('square (profile photos)', () => {
+    const square = (overrides: Partial<ImageRules> = {}) =>
+      rules({
+        minWidth: 128,
+        widths: { small: 96, large: 512 },
+        square: true,
+        ...overrides,
+      });
+
+    it('crops every size to a centred square', async () => {
+      const wide = await canvas(1200, 800).jpeg().toBuffer();
+      const { sizes } = await processImage(wide, square());
+      const small = await sharp(sizes['small']).metadata();
+      const large = await sharp(sizes['large']).metadata();
+      expect([small.width, small.height]).toEqual([96, 96]);
+      expect([large.width, large.height]).toEqual([512, 512]);
+    });
+
+    it('never enlarges: a small square stays its own size', async () => {
+      const tiny = await canvas(200, 300).jpeg().toBuffer();
+      const { sizes } = await processImage(tiny, square());
+      const large = await sharp(sizes['large']).metadata();
+      expect([large.width, large.height]).toEqual([200, 200]);
+    });
+
+    it('rejects photos whose shorter side is below the minimum', async () => {
+      const strip = await canvas(2000, 100).jpeg().toBuffer();
+      expect(await reason(processImage(strip, square()))).toBe('TOO_SMALL');
+    });
+  });
 });
