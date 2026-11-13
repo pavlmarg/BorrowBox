@@ -3,10 +3,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   type OnInit,
+  computed,
   effect,
   inject,
   untracked,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import {
   NonNullableFormBuilder,
   ReactiveFormsModule,
@@ -23,7 +25,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { Router, RouterLink } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
-import { DISPLAY_NAME_MAX_LENGTH } from '@borrowbox/contracts';
+import { BIO_MAX_LENGTH, DISPLAY_NAME_MAX_LENGTH } from '@borrowbox/contracts';
 import type { Locale } from '../../api/models';
 import { errorKey } from '../../core/api-errors';
 import { AuthStore } from '../../core/auth/auth.store';
@@ -39,7 +41,11 @@ import {
 import { ThemeService } from '../../core/theme/theme';
 import { ProfilePhotoCard } from './profile-photo-card';
 import { ProfileStore } from './profile.store';
-import { maxCharacters } from '../../shared/forms/validators';
+import {
+  bioLength,
+  bioRule,
+  maxCharacters,
+} from '../../shared/forms/validators';
 
 @Component({
   selector: 'bb-settings-page',
@@ -129,6 +135,23 @@ import { maxCharacters } from '../../shared/forms/validators';
                   />
                   @if (form.controls.displayName.invalid) {
                     <mat-error>{{ t('validation.displayName') }}</mat-error>
+                  }
+                </mat-form-field>
+
+                <mat-form-field>
+                  <mat-label>{{ t('profile.bio.label') }}</mat-label>
+                  <textarea
+                    matInput
+                    formControlName="bio"
+                    rows="3"
+                    [placeholder]="t('profile.bio.placeholder')"
+                  ></textarea>
+                  <mat-hint>{{ t('profile.bio.hint') }}</mat-hint>
+                  <mat-hint align="end">{{ bioCount() }}/{{ bioMax }}</mat-hint>
+                  @if (form.controls.bio.errors?.['bio']; as problem) {
+                    <mat-error>{{
+                      t('profile.bio.errors.' + problem)
+                    }}</mat-error>
                   }
                 </mat-form-field>
 
@@ -306,7 +329,13 @@ export class SettingsPage implements OnInit {
       ],
     ],
     locale: ['el' as Locale],
+    bio: ['', [bioRule]],
   });
+  protected readonly bioMax = BIO_MAX_LENGTH;
+  private readonly bioValue = toSignal(this.form.controls.bio.valueChanges, {
+    initialValue: '',
+  });
+  protected readonly bioCount = computed(() => bioLength(this.bioValue()));
 
   constructor() {
     // Keep the form in step with the profile (load, save, other tabs) unless the user is editing.
@@ -317,6 +346,7 @@ export class SettingsPage implements OnInit {
           this.form.reset({
             displayName: user.displayName,
             locale: user.locale,
+            bio: user.bio ?? '',
           });
         }
       });
@@ -332,13 +362,19 @@ export class SettingsPage implements OnInit {
       this.form.markAllAsTouched();
       return;
     }
-    const { displayName, locale } = this.form.getRawValue();
-    if (await this.store.save({ displayName: displayName.trim(), locale })) {
+    const { displayName, locale, bio } = this.form.getRawValue();
+    if (
+      await this.store.save({ displayName: displayName.trim(), locale, bio })
+    ) {
       this.language.use(locale);
       this.form.markAsPristine();
       const user = this.auth.user();
       if (user)
-        this.form.reset({ displayName: user.displayName, locale: user.locale });
+        this.form.reset({
+          displayName: user.displayName,
+          locale: user.locale,
+          bio: user.bio ?? '',
+        });
     }
   }
 

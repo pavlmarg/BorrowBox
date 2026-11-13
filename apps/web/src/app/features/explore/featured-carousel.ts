@@ -16,6 +16,7 @@ import { RouterLink } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
 import type { PublicItemSummaryResponse } from '../../api/models';
 import { NavIcon } from '../../core/layout/nav-icon';
+import { Avatar } from '../../shared/avatar/avatar';
 import { EurPipe } from '../../shared/format/eur.pipe';
 import { cardRate } from '../../shared/format/pricing';
 import { categoryColor } from '../../shared/catalog/category-colors';
@@ -36,7 +37,7 @@ const GAP_PX = 12;
  */
 @Component({
   selector: 'bb-featured-carousel',
-  imports: [RouterLink, TranslocoDirective, EurPipe, NavIcon],
+  imports: [RouterLink, TranslocoDirective, EurPipe, NavIcon, Avatar],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(window:resize)': 'updateEnds()' },
   template: `
@@ -99,6 +100,12 @@ const GAP_PX = 12;
                       alt=""
                     />
                   }
+                  <!-- Who lends it: only the photo here (ADR-0025). -->
+                  <bb-avatar
+                    class="poster"
+                    [size]="32"
+                    [photoUrl]="item.lender.photo?.small ?? null"
+                  />
                 </span>
                 <span class="category">{{
                   t('catalog.categories.' + item.category)
@@ -220,6 +227,14 @@ const GAP_PX = 12;
       display: block;
       margin-bottom: 4px;
       overflow: hidden;
+      position: relative;
+    }
+    .poster {
+      border: 2px solid rgb(var(--bb-surface-rgb));
+      bottom: 8px;
+      box-shadow: var(--bb-shadow-sm);
+      left: 8px;
+      position: absolute;
     }
     img {
       display: block;

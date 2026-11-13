@@ -2,13 +2,16 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
   output,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
 import type { PublicItemSummaryResponse } from '../../api/models';
+import { AuthStore } from '../../core/auth/auth.store';
 import { NavIcon } from '../../core/layout/nav-icon';
+import { Avatar } from '../avatar/avatar';
 import { EurPipe } from '../format/eur.pipe';
 import { cardRate } from '../format/pricing';
 import { categoryColor } from './category-colors';
@@ -16,12 +19,13 @@ import { categoryColor } from './category-colors';
 /**
  * One search result (E7, E12); only its title links to the item: photo on the left; the category (in its
  * colour), title, the description's start, one rate and the distance band
- * on the right. No panel (E8): rows sit on the background,
- * separated by dividers, tinted when picked on the map.
+ * next to it; who posted it on the right (ADR-0025, linking to their
+ * profile; under the text on phones). No panel (E8): rows sit on the
+ * background, separated by dividers, tinted when picked on the map.
  */
 @Component({
   selector: 'bb-result-row',
-  imports: [RouterLink, TranslocoDirective, EurPipe, NavIcon],
+  imports: [RouterLink, TranslocoDirective, EurPipe, NavIcon, Avatar],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div
@@ -82,6 +86,18 @@ import { categoryColor } from './category-colors';
           {{ t('catalog.distance.' + item().distanceBand) }}
         </span>
       </span>
+      <a class="poster" [routerLink]="['/users', item().lender.id]">
+        <bb-avatar
+          [size]="36"
+          [photoUrl]="item().lender.photo?.small ?? null"
+        />
+        <span class="poster-text">
+          <span class="poster-label">{{ t('catalog.postedBy') }}</span>
+          <span class="poster-name">{{
+            isMine() ? t('catalog.postedByYou') : item().lender.displayName
+          }}</span>
+        </span>
+      </a>
     </div>
   `,
   styles: `
@@ -91,10 +107,65 @@ import { categoryColor } from './category-colors';
     }
     .row {
       color: inherit;
-      display: flex;
+      display: grid;
       gap: 14px;
+      grid-template-columns: 120px minmax(0, 1fr) auto;
       padding: 12px 16px;
       transition: background-color var(--bb-fast) var(--bb-ease);
+    }
+    /* Who posted it: greyish, quiet, on the right. */
+    .poster {
+      align-items: center;
+      align-self: start;
+      color: var(--mat-sys-on-surface-variant);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-width: 96px;
+      text-align: center;
+      text-decoration: none;
+    }
+    .poster-text {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      width: 100%;
+    }
+    .poster-label {
+      font: var(--mat-sys-label-small);
+    }
+    .poster-name {
+      font: var(--mat-sys-body-small);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .poster:hover .poster-name {
+      text-decoration: underline;
+    }
+    .poster:focus-visible {
+      outline: 3px solid var(--bb-sky-300);
+      outline-offset: 2px;
+    }
+    @media (max-width: 599px) {
+      .row {
+        grid-template-columns: 120px minmax(0, 1fr);
+      }
+      .poster {
+        flex-direction: row;
+        gap: 8px;
+        grid-column: 2;
+        max-width: none;
+        text-align: left;
+      }
+      .poster bb-avatar {
+        height: 24px;
+        width: 24px;
+      }
+      .poster-text {
+        flex-direction: row;
+        gap: 4px;
+      }
     }
     /* Picked on the map. Hovering a row selects it too (for the map), but
        the row itself stays as it is: only its title reacts. */
@@ -206,6 +277,11 @@ export class ResultRow {
   readonly selected = input(false);
   /** The item under the pointer or focus, or null when it leaves. */
   readonly hovered = output<string | null>();
+
+  private readonly auth = inject(AuthStore);
+  protected readonly isMine = computed(
+    () => this.auth.user()?.id === this.item().lender.id,
+  );
 
   protected readonly rate = computed(() => cardRate(this.item().pricing));
   protected readonly color = computed(() =>

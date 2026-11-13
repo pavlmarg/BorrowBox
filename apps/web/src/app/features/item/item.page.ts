@@ -15,6 +15,7 @@ import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { AuthStore } from '../../core/auth/auth.store';
 import { LanguageService } from '../../core/i18n/language';
 import { Avatar } from '../../shared/avatar/avatar';
+import { ItemCard } from '../../shared/catalog/item-card';
 import { ResultRow } from '../../shared/catalog/result-row';
 import { EurPipe } from '../../shared/format/eur.pipe';
 import { offeredRates } from '../../shared/format/pricing';
@@ -37,6 +38,7 @@ import { ItemStore } from './item.store';
     TranslocoDirective,
     MatButtonModule,
     Avatar,
+    ItemCard,
     ResultRow,
     EurPipe,
     MapView,
@@ -160,16 +162,21 @@ import { ItemStore } from './item.store';
                   <bb-ask-lender [itemId]="item.id" />
                 }
 
-                <div class="lender">
+                <a class="lender" [routerLink]="['/users', item.lender.id]">
                   <bb-avatar
                     [size]="44"
                     [photoUrl]="item.lender.photo?.small ?? null"
                   />
                   <div>
                     <span class="label">{{ t('item.lentBy') }}</span>
-                    <strong>{{ item.lender.displayName }}</strong>
+                    <strong class="lender-name">{{
+                      item.lender.displayName
+                    }}</strong>
                   </div>
-                </div>
+                </a>
+                @if (item.lender.bio) {
+                  <p class="lender-bio">{{ item.lender.bio }}</p>
+                }
                 <p class="listed">
                   {{
                     t('item.listedOn', {
@@ -184,6 +191,32 @@ import { ItemStore } from './item.store';
                 </p>
               </aside>
             </div>
+
+            @if (store.moreFromLender().length > 0) {
+              <section class="more">
+                <div class="more-heading">
+                  <h2>
+                    {{
+                      t('item.moreFrom', {
+                        name: store.item()?.lender?.displayName,
+                      })
+                    }}
+                  </h2>
+                  <a
+                    class="see-all bb-text-action-host"
+                    [routerLink]="['/users', store.item()?.lender?.id]"
+                  >
+                    <span class="bb-text-action">{{ t('item.seeAll') }}</span>
+                    <span aria-hidden="true">›</span>
+                  </a>
+                </div>
+                <ul class="more-track">
+                  @for (m of store.moreFromLender(); track m.id) {
+                    <li><bb-item-card [item]="m" /></li>
+                  }
+                </ul>
+              </section>
+            }
 
             @if (store.similar().length > 0) {
               <section class="similar">
@@ -316,10 +349,25 @@ import { ItemStore } from './item.store';
     .lender {
       align-items: center;
       border-top: 1px solid rgb(var(--bb-line-rgb) / 0.08);
+      color: inherit;
       display: flex;
       gap: 12px;
       margin-top: 24px;
       padding-top: 16px;
+      text-decoration: none;
+    }
+    .lender:hover .lender-name {
+      text-decoration: underline;
+    }
+    .lender:focus-visible {
+      outline: 3px solid var(--bb-sky-300);
+      outline-offset: 2px;
+    }
+    .lender-bio {
+      font: var(--mat-sys-body-medium);
+      margin: 10px 0 0;
+      overflow-wrap: anywhere;
+      white-space: pre-line;
     }
     .lender div {
       display: flex;
@@ -334,6 +382,47 @@ import { ItemStore } from './item.store';
       margin: 12px 0 0;
     }
 
+    .more {
+      margin-top: 40px;
+    }
+    .more-heading {
+      align-items: baseline;
+      border-bottom: 1px solid rgb(var(--bb-line-rgb) / 0.08);
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+    }
+    .more-heading h2 {
+      margin: 0;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .see-all {
+      align-items: center;
+      color: var(--mat-sys-primary);
+      display: inline-flex;
+      flex: none;
+      font-weight: 500;
+      gap: 6px;
+      text-decoration: none;
+    }
+    /* One row, scrolled sideways. */
+    .more-track {
+      display: flex;
+      gap: 16px;
+      list-style: none;
+      margin: 0;
+      overflow-x: auto;
+      padding: 0 0 8px;
+      scroll-snap-type: x proximity;
+    }
+    .more-track li {
+      flex: none;
+      scroll-snap-align: start;
+      width: 168px;
+    }
     .similar {
       margin-top: 40px;
     }

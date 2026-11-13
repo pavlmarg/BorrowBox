@@ -93,7 +93,13 @@ export function sendable(text: string): boolean {
             <bb-avatar [size]="40" [photoUrl]="c.other.photo?.small ?? null" />
             <div class="who-text">
               <h1 class="name">
-                {{ c.other.displayName ?? t('chat.deletedUser') }}
+                @if (c.other.displayName; as name) {
+                  <a class="person" [routerLink]="['/users', c.other.userId]">{{
+                    name
+                  }}</a>
+                } @else {
+                  {{ t('chat.deletedUser') }}
+                }
               </h1>
               <a class="item" [routerLink]="['/items', c.itemId]">{{
                 c.itemTitle
@@ -352,6 +358,12 @@ export function sendable(text: string): boolean {
       font: var(--mat-sys-title-large);
       margin: 0;
       overflow-wrap: anywhere;
+    }
+    .person {
+      color: inherit;
+    }
+    .person:not(:hover) {
+      text-decoration: none;
     }
     .item {
       font: var(--mat-sys-label-large);
