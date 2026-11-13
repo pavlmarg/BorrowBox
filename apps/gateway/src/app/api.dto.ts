@@ -10,6 +10,10 @@ import {
   registerDecorator,
 } from 'class-validator';
 import {
+  BIO_MAX_LENGTH,
+  BIO_MAX_LINES,
+  bioProblem,
+  normaliseBio,
   DISPLAY_NAME_MAX_LENGTH,
   EMAIL_MAX_LENGTH,
   LOCALES,
@@ -50,6 +54,23 @@ function IsAcceptablePassword(): PropertyDecorator {
       validator: {
         validate: (value: unknown) =>
           typeof value === 'string' && isValidPassword(value),
+      },
+    });
+}
+
+/** A normalised bio that passes the shared rule (ADR-0025); empty removes it. */
+function IsBio(): PropertyDecorator {
+  return (target, propertyName) =>
+    registerDecorator({
+      name: 'isBio',
+      target: target.constructor,
+      propertyName: propertyName as string,
+      options: {
+        message: `$property must be at most ${BIO_MAX_LENGTH} characters and ${BIO_MAX_LINES} lines, without phone numbers, emails or links`,
+      },
+      validator: {
+        validate: (value: unknown) =>
+          typeof value === 'string' && bioProblem(value) === null,
       },
     });
 }
@@ -109,6 +130,19 @@ export class UpdateProfileBody {
   @IsOptional()
   @IsIn(LOCALES)
   locale?: Locale;
+
+  @ApiPropertyOptional({
+    maxLength: BIO_MAX_LENGTH,
+    description: `Public bio (ADR-0025): trimmed, at most ${BIO_MAX_LENGTH} characters and ${BIO_MAX_LINES} lines, no phone numbers, emails or links. An empty string removes it.`,
+  })
+  @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? normaliseBio(value) : value,
+  )
+  @IsString()
+  @MaxLength(1000)
+  @IsBio()
+  bio?: string;
 }
 
 export class DeleteAccountBody {
@@ -209,6 +243,12 @@ export class UserProfileResponse {
       'A new photo being processed (PENDING) or rejected (FAILED); null when none is waiting',
   })
   photoUpload!: ProfilePhotoUploadStatus | null;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Public bio (ADR-0025); null for none',
+  })
+  bio!: string | null;
   @ApiProperty({ format: 'date-time' }) createdAt!: string;
 }
 
@@ -240,6 +280,7 @@ export class ExportedUser {
     description: 'Public profile photo (ADR-0024); null for none',
   })
   photo!: ProfilePhotoUrlsResponse | null;
+  @ApiProperty({ type: String, nullable: true }) bio!: string | null;
 }
 
 export class ExportedOAuthIdentity {

@@ -31,6 +31,7 @@ import { IDENTITY_PROXY, IdentityClient } from './identity/identity.client';
 import { MyItemsController } from './items/my-items.controller';
 import { PublicItemsController } from './items/public-items.controller';
 import { MeController } from './me/me.controller';
+import { PeopleController, UsersController } from './people/people.controller';
 import { ChatGateway } from './messaging/chat.gateway';
 import { ConversationsController } from './messaging/conversations.controller';
 import {
@@ -88,6 +89,8 @@ const configModule = ConfigModule.forRoot({
     MeController,
     MyItemsController,
     PublicItemsController,
+    UsersController,
+    PeopleController,
     ItemBookingsController,
     BookingsController,
     MyBookingsController,

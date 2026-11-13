@@ -4,7 +4,7 @@
 import { GeoPointResponse } from '../models/geo-point-response';
 import { ItemCategory } from '../models/item-category';
 import { ItemPricingBody } from '../models/item-pricing-body';
-import { LenderSummaryResponse } from '../models/lender-summary-response';
+import { LenderDetailResponse } from '../models/lender-detail-response';
 import { PublicPhotoResponse } from '../models/public-photo-response';
 export interface PublicItemDetailResponse {
   approximateLocation: GeoPointResponse;
@@ -12,7 +12,7 @@ export interface PublicItemDetailResponse {
   depositCents: number;
   description: string;
   id: string;
-  lender: LenderSummaryResponse;
+  lender: LenderDetailResponse;
 
   /**
    * Longest booking in hours, or null for no limit beyond the platform’s

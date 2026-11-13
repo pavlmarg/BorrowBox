@@ -70,7 +70,7 @@ import { ProfilePhotoUrlsResponse } from '../profile-photo.api';
 const trim = () =>
   Transform(({ value }) => (typeof value === 'string' ? value.trim() : value));
 
-function CharLength(min: number, max: number): PropertyDecorator {
+export function CharLength(min: number, max: number): PropertyDecorator {
   return (target, propertyName) =>
     registerDecorator({
       name: 'charLength',
@@ -586,6 +586,16 @@ export class LenderSummaryResponse {
   photo!: ProfilePhotoUrlsResponse | null;
 }
 
+/** The lender on an item's own page: also their bio (ADR-0025). */
+export class LenderDetailResponse extends LenderSummaryResponse {
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Public bio; null for none',
+  })
+  bio!: string | null;
+}
+
 export class PublicPhotoResponse {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ type: PhotoUrlsResponse }) urls!: PhotoUrlsResponse;
@@ -634,7 +644,7 @@ export class PublicItemDetailResponse {
   })
   maxRentalHours!: number | null;
   @ApiProperty({ type: [PublicPhotoResponse] }) photos!: PublicPhotoResponse[];
-  @ApiProperty({ type: LenderSummaryResponse }) lender!: LenderSummaryResponse;
+  @ApiProperty({ type: LenderDetailResponse }) lender!: LenderDetailResponse;
   @ApiProperty({ type: GeoPointResponse })
   approximateLocation!: GeoPointResponse;
   @ApiProperty({ format: 'date-time' }) publishedAt!: string;
@@ -703,6 +713,7 @@ export class LenderProfileResponse {
     description: 'Public profile photo (ADR-0024); null for none',
   })
   photo!: ProfilePhotoUrlsResponse | null;
+  @ApiProperty({ type: String, nullable: true }) bio!: string | null;
   @ApiProperty({ format: 'date-time' }) updatedAt!: string;
 }
 
