@@ -90,8 +90,9 @@
     },
     "editProfile": "Edit profile",
     "photo": {
-      "change": "Change photo",
-      "remove": "Remove photo",
+      "title": "Profile picture",
+      "change": "Change profile picture",
+      "remove": "Remove profile picture",
       "uploading": "Uploading your photo…",
       "processing": "Getting your photo ready…",
       "hint": "Your photo is public, like your name, and is cropped to a square.",

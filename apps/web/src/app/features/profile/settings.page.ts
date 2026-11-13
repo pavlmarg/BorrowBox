@@ -37,6 +37,7 @@ import {
   type DeleteAccountDialogResult,
 } from './delete-account.dialog';
 import { ThemeService } from '../../core/theme/theme';
+import { ProfilePhotoCard } from './profile-photo-card';
 import { ProfileStore } from './profile.store';
 import { maxCharacters } from '../../shared/forms/validators';
 
@@ -58,6 +59,7 @@ import { maxCharacters } from '../../shared/forms/validators';
     VerifyEmailNotice,
     ChangePassword,
     MatSlideToggleModule,
+    ProfilePhotoCard,
   ],
   providers: [ProfileStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -84,6 +86,8 @@ import { maxCharacters } from '../../shared/forms/validators';
         }
 
         <div class="stack">
+          <bb-profile-photo-card />
+
           <mat-card appearance="outlined">
             <mat-card-header>
               <mat-card-title>{{ t('profile.details') }}</mat-card-title>
