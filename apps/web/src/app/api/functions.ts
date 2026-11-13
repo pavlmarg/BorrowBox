@@ -27,6 +27,12 @@ export type { MeControllerSendVerificationEmail$Params as MeControllerSendVerifi
 export { meControllerSendVerificationEmail as meControllerSendVerificationEmail } from './fn/me/me-controller-send-verification-email';
 export type { MeControllerChangePassword$Params as MeControllerChangePassword$Params } from './fn/me/me-controller-change-password';
 export { meControllerChangePassword as meControllerChangePassword } from './fn/me/me-controller-change-password';
+export type { MeControllerRequestPhotoUpload$Params as MeControllerRequestPhotoUpload$Params } from './fn/me/me-controller-request-photo-upload';
+export { meControllerRequestPhotoUpload as meControllerRequestPhotoUpload } from './fn/me/me-controller-request-photo-upload';
+export type { MeControllerRemovePhoto$Params as MeControllerRemovePhoto$Params } from './fn/me/me-controller-remove-photo';
+export { meControllerRemovePhoto as meControllerRemovePhoto } from './fn/me/me-controller-remove-photo';
+export type { MeControllerConfirmPhoto$Params as MeControllerConfirmPhoto$Params } from './fn/me/me-controller-confirm-photo';
+export { meControllerConfirmPhoto as meControllerConfirmPhoto } from './fn/me/me-controller-confirm-photo';
 export type { MeControllerExport$Params as MeControllerExport$Params } from './fn/me/me-controller-export';
 export { meControllerExport as meControllerExport } from './fn/me/me-controller-export';
 export type { MyItemsControllerList$Params as MyItemsControllerList$Params } from './fn/my-items/my-items-controller-list';

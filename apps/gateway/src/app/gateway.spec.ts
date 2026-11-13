@@ -41,6 +41,8 @@ const user: UserProfile = {
   emailVerified: false,
   hasPassword: true,
   providers: [],
+  photo: null,
+  photoUpload: null,
   createdAt: '2026-09-01T10:00:00.000Z',
 };
 const session = (n = 1): AuthSession => ({
@@ -661,6 +663,68 @@ describe('Gateway (integration)', () => {
         .send(body)
         .expect(409);
       expect(res.body.code).toBe('PASSWORD_NOT_SET');
+    });
+
+    describe('profile photo (ADR-0024)', () => {
+      it('me/photo forwards the upload request and refuses other types', async () => {
+        const upload = {
+          uploadUrl: 'https://storage.test/borrowbox-uploads/incoming/x',
+          uploadHeaders: { 'content-type': 'image/jpeg' },
+          expiresAt: '2026-09-01T10:05:00.000Z',
+        };
+        identity.on(IdentityRpc.requestPhotoUpload, () => upload);
+        const body = { contentType: 'image/jpeg', sizeBytes: 123_456 };
+        const res = await http()
+          .post('/api/me/photo')
+          .set('Authorization', await bearer())
+          .send(body)
+          .expect(201);
+        expect(res.body).toEqual(upload);
+        expect(
+          identity.callsTo(IdentityRpc.requestPhotoUpload)[0].message.data,
+        ).toEqual(body);
+
+        const before = identity.callsTo(IdentityRpc.requestPhotoUpload).length;
+        await http()
+          .post('/api/me/photo')
+          .set('Authorization', await bearer())
+          .send({ contentType: 'image/svg+xml', sizeBytes: 10 })
+          .expect(400);
+        expect(identity.callsTo(IdentityRpc.requestPhotoUpload)).toHaveLength(
+          before,
+        );
+      });
+
+      it('me/photo/confirm returns the profile and maps INVALID_STATE to 409', async () => {
+        identity.on(IdentityRpc.confirmPhoto, () => ({
+          ...user,
+          photoUpload: 'PENDING',
+        }));
+        const ok = await http()
+          .post('/api/me/photo/confirm')
+          .set('Authorization', await bearer())
+          .expect(200);
+        expect(ok.body.photoUpload).toBe('PENDING');
+
+        identity.fail(IdentityRpc.confirmPhoto, {
+          code: 'INVALID_STATE',
+          message: 'No photo upload is waiting',
+        });
+        const res = await http()
+          .post('/api/me/photo/confirm')
+          .set('Authorization', await bearer())
+          .expect(409);
+        expect(res.body.code).toBe('INVALID_STATE');
+      });
+
+      it('DELETE me/photo returns the profile without a photo', async () => {
+        identity.on(IdentityRpc.removePhoto, () => user);
+        const res = await http()
+          .delete('/api/me/photo')
+          .set('Authorization', await bearer())
+          .expect(200);
+        expect(res.body.photo).toBeNull();
+      });
     });
   });
 

@@ -60,6 +60,7 @@ import {
   type FeaturedItemsRequest,
   type CategoryCountsRequest,
 } from '@borrowbox/contracts';
+import { ProfilePhotoUrlsResponse } from '../profile-photo.api';
 
 // HTTP DTOs for Catalog: validated here, validated again by Catalog (never
 // trust the edge alone), and the source of the OpenAPI spec the PWA client
@@ -577,6 +578,12 @@ export class PhotoUploadResponse {
 export class LenderSummaryResponse {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty() displayName!: string;
+  @ApiProperty({
+    type: ProfilePhotoUrlsResponse,
+    nullable: true,
+    description: 'Public profile photo (ADR-0024); null for none',
+  })
+  photo!: ProfilePhotoUrlsResponse | null;
 }
 
 export class PublicPhotoResponse {
@@ -690,6 +697,12 @@ export class FeaturedItemsResponse {
 
 export class LenderProfileResponse {
   @ApiProperty() displayName!: string;
+  @ApiProperty({
+    type: ProfilePhotoUrlsResponse,
+    nullable: true,
+    description: 'Public profile photo (ADR-0024); null for none',
+  })
+  photo!: ProfilePhotoUrlsResponse | null;
   @ApiProperty({ format: 'date-time' }) updatedAt!: string;
 }
 

@@ -588,6 +588,148 @@
         ]
       }
     },
+    "/api/me/photo": {
+      "post": {
+        "description": "Returns a presigned URL: PUT the file there with uploadHeaders, then confirm. Replaces an upload still waiting; the current photo stays until the new one is ready. Photos are public, like the display name.",
+        "operationId": "MeController_requestPhotoUpload",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfilePhotoUploadBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfilePhotoUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Start a new profile photo",
+        "tags": [
+          "me"
+        ]
+      },
+      "delete": {
+        "description": "Also drops an upload still waiting. A no-op without one.",
+        "operationId": "MeController_removePhoto",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove my profile photo",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/me/photo/confirm": {
+      "post": {
+        "description": "Processing takes a few seconds: `photoUpload` is PENDING meanwhile, then null with the new `photo`, or FAILED. Repeating it is safe.",
+        "operationId": "MeController_confirmPhoto",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE (no upload waiting, or not uploaded yet)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The upload has finished: process the new photo",
+        "tags": [
+          "me"
+        ]
+      }
+    },
     "/api/me/export": {
       "get": {
         "description": "One section per service. If any service is unavailable, the whole export fails with 503: try again.",
@@ -3799,6 +3941,31 @@
           "google"
         ]
       },
+      "ProfilePhotoUrlsResponse": {
+        "type": "object",
+        "properties": {
+          "small": {
+            "type": "string",
+            "description": "96 × 96 px WebP"
+          },
+          "large": {
+            "type": "string",
+            "description": "512 × 512 px WebP"
+          }
+        },
+        "required": [
+          "small",
+          "large"
+        ]
+      },
+      "ProfilePhotoUploadStatus": {
+        "type": "string",
+        "enum": [
+          "PENDING",
+          "FAILED"
+        ],
+        "description": "A new photo being processed (PENDING) or rejected (FAILED); null when none is waiting"
+      },
       "UserProfileResponse": {
         "type": "object",
         "properties": {
@@ -3832,6 +3999,25 @@
               "$ref": "#/components/schemas/OAuthProvider"
             }
           },
+          "photo": {
+            "nullable": true,
+            "description": "Public profile photo (ADR-0024); null for none",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfilePhotoUrlsResponse"
+              }
+            ]
+          },
+          "photoUpload": {
+            "nullable": true,
+            "description": "A new photo being processed (PENDING) or rejected (FAILED); null when none is waiting",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfilePhotoUploadStatus"
+              }
+            ]
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -3845,6 +4031,8 @@
           "emailVerified",
           "hasPassword",
           "providers",
+          "photo",
+          "photoUpload",
           "createdAt"
         ]
       },
@@ -3973,6 +4161,63 @@
           "newPassword"
         ]
       },
+      "PhotoContentType": {
+        "type": "string",
+        "enum": [
+          "image/jpeg",
+          "image/png",
+          "image/webp",
+          "image/avif",
+          "image/gif",
+          "image/tiff"
+        ]
+      },
+      "ProfilePhotoUploadBody": {
+        "type": "object",
+        "properties": {
+          "contentType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PhotoContentType"
+              }
+            ]
+          },
+          "sizeBytes": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 10485760
+          }
+        },
+        "required": [
+          "contentType",
+          "sizeBytes"
+        ]
+      },
+      "ProfilePhotoUploadResponse": {
+        "type": "object",
+        "properties": {
+          "uploadUrl": {
+            "type": "string",
+            "description": "PUT the file here, before expiresAt"
+          },
+          "uploadHeaders": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Headers the PUT must send exactly"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "uploadUrl",
+          "uploadHeaders",
+          "expiresAt"
+        ]
+      },
       "ExportedUser": {
         "type": "object",
         "properties": {
@@ -4006,6 +4251,16 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "photo": {
+            "nullable": true,
+            "description": "Public profile photo (ADR-0024); null for none",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfilePhotoUrlsResponse"
+              }
+            ]
           }
         },
         "required": [
@@ -4015,7 +4270,8 @@
           "locale",
           "emailVerifiedAt",
           "createdAt",
-          "updatedAt"
+          "updatedAt",
+          "photo"
         ]
       },
       "ExportedOAuthIdentity": {
@@ -4091,6 +4347,16 @@
           "displayName": {
             "type": "string"
           },
+          "photo": {
+            "nullable": true,
+            "description": "Public profile photo (ADR-0024); null for none",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfilePhotoUrlsResponse"
+              }
+            ]
+          },
           "updatedAt": {
             "type": "string",
             "format": "date-time"
@@ -4098,6 +4364,7 @@
         },
         "required": [
           "displayName",
+          "photo",
           "updatedAt"
         ]
       },
@@ -4386,6 +4653,16 @@
           "displayName": {
             "type": "string"
           },
+          "photo": {
+            "nullable": true,
+            "description": "Public profile photo (ADR-0024); null for none",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfilePhotoUrlsResponse"
+              }
+            ]
+          },
           "updatedAt": {
             "type": "string",
             "format": "date-time"
@@ -4393,6 +4670,7 @@
         },
         "required": [
           "displayName",
+          "photo",
           "updatedAt"
         ]
       },
@@ -4407,11 +4685,22 @@
             "type": "string",
             "nullable": true,
             "description": "Null once the account is deleted"
+          },
+          "photo": {
+            "nullable": true,
+            "description": "Public profile photo (ADR-0024); null for none",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfilePhotoUrlsResponse"
+              }
+            ]
           }
         },
         "required": [
           "userId",
-          "displayName"
+          "displayName",
+          "photo"
         ]
       },
       "BookingStatus": {
@@ -5330,17 +5619,6 @@
           "location"
         ]
       },
-      "PhotoContentType": {
-        "type": "string",
-        "enum": [
-          "image/jpeg",
-          "image/png",
-          "image/webp",
-          "image/avif",
-          "image/gif",
-          "image/tiff"
-        ]
-      },
       "CreatePhotoUploadBody": {
         "type": "object",
         "properties": {
@@ -5503,11 +5781,22 @@
           },
           "displayName": {
             "type": "string"
+          },
+          "photo": {
+            "nullable": true,
+            "description": "Public profile photo (ADR-0024); null for none",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfilePhotoUrlsResponse"
+              }
+            ]
           }
         },
         "required": [
           "id",
-          "displayName"
+          "displayName",
+          "photo"
         ]
       },
       "DistanceBand": {

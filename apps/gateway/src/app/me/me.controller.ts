@@ -14,6 +14,7 @@ import {
 import {
   ApiAcceptedResponse,
   ApiBearerAuth,
+  ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
@@ -46,6 +47,10 @@ import { clearRefreshCookie } from '../http/cookies';
 import { AuthRateLimit } from '../http/rate-limits';
 import { AccessToken, CorrelationId } from '../http/request-context';
 import { IdentityClient } from '../identity/identity.client';
+import {
+  ProfilePhotoUploadBody,
+  ProfilePhotoUploadResponse,
+} from '../profile-photo.api';
 
 /**
  * The signed-in user's own account. The gateway checks the JWT; Identity
@@ -157,6 +162,72 @@ export class MeController {
       accessToken,
       correlationId,
     });
+  }
+
+  // --- profile photo (ADR-0024) -------------------------------------------------
+
+  @Post('photo')
+  @ApiOperation({
+    summary: 'Start a new profile photo',
+    description:
+      'Returns a presigned URL: PUT the file there with uploadHeaders, then confirm. Replaces an upload still waiting; the current photo stays until the new one is ready. Photos are public, like the display name.',
+  })
+  @ApiCreatedResponse({ type: ProfilePhotoUploadResponse })
+  @ApiResponse({
+    status: 400,
+    type: ApiErrorResponse,
+    description: 'VALIDATION_FAILED',
+  })
+  requestPhotoUpload(
+    @Body() body: ProfilePhotoUploadBody,
+    @AccessToken() accessToken: string,
+    @CorrelationId() correlationId: string,
+  ): Promise<ProfilePhotoUploadResponse> {
+    return this.identity.call(IdentityRpc.requestPhotoUpload, body, {
+      accessToken,
+      correlationId,
+    });
+  }
+
+  @Post('photo/confirm')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'The upload has finished: process the new photo',
+    description:
+      'Processing takes a few seconds: `photoUpload` is PENDING meanwhile, then null with the new `photo`, or FAILED. Repeating it is safe.',
+  })
+  @ApiOkResponse({ type: UserProfileResponse })
+  @ApiResponse({
+    status: 409,
+    type: ApiErrorResponse,
+    description: 'INVALID_STATE (no upload waiting, or not uploaded yet)',
+  })
+  confirmPhoto(
+    @AccessToken() accessToken: string,
+    @CorrelationId() correlationId: string,
+  ): Promise<UserProfileResponse> {
+    return this.identity.call(
+      IdentityRpc.confirmPhoto,
+      {},
+      { accessToken, correlationId },
+    );
+  }
+
+  @Delete('photo')
+  @ApiOperation({
+    summary: 'Remove my profile photo',
+    description: 'Also drops an upload still waiting. A no-op without one.',
+  })
+  @ApiOkResponse({ type: UserProfileResponse })
+  removePhoto(
+    @AccessToken() accessToken: string,
+    @CorrelationId() correlationId: string,
+  ): Promise<UserProfileResponse> {
+    return this.identity.call(
+      IdentityRpc.removePhoto,
+      {},
+      { accessToken, correlationId },
+    );
   }
 
   @Get('export')
