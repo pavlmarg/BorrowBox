@@ -1,4 +1,6 @@
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { DOCUMENT, inject } from '@angular/core';
+import { lastValueFrom } from 'rxjs';
 import {
   patchState,
   signalStore,
@@ -8,26 +10,42 @@ import {
 } from '@ngrx/signals';
 import { Api } from '../../api/api';
 import {
+  meControllerConfirmPhoto,
   meControllerDelete,
   meControllerExport,
   meControllerGet,
+  meControllerRemovePhoto,
+  meControllerRequestPhotoUpload,
   meControllerUpdate,
 } from '../../api/functions';
 import type { UpdateProfileBody } from '../../api/models';
 import { errorCode, type KnownErrorCode } from '../../core/api-errors';
 import { AuthStore } from '../../core/auth/auth.store';
+import type { PhotoProblem } from '../listing/photo-prep';
+import { prepareProfilePhoto } from './profile-photo-prep';
 
 type Busy = 'saving' | 'exporting' | 'deleting' | null;
 
 /** How long the export's download URL stays valid after the click. */
 const EXPORT_URL_LIFETIME_MS = 60_000;
+/** Processing takes a few seconds; give up showing progress after ~30 s. */
+const PHOTO_POLL_EVERY_MS = 1000;
+const PHOTO_POLL_TRIES = 30;
+
+/** A new profile photo on its way (ADR-0024). */
+export type PhotoStep = 'idle' | 'uploading' | 'processing' | 'removing';
 
 interface ProfileState {
   busy: Busy;
   error: KnownErrorCode | null;
   saved: boolean;
   exported: boolean;
+  photoStep: PhotoStep;
+  /** Why the last photo couldn't be used; `REJECTED`: the server refused the image. */
+  photoProblem: PhotoProblem | KnownErrorCode | 'REJECTED' | null;
 }
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
  * Account page state. The profile itself lives in AuthStore (it is the
@@ -39,9 +57,12 @@ export const ProfileStore = signalStore(
     error: null,
     saved: false,
     exported: false,
+    photoStep: 'idle',
+    photoProblem: null,
   }),
   withProps(() => ({
     _api: inject(Api),
+    _http: inject(HttpClient),
     _auth: inject(AuthStore),
     _document: inject(DOCUMENT),
   })),
@@ -113,6 +134,72 @@ export const ProfileStore = signalStore(
         if (!done) return false;
         store._auth.signedOut();
         return true;
+      },
+
+      /**
+       * A new profile photo: cropped to a square in the browser, uploaded
+       * straight to storage, confirmed, then polled until the server has
+       * processed it. The current photo stays until the new one is ready.
+       */
+      async changePhoto(file: File): Promise<void> {
+        if (store.photoStep() !== 'idle') return;
+        patchState(store, { photoStep: 'uploading', photoProblem: null });
+        try {
+          const prepared = await prepareProfilePhoto(file);
+          if (!prepared.ok) {
+            patchState(store, { photoProblem: prepared.problem });
+            return;
+          }
+          const target = await store._api.invoke(
+            meControllerRequestPhotoUpload,
+            {
+              body: {
+                contentType: prepared.contentType,
+                sizeBytes: prepared.blob.size,
+              },
+            },
+          );
+          // Straight to object storage (presigned URL), not through the gateway.
+          await lastValueFrom(
+            store._http.put(target.uploadUrl, prepared.blob, {
+              headers: new HttpHeaders(target.uploadHeaders),
+            }),
+          );
+          patchState(store, { photoStep: 'processing' });
+          let user = await store._api.invoke(meControllerConfirmPhoto);
+          store._auth.updateUser(user);
+          for (
+            let i = 0;
+            i < PHOTO_POLL_TRIES && user.photoUpload === 'PENDING';
+            i++
+          ) {
+            await sleep(PHOTO_POLL_EVERY_MS);
+            user = await store._api.invoke(meControllerGet);
+            store._auth.updateUser(user);
+          }
+          if (user.photoUpload === 'FAILED') {
+            patchState(store, { photoProblem: 'REJECTED' });
+          }
+        } catch (err) {
+          patchState(store, { photoProblem: errorCode(err) });
+        } finally {
+          patchState(store, { photoStep: 'idle' });
+        }
+      },
+
+      /** Back to the silhouette. */
+      async removePhoto(): Promise<void> {
+        if (store.photoStep() !== 'idle') return;
+        patchState(store, { photoStep: 'removing', photoProblem: null });
+        try {
+          store._auth.updateUser(
+            await store._api.invoke(meControllerRemovePhoto),
+          );
+        } catch (err) {
+          patchState(store, { photoProblem: errorCode(err) });
+        } finally {
+          patchState(store, { photoStep: 'idle' });
+        }
       },
 
       clearError(): void {

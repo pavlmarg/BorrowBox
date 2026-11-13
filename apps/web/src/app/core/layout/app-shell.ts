@@ -214,7 +214,7 @@ const WIDE = '(min-width: 960px)';
               routerLink="/profile"
               [attr.aria-label]="t('nav.profile')"
             >
-              <bb-avatar [size]="32" />
+              <bb-avatar [size]="32" [photoUrl]="avatarUrl()" />
             </a>
             @if (wide()) {
               <button
@@ -543,6 +543,10 @@ export class AppShell {
   );
 
   protected readonly signedIn = this.auth.isAuthenticated;
+  /** The signed-in user's small profile photo, or null for the silhouette. */
+  protected readonly avatarUrl = computed(
+    () => this.auth.user()?.photo?.small ?? null,
+  );
   /** Signed-out visitors don't see pages they can't open (E3). */
   protected readonly mainNav = computed(() =>
     MAIN_NAV.filter((item) => this.signedIn() || !item.requiresAuth),

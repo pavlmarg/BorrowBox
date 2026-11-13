@@ -90,7 +90,7 @@ export function sendable(text: string): boolean {
         </a>
         @if (store.conversation(); as c) {
           <div class="who">
-            <bb-avatar [size]="40" />
+            <bb-avatar [size]="40" [photoUrl]="c.other.photo?.small ?? null" />
             <div class="who-text">
               <h1 class="name">
                 {{ c.other.displayName ?? t('chat.deletedUser') }}

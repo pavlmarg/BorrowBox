@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
 /**
- * A person's picture, round. Without a photo (none can be chosen yet) it
- * shows an anonymous silhouette. Decorative: the name is always shown next
- * to it, so it's hidden from screen readers.
+ * A person's picture, round: their profile photo (ADR-0024), or an
+ * anonymous silhouette without one. Decorative: the name is always shown
+ * next to it, so it's hidden from screen readers.
  */
 @Component({
   selector: 'bb-avatar',

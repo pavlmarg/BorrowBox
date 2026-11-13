@@ -72,7 +72,10 @@ import { ConversationsStore } from './conversations.store';
                     [attr.aria-current]="c.id === activeId() ? 'page' : null"
                     [routerLink]="['/messages', c.id]"
                   >
-                    <bb-avatar [size]="44" />
+                    <bb-avatar
+                      [size]="44"
+                      [photoUrl]="c.other.photo?.small ?? null"
+                    />
                     <span class="text">
                       <span class="top">
                         <strong class="name">{{

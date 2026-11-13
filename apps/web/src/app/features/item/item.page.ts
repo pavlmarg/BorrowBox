@@ -161,7 +161,10 @@ import { ItemStore } from './item.store';
                 }
 
                 <div class="lender">
-                  <bb-avatar [size]="44" />
+                  <bb-avatar
+                    [size]="44"
+                    [photoUrl]="item.lender.photo?.small ?? null"
+                  />
                   <div>
                     <span class="label">{{ t('item.lentBy') }}</span>
                     <strong>{{ item.lender.displayName }}</strong>
