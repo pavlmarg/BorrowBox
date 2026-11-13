@@ -214,6 +214,7 @@ describe('Profile photos (integration)', () => {
         displayName: s.user.displayName,
         locale: s.user.locale,
         photo: profile.photo,
+        bio: null,
       },
     ]);
 

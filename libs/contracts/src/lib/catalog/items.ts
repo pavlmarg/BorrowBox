@@ -85,6 +85,11 @@ export interface LenderSummary {
   photo: ProfilePhotoUrls | null;
 }
 
+/** The lender on an item's own page: also their bio (ADR-0025). */
+export interface LenderDetail extends LenderSummary {
+  bio: string | null;
+}
+
 /** The owner's view: everything, including the exact location. */
 export interface OwnItem {
   id: string;
@@ -148,7 +153,7 @@ export interface PublicItemDetail {
   maxRentalHours: number | null;
   /** `READY` photos in display order. */
   photos: PublicPhoto[];
-  lender: LenderSummary;
+  lender: LenderDetail;
   approximateLocation: GeoPoint;
   publishedAt: string;
 }

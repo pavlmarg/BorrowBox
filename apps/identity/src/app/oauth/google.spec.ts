@@ -108,6 +108,7 @@ describe('Identity Google sign-in (integration)', () => {
       providers: ['google'],
       photo: null,
       photoUpload: null,
+      bio: null,
       createdAt: expect.any(String),
     });
     const verifier = await createAccessTokenVerifier(identity.keys);

@@ -8,6 +8,7 @@ import { IdentityInitial1759300000000 } from './migrations/1759300000000-identit
 import { IdentityEmailTokens1761000000000 } from './migrations/1761000000000-identity-email-tokens';
 import { IdentityAnnounceVerifiedEmails1761000000001 } from './migrations/1761000000001-identity-announce-verified-emails';
 import { IdentityProfilePhotos1763000000000 } from './migrations/1763000000000-identity-profile-photos';
+import { IdentityBio1763200000000 } from './migrations/1763200000000-identity-bio';
 
 export const MIGRATIONS = [
   CreateOutboxTables1759140000000,
@@ -15,6 +16,7 @@ export const MIGRATIONS = [
   IdentityEmailTokens1761000000000,
   IdentityAnnounceVerifiedEmails1761000000001,
   IdentityProfilePhotos1763000000000,
+  IdentityBio1763200000000,
 ];
 
 export function createIdentityDataSource(url: string): DataSource {

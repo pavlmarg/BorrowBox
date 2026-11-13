@@ -39,6 +39,8 @@ export type IdentityErrorCode =
   | 'PASSWORD_NOT_SET'
   /** A profile photo confirmed before its upload arrived, or with no upload started. */
   | 'INVALID_STATE'
+  /** Unknown or erased account (public profiles). */
+  | 'NOT_FOUND'
   /** Unexpected failure; details are only in Identity's logs. */
   | 'INTERNAL';
 
@@ -64,7 +66,26 @@ export interface UserProfile {
   photo: ProfilePhotoUrls | null;
   /** A new photo being processed or rejected; null when none is waiting. */
   photoUpload: ProfilePhotoUploadStatus | null;
+  /** The public bio (ADR-0025), or null for none. */
+  bio: string | null;
   createdAt: string;
+}
+
+/**
+ * Anyone's public profile (ADR-0025), also for signed-out visitors: only
+ * what is shown next to their items anyway. Never the email or language.
+ */
+export interface PublicProfile {
+  id: string;
+  displayName: string;
+  photo: ProfilePhotoUrls | null;
+  bio: string | null;
+  /** ISO-8601: when the account was created. */
+  memberSince: string;
+}
+
+export interface PublicProfileRequest {
+  userId: string;
 }
 
 /**
@@ -120,6 +141,11 @@ export interface GoogleExchangeRequest {
 export interface UpdateProfileRequest {
   displayName?: string;
   locale?: Locale;
+  /**
+   * Normalised with `normaliseBio`, then must pass `bioProblem`; an empty
+   * string removes the bio.
+   */
+  bio?: string;
 }
 
 /**
@@ -190,6 +216,7 @@ export interface IdentityDataExport {
     updatedAt: string;
     /** The public profile photo's addresses, or null. */
     photo: ProfilePhotoUrls | null;
+    bio: string | null;
   };
   oauthIdentities: Array<{ provider: OAuthProvider; linkedAt: string }>;
   sessions: Array<{ createdAt: string; expiresAt: string }>;
@@ -215,6 +242,8 @@ export const IdentityRpc = {
   requestPhotoUpload: 'identity.me.photo.upload',
   confirmPhoto: 'identity.me.photo.confirm',
   removePhoto: 'identity.me.photo.remove',
+  // Public (no token needed).
+  getPublicProfile: 'identity.users.public.get',
 } as const;
 
 /**
@@ -277,6 +306,11 @@ export interface IdentityRpcContract {
   [IdentityRpc.removePhoto]: {
     request: Record<string, never>;
     response: UserProfile;
+  };
+  /** NOT_FOUND for unknown and erased accounts. */
+  [IdentityRpc.getPublicProfile]: {
+    request: PublicProfileRequest;
+    response: PublicProfile;
   };
 }
 

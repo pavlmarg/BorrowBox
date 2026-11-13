@@ -9,7 +9,32 @@ import {
   GOOGLE_EXCHANGE_TIMEOUT_MS,
   GOOGLE_HTTP_TIMEOUT_MS,
 } from './timeouts';
-import { isValidPassword, isWellFormedEmailToken } from './validation';
+import {
+  bioProblem,
+  isValidPassword,
+  isWellFormedEmailToken,
+  normaliseBio,
+} from './validation';
+
+describe('bio rules', () => {
+  it('normalises line breaks and trims', () => {
+    expect(normaliseBio('  Hi\r\nthere\rfriend \n')).toBe('Hi\nthere\nfriend');
+  });
+
+  it('accepts a short note, up to 150 characters and 3 lines', () => {
+    expect(bioProblem('Message only after 9 🙂')).toBeNull();
+    expect(bioProblem('α'.repeat(150))).toBeNull();
+    expect(bioProblem('one\ntwo\nthree')).toBeNull();
+  });
+
+  it.each([
+    ['too long', 'a'.repeat(151), 'TOO_LONG'],
+    ['too many lines', 'a\nb\nc\nd', 'TOO_MANY_LINES'],
+    ['a phone number', 'Call 691 234 5678', 'CONTACT_DETAILS'],
+    ['an email', 'maria@example.gr', 'CONTACT_DETAILS'],
+    ['a link', 'www.maria.gr', 'CONTACT_DETAILS'],
+  ])('refuses %s', (_, bio, problem) => expect(bioProblem(bio)).toBe(problem));
+});
 
 describe('Google sign-in timeouts', () => {
   it('give the gateway longer than every Google request Identity may make', () => {
@@ -69,6 +94,6 @@ describe('IdentityRpc patterns', () => {
   it('each have a contract entry', () => {
     // Compile-time check: every pattern is a key of IdentityRpcContract.
     const typed: IdentityRpcPattern[] = patterns;
-    expect(typed).toHaveLength(17);
+    expect(typed).toHaveLength(18);
   });
 });

@@ -166,8 +166,61 @@ describe('Identity me.* (integration)', () => {
           displayName: s.user.displayName,
           locale: 'en',
           photo: null,
+          bio: null,
         },
       ]);
+    });
+
+    it('saves, announces and removes the bio (ADR-0025)', async () => {
+      const s = await signUp();
+      const saved = await identity.send(
+        IdentityRpc.updateMe,
+        { bio: '  Message me after 9 🙂\r\nWeekends only  ' },
+        as(s, 'bio-1'),
+      );
+      expect(saved.bio).toBe('Message me after 9 🙂\nWeekends only');
+      await expect(
+        identity.send(IdentityRpc.getMe, {}, as(s)),
+      ).resolves.toMatchObject({ bio: 'Message me after 9 🙂\nWeekends only' });
+
+      // Same bio again: nothing to announce.
+      await identity.send(
+        IdentityRpc.updateMe,
+        { bio: 'Message me after 9 🙂\nWeekends only' },
+        as(s),
+      );
+      const removed = await identity.send(
+        IdentityRpc.updateMe,
+        { bio: '   ' },
+        as(s),
+      );
+      expect(removed.bio).toBeNull();
+
+      const events = await profileEvents(s.user.id);
+      expect(events.map((e) => e.envelope['payload'])).toEqual([
+        expect.objectContaining({
+          bio: 'Message me after 9 🙂\nWeekends only',
+        }),
+        expect.objectContaining({ bio: null }),
+      ]);
+    });
+
+    it.each([
+      ['151 characters', 'α'.repeat(151)],
+      ['four lines', 'a\nb\nc\nd'],
+      ['a phone number', 'Call 6912345678'],
+      ['an email', 'write to maria@example.gr'],
+      ['a link', 'see https://example.gr'],
+      ['a non-string', 42],
+    ])('refuses a bio with %s, without echoing it', async (_, bio) => {
+      const s = await signUp();
+      const err = await failure(
+        identity.send(IdentityRpc.updateMe, { bio }, as(s)),
+      );
+      expect(err).toEqual({
+        code: 'VALIDATION_FAILED',
+        message: 'Invalid fields: bio',
+      });
     });
 
     it('writes nothing when nothing changes', async () => {
@@ -208,6 +261,44 @@ describe('Identity me.* (integration)', () => {
     });
   });
 
+  describe('public profile (ADR-0025)', () => {
+    it('shows anyone the name, photo, bio and member-since date only', async () => {
+      const s = await signUp();
+      await identity.send(IdentityRpc.updateMe, { bio: 'Hi there' }, as(s));
+      // No token needed.
+      const profile = await identity.send(IdentityRpc.getPublicProfile, {
+        userId: s.user.id,
+      });
+      expect(profile).toEqual({
+        id: s.user.id,
+        displayName: s.user.displayName,
+        photo: null,
+        bio: 'Hi there',
+        memberSince: s.user.createdAt,
+      });
+      expect(JSON.stringify(profile)).not.toContain(s.user.email);
+    });
+
+    it('answers NOT_FOUND for unknown ids and VALIDATION_FAILED for malformed ones', async () => {
+      expect(
+        (
+          await failure(
+            identity.send(IdentityRpc.getPublicProfile, {
+              userId: '00000000-0000-4000-8000-000000000000',
+            }),
+          )
+        ).code,
+      ).toBe('NOT_FOUND');
+      expect(
+        (
+          await failure(
+            identity.send(IdentityRpc.getPublicProfile, { userId: 'nope' }),
+          )
+        ).code,
+      ).toBe('VALIDATION_FAILED');
+    });
+  });
+
   describe('export', () => {
     it('contains the user, providers and one entry per session, and no secrets', async () => {
       const s = await signUp();
@@ -229,6 +320,7 @@ describe('Identity me.* (integration)', () => {
         createdAt: s.user.createdAt,
         updatedAt: expect.any(String),
         photo: null,
+        bio: null,
       });
       expect(data.oauthIdentities).toEqual([]);
       // Two sign-ins; the refresh rotated within the second session.
@@ -276,7 +368,7 @@ describe('Identity me.* (integration)', () => {
       );
       await identity.send(
         IdentityRpc.updateMe,
-        { displayName: 'Renamed Before Deletion' },
+        { displayName: 'Renamed Before Deletion', bio: 'Bio before deletion' },
         as(s),
       );
 
@@ -285,13 +377,14 @@ describe('Identity me.* (integration)', () => {
       ).resolves.toBeUndefined();
 
       const [user] = await identity.dataSource.query(
-        `SELECT email, display_name, password_hash, email_verified_at, deleted_at
+        `SELECT email, display_name, bio, password_hash, email_verified_at, deleted_at
            FROM users WHERE id = $1`,
         [s.user.id],
       );
       expect(user).toEqual({
         email: `deleted+${s.user.id}@invalid`,
         display_name: null,
+        bio: null,
         password_hash: null,
         email_verified_at: null,
         deleted_at: expect.any(Date),
@@ -328,15 +421,24 @@ describe('Identity me.* (integration)', () => {
         locale: 'el',
       });
       // …and the kept user.profile_updated row no longer holds the new name
-      // (or a photo).
+      // (or a photo or bio).
       expect(events[1].envelope.payload).toEqual({
         userId: s.user.id,
         displayName: 'Deleted user',
         locale: 'el',
         photo: null,
+        bio: null,
       });
       expect(JSON.stringify(events)).not.toContain(s.user.email);
       expect(JSON.stringify(events)).not.toContain('Renamed Before Deletion');
+      expect(JSON.stringify(events)).not.toContain('Bio before deletion');
+
+      // The public profile is gone, like an unknown account's.
+      expect(
+        await failure(
+          identity.send(IdentityRpc.getPublicProfile, { userId: s.user.id }),
+        ),
+      ).toEqual({ code: 'NOT_FOUND', message: 'Profile not found' });
 
       // Every way back in is closed.
       const calls = [

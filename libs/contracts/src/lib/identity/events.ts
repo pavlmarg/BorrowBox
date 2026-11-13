@@ -23,7 +23,7 @@ export const UserRegisteredV1 = defineEvent<UserRegisteredV1Payload>()(
  * The user changed their profile (`PATCH /me`). Only sent when something
  * actually changed, or re-announced unchanged by `identity:republish-users`.
  * Carries the current values, so the newest event wins (consumers compare
- * `occurredAt`). Catalog and Bookings keep names from it.
+ * `occurredAt`). Catalog and Bookings keep names from it (Catalog also the bio).
  */
 export interface UserProfileUpdatedV1Payload {
   userId: string;
@@ -35,6 +35,11 @@ export interface UserProfileUpdatedV1Payload {
    * what you have". Sent with every change, including the photo's own.
    */
   photo?: ProfilePhotoUrls | null;
+  /**
+   * The public bio (ADR-0025), or null for none. Optional like `photo`:
+   * absent means "unknown, keep what you have".
+   */
+  bio?: string | null;
 }
 export const UserProfileUpdatedV1 = defineEvent<UserProfileUpdatedV1Payload>()(
   'user.profile_updated',

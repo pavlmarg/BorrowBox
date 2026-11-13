@@ -82,6 +82,7 @@ describe('Identity password auth (integration)', () => {
         providers: [],
         photo: null,
         photoUpload: null,
+        bio: null,
         createdAt: expect.any(String),
       });
       const verifier = await createAccessTokenVerifier(identity.keys);

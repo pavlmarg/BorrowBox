@@ -27,8 +27,8 @@ describe('republishUsers (integration)', () => {
   it('announces each live account, its verification, and never an email', async () => {
     await db.query(`DELETE FROM outbox`);
     const [verified] = await db.query(
-      `INSERT INTO users (email, display_name, locale, email_verified_at, photo_key)
-       VALUES ('v@example.com', 'Vera', 'en', now(), 'k1') RETURNING id`,
+      `INSERT INTO users (email, display_name, locale, email_verified_at, photo_key, bio)
+       VALUES ('v@example.com', 'Vera', 'en', now(), 'k1', 'Weekends only') RETURNING id`,
     );
     const [unverified] = await db.query(
       `INSERT INTO users (email, display_name) VALUES ('u@example.com', 'Ugo')
@@ -57,6 +57,7 @@ describe('republishUsers (integration)', () => {
             small: `${BASE}/profiles/k1/96.webp`,
             large: `${BASE}/profiles/k1/512.webp`,
           },
+          bio: 'Weekends only',
         },
       },
       {
@@ -70,6 +71,7 @@ describe('republishUsers (integration)', () => {
           displayName: 'Ugo',
           locale: 'el',
           photo: null,
+          bio: null,
         },
       },
     ]);
