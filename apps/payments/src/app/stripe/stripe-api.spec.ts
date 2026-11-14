@@ -28,6 +28,10 @@ describe('toStripeCallError', () => {
       StripeUnavailableError,
     ],
     [
+      new Stripe.errors.StripeIdempotencyError({ ...raw, statusCode: 400 }),
+      StripeRequestError,
+    ],
+    [
       new Stripe.errors.StripeAuthenticationError({ ...raw, statusCode: 401 }),
       StripeRequestError,
     ],
