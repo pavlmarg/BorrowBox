@@ -4,11 +4,13 @@ import {
   computed,
   inject,
 } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { TranslocoDirective } from '@jsverse/transloco';
+import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { errorKey, type KnownErrorCode } from '../../core/api-errors';
 import { AuthStore } from '../../core/auth/auth.store';
 import { Avatar } from '../../shared/avatar/avatar';
+import { openConfirm } from '../../shared/confirm-dialog';
 import { ProfileStore } from './profile.store';
 
 /** Problems found in the browser, before anything is uploaded. */
@@ -17,7 +19,8 @@ const LOCAL_PROBLEMS = ['unsupported', 'tooSmall', 'tooLarge', 'unreadable'];
 /**
  * The profile picture at the top of Settings (ADR-0024): the photo, large,
  * with two small buttons below it, change (cropped to a square, public
- * like the name) and remove. No hover effects, only a press. Uses the
+ * like the name) and remove (asks first, against misclicks). No hover
+ * effects, only a press. Uses the
  * page's ProfileStore; the section heading comes from the page.
  */
 @Component({
@@ -52,7 +55,7 @@ const LOCAL_PROBLEMS = ['unsupported', 'tooSmall', 'tooLarge', 'unreadable'];
             type="button"
             class="pill danger"
             [disabled]="store.photoStep() !== 'idle'"
-            (click)="store.removePhoto()"
+            (click)="confirmRemove()"
           >
             {{ t('profile.photo.remove') }}
           </button>
@@ -102,20 +105,25 @@ const LOCAL_PROBLEMS = ['unsupported', 'tooSmall', 'tooLarge', 'unreadable'];
       position: absolute;
     }
     .actions {
+      align-items: center;
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 4px;
       margin-top: 16px;
     }
-    /* Small, flat buttons: no hover effect, only a short press. */
+    /* Small, flat buttons: no hover effect, only a short press. Change is
+       outlined like the page's other buttons; Remove is red text only. */
     .pill {
+      align-items: center;
       background: transparent;
       border: 1px solid rgb(var(--bb-line-rgb) / 0.24);
       border-radius: var(--bb-button-radius);
       color: var(--mat-sys-on-surface);
       cursor: pointer;
-      font: var(--mat-sys-label-medium);
-      padding: 6px 12px;
+      display: inline-flex;
+      font: var(--mat-sys-label-large);
+      height: 32px;
+      padding: 0 14px;
       transition: transform 120ms var(--bb-ease);
     }
     .pill:active:not(:disabled) {
@@ -130,9 +138,9 @@ const LOCAL_PROBLEMS = ['unsupported', 'tooSmall', 'tooLarge', 'unreadable'];
       opacity: 0.5;
     }
     .pill.danger {
-      background: color-mix(in srgb, var(--mat-sys-error) 8%, transparent);
-      border-color: color-mix(in srgb, var(--mat-sys-error) 45%, transparent);
+      border-color: transparent;
       color: var(--mat-sys-error);
+      padding: 0 10px;
     }
     @media (prefers-reduced-motion: reduce) {
       .pill {
@@ -151,6 +159,21 @@ const LOCAL_PROBLEMS = ['unsupported', 'tooSmall', 'tooLarge', 'unreadable'];
 export class ProfilePhotoCard {
   protected readonly auth = inject(AuthStore);
   protected readonly store = inject(ProfileStore);
+  private readonly dialog = inject(MatDialog);
+  private readonly transloco = inject(TranslocoService);
+
+  /** Removing is easy to hit by mistake: ask first. */
+  protected async confirmRemove(): Promise<void> {
+    const t = (key: string) => this.transloco.translate(key);
+    const confirmed = await openConfirm(this.dialog, {
+      title: t('profile.photo.removeTitle'),
+      message: t('profile.photo.removeMessage'),
+      confirm: t('profile.photo.removeConfirm'),
+      cancel: t('profile.photo.removeCancel'),
+      danger: true,
+    });
+    if (confirmed) await this.store.removePhoto();
+  }
 
   /** Uploading, or the server is still processing (also after a reload). */
   protected readonly photoBusy = computed(

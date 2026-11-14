@@ -5,6 +5,8 @@ import {
 } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
+import { of } from 'rxjs';
 import { provideRouter } from '@angular/router';
 import { provideTransloco } from '@jsverse/transloco';
 import type { UserProfileResponse } from '../../api/models';
@@ -29,10 +31,14 @@ const user = (
   ...overrides,
 });
 
-async function render(profile: UserProfileResponse) {
+async function render(profile: UserProfileResponse, confirm = false) {
   const current = signal(profile);
   TestBed.configureTestingModule({
     providers: [
+      {
+        provide: MatDialog,
+        useValue: { open: jest.fn(() => ({ afterClosed: () => of(confirm) })) },
+      },
       provideHttpClient(),
       provideHttpClientTesting(),
       provideRouter([]),
@@ -115,4 +121,24 @@ describe('SettingsPage', () => {
     ]);
     expect(pills[1].classList).toContain('danger');
   });
+
+  it.each([
+    [false, 0],
+    [true, 1],
+  ])(
+    'asks before removing the photo (confirmed: %s)',
+    async (confirm, deletes) => {
+      const el = await render(
+        user({ photo: { small: 's.webp', large: 'l.webp' } }),
+        confirm,
+      );
+      (el.querySelector('#photo .pill.danger') as HTMLButtonElement).click();
+      await tick();
+      expect(TestBed.inject(MatDialog).open).toHaveBeenCalledTimes(1);
+      const requests = TestBed.inject(HttpTestingController).match(
+        (r) => r.method === 'DELETE' && r.url === '/api/me/photo',
+      );
+      expect(requests.length).toBe(deletes);
+    },
+  );
 });

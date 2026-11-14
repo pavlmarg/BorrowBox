@@ -90,6 +90,10 @@
       "title": "Profile picture",
       "change": "Change profile picture",
       "remove": "Remove profile picture",
+      "removeTitle": "Remove your profile picture?",
+      "removeMessage": "People will see the default avatar instead. You can add a new picture at any time.",
+      "removeConfirm": "Remove",
+      "removeCancel": "Keep it",
       "uploading": "Uploading your photo…",
       "processing": "Getting your photo ready…",
       "errors": {
