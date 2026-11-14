@@ -6,6 +6,7 @@
  * `RpcRequest.accessToken`, never from ids in `data`; who may act on a
  * booking is checked inside Bookings.
  */
+import type { ProfilePhotoUrls } from '../identity/photos';
 import type {
   BookingPeriod,
   BookingPrice,
@@ -108,8 +109,12 @@ export interface ListBookingsResponse {
 /** Bookings' part of `GET /me/export`. */
 export interface BookingsDataExport {
   exportedAt: string;
-  /** Bookings' copy of the caller's name (from Identity's events), or null. */
-  profile: { displayName: string; updatedAt: string } | null;
+  /** Bookings' copy of the caller's name and photo (from Identity's events), or null. */
+  profile: {
+    displayName: string;
+    photo: ProfilePhotoUrls | null;
+    updatedAt: string;
+  } | null;
   /** When Bookings learned the email was verified (requesting needs it), or null. */
   emailVerifiedAt: string | null;
   asRenter: BookingView[];

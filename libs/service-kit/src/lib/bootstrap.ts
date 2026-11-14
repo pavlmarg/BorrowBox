@@ -20,9 +20,15 @@ export interface ServiceBootstrapOptions {
   /**
    * One-off commands, e.g. `republish-items`: `node main.js <name>` runs it
    * with only config + database (`migrateModule`), logs its summary and exits.
+   * It gets the validated config too, for settings such as public URLs.
    */
-  tasks?: Record<string, (dataSource: DataSource) => Promise<string>>;
+  tasks?: Record<string, ServiceTask>;
 }
+
+export type ServiceTask = (
+  dataSource: DataSource,
+  config: ConfigService,
+) => Promise<string>;
 
 /**
  * A service's `main.ts`: `node main.js migrate` (production, `nx run <app>:migrate`)
@@ -62,11 +68,14 @@ async function migrate({
 async function runTask(
   { migrateModule }: ServiceBootstrapOptions,
   name: string,
-  task: (dataSource: DataSource) => Promise<string>,
+  task: ServiceTask,
 ): Promise<void> {
   const app = await NestFactory.createApplicationContext(migrateModule);
   try {
-    Logger.log(await task(app.get<DataSource>(DATA_SOURCE)), name);
+    Logger.log(
+      await task(app.get<DataSource>(DATA_SOURCE), app.get(ConfigService)),
+      name,
+    );
   } finally {
     await app.close();
   }

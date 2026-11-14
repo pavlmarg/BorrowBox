@@ -9,8 +9,10 @@ import { addToOutbox } from '@borrowbox/outbox';
 import {
   startPostgres,
   startRabbitMq,
+  startRedis,
   type TestPostgres,
   type TestRabbitMq,
+  type TestRedis,
 } from '@borrowbox/testing';
 import {
   startIdentity,
@@ -32,14 +34,20 @@ const silent: MessagingLogger = {
 describe('Identity AppModule (integration)', () => {
   let pg: TestPostgres;
   let rabbit: TestRabbitMq;
+  let redis: TestRedis;
   let identity: IdentityHarness;
   const savedEnv = { ...process.env };
 
   beforeAll(async () => {
-    [pg, rabbit] = await Promise.all([startPostgres(), startRabbitMq()]);
+    [pg, rabbit, redis] = await Promise.all([
+      startPostgres(),
+      startRabbitMq(),
+      startRedis(),
+    ]);
     identity = await startIdentity({
       databaseUrl: pg.urlFor('identity'),
       rabbitmqUrl: rabbit.url,
+      redisUrl: redis.url,
       // As in .env.example: present but empty means "not configured".
       env: { GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '' },
     });
@@ -48,7 +56,7 @@ describe('Identity AppModule (integration)', () => {
   afterAll(async () => {
     await identity?.close();
     process.env = savedEnv;
-    await Promise.all([pg?.stop(), rabbit?.stop()]);
+    await Promise.all([pg?.stop(), rabbit?.stop(), redis?.stop()]);
   });
 
   it('migrates into the identity schema only', async () => {
@@ -69,8 +77,10 @@ describe('Identity AppModule (integration)', () => {
           'migrations',
           'oauth_identities',
           'outbox',
+          'photo_file_deletions',
           'processed_events',
           'refresh_tokens',
+          'user_photos',
           'users',
         ].map((table_name) => ({ table_schema: 'identity', table_name })),
       );
@@ -79,7 +89,7 @@ describe('Identity AppModule (integration)', () => {
     }
     // Idempotent: nothing left to run.
     expect(await identity.dataSource.showMigrations()).toBe(false);
-    expect(MIGRATIONS).toHaveLength(4);
+    expect(MIGRATIONS).toHaveLength(5);
   });
 
   it('enforces case-insensitive unique emails and the display-name rule', async () => {

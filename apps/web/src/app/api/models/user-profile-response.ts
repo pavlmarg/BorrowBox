@@ -3,6 +3,8 @@
 
 import { Locale } from '../models/locale';
 import { OAuthProvider } from '../models/o-auth-provider';
+import { ProfilePhotoUploadStatus } from '../models/profile-photo-upload-status';
+import { ProfilePhotoUrlsResponse } from '../models/profile-photo-urls-response';
 export interface UserProfileResponse {
   createdAt: string;
   displayName: string;
@@ -11,5 +13,16 @@ export interface UserProfileResponse {
   hasPassword: boolean;
   id: string;
   locale: Locale;
+
+  /**
+   * Public profile photo (ADR-0024); null for none
+   */
+  photo: (ProfilePhotoUrlsResponse & {
+}) | null;
+
+  /**
+   * A new photo being processed (PENDING) or rejected (FAILED); null when none is waiting
+   */
+  photoUpload: ProfilePhotoUploadStatus | null;
   providers: Array<OAuthProvider>;
 }

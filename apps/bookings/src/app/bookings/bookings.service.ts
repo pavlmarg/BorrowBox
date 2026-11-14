@@ -397,6 +397,7 @@ export class BookingsService {
         me?.display_name && me.name_updated_at
           ? {
               displayName: me.display_name,
+              photo: me.photo ?? null,
               updatedAt: me.name_updated_at.toISOString(),
             }
           : null,

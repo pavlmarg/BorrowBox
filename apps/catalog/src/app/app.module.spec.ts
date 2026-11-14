@@ -88,7 +88,7 @@ describe('Catalog AppModule (integration)', () => {
     }
     // Idempotent: nothing left to run.
     expect(await catalog.dataSource.showMigrations()).toBe(false);
-    expect(MIGRATIONS).toHaveLength(5);
+    expect(MIGRATIONS).toHaveLength(6);
   });
 
   it('publishes outbox events to RabbitMQ through the relay', async () => {

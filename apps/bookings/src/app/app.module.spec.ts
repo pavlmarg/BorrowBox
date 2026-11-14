@@ -77,7 +77,7 @@ describe('Bookings AppModule (integration)', () => {
     }
     // Idempotent: nothing left to run.
     expect(await bookings.dataSource.showMigrations()).toBe(false);
-    expect(MIGRATIONS).toHaveLength(4);
+    expect(MIGRATIONS).toHaveLength(5);
   });
 
   describe('database guards', () => {

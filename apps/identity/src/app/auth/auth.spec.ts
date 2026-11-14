@@ -9,8 +9,10 @@ import {
 import {
   startPostgres,
   startRabbitMq,
+  startRedis,
   type TestPostgres,
   type TestRabbitMq,
+  type TestRedis,
 } from '@borrowbox/testing';
 import {
   startIdentity,
@@ -22,21 +24,27 @@ import { hashRefreshToken } from './refresh-token';
 describe('Identity password auth (integration)', () => {
   let pg: TestPostgres;
   let rabbit: TestRabbitMq;
+  let redis: TestRedis;
   let identity: IdentityHarness;
   const savedEnv = { ...process.env };
 
   beforeAll(async () => {
-    [pg, rabbit] = await Promise.all([startPostgres(), startRabbitMq()]);
+    [pg, rabbit, redis] = await Promise.all([
+      startPostgres(),
+      startRabbitMq(),
+      startRedis(),
+    ]);
     identity = await startIdentity({
       databaseUrl: pg.urlFor('identity'),
       rabbitmqUrl: rabbit.url,
+      redisUrl: redis.url,
     });
   });
 
   afterAll(async () => {
     await identity?.close();
     process.env = savedEnv;
-    await Promise.all([pg?.stop(), rabbit?.stop()]);
+    await Promise.all([pg?.stop(), rabbit?.stop(), redis?.stop()]);
   });
 
   let n = 0;
@@ -72,6 +80,8 @@ describe('Identity password auth (integration)', () => {
         emailVerified: false,
         hasPassword: true,
         providers: [],
+        photo: null,
+        photoUpload: null,
         createdAt: expect.any(String),
       });
       const verifier = await createAccessTokenVerifier(identity.keys);

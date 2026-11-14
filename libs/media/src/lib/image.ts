@@ -29,10 +29,18 @@ export interface ImageRules {
   maxBytes: number;
   /** Decoded pixels; guards against tiny files that expand enormously. */
   maxPixels: number;
-  /** Narrower (after orientation) is rejected. */
+  /**
+   * Narrower (after orientation) is rejected. With `square`, the shorter
+   * side must reach it instead.
+   */
   minWidth: number;
   /** Output sizes by name, e.g. `{ small: 320, medium: 800, large: 1600 }`. */
   widths: Record<string, number>;
+  /**
+   * Crop every size to a centred square of that edge (profile photos,
+   * ADR-0024), whatever the browser sent. Default: keep the proportions.
+   */
+  square?: boolean;
 }
 
 export interface ProcessedImage {
@@ -101,7 +109,9 @@ export async function processImage(
   }
   // EXIF orientations 5-8 turn the picture by 90°.
   const shownWidth = (meta.orientation ?? 1) >= 5 ? height : width;
-  if (shownWidth < rules.minWidth) throw new InvalidImageError('TOO_SMALL');
+  const shorterSide = Math.min(width, height);
+  const checked = rules.square ? shorterSide : shownWidth;
+  if (checked < rules.minWidth) throw new InvalidImageError('TOO_SMALL');
 
   const sizes: Record<string, Buffer> = {};
   try {
@@ -111,7 +121,17 @@ export async function processImage(
       // dropped. rotate() applies the EXIF orientation first.
       sizes[name] = await open()
         .rotate()
-        .resize({ width: target, withoutEnlargement: true })
+        .resize(
+          rules.square
+            ? // Capped at the shorter side, so it's always cropped, never enlarged.
+              {
+                width: Math.min(target, shorterSide),
+                height: Math.min(target, shorterSide),
+                fit: 'cover',
+                position: 'centre',
+              }
+            : { width: target, withoutEnlargement: true },
+        )
         .webp({ quality: 82 })
         .toBuffer();
     }

@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { DataSource, EntityManager } from 'typeorm';
 import type { AuthUser } from '@borrowbox/auth';
 import {
@@ -14,12 +15,19 @@ import {
 import { addToOutbox } from '@borrowbox/outbox';
 import { PasswordHasher } from '../auth/password-hasher';
 import { DATA_SOURCE } from '@borrowbox/service-kit';
+import type { IdentityConfig } from '../config';
 import { AccountMailer, findRecipient } from '../email/account-mailer';
 import type { ChangePasswordDto } from '../email/email-links.dto';
 import { issueEmailToken } from '../email/email-tokens';
+import { PhotoQueue } from '../photos/photo-queue';
+import {
+  profilePhotoUrls,
+  removeUserPhotos,
+} from '../photos/photos.repository';
 import { IdentityError } from '../rpc/rpc-errors';
+import { assertLiveSession } from './live-session';
 import type { DeleteAccountDto, UpdateProfileDto } from './me.dto';
-import { findProfile, loadProfile } from './user-profile';
+import { announceProfile, findProfile, loadProfile } from './user-profile';
 
 /** Accounts without a password must have signed in this recently to delete themselves. */
 export const REAUTH_MAX_AGE_MS = 5 * 60 * 1000;
@@ -33,15 +41,25 @@ const UNAUTHENTICATED = () =>
 
 @Injectable()
 export class MeService {
+  private readonly photosBaseUrl: string;
+
   constructor(
     @Inject(DATA_SOURCE) private readonly dataSource: DataSource,
     private readonly hasher: PasswordHasher,
     private readonly mailer: AccountMailer,
-  ) {}
+    private readonly photoQueue: PhotoQueue,
+    config: ConfigService<IdentityConfig, true>,
+  ) {
+    this.photosBaseUrl = config.get('PHOTOS_BASE_URL', { infer: true });
+  }
 
   async get(auth: AuthUser): Promise<UserProfile> {
     await assertLiveSession(this.dataSource.manager, auth);
-    const profile = await findProfile(this.dataSource.manager, auth.userId);
+    const profile = await findProfile(
+      this.dataSource.manager,
+      auth.userId,
+      this.photosBaseUrl,
+    );
     if (!profile) throw UNAUTHENTICATED();
     return profile;
   }
@@ -76,16 +94,14 @@ export class MeService {
             WHERE id = $1`,
           [auth.userId, displayName, locale],
         );
-        await addToOutbox(
+        await announceProfile(
           tx,
-          createEnvelope(
-            UserProfileUpdatedV1,
-            { userId: auth.userId, displayName, locale },
-            { correlationId },
-          ),
+          auth.userId,
+          this.photosBaseUrl,
+          correlationId,
         );
       }
-      return loadProfile(tx, auth.userId);
+      return loadProfile(tx, auth.userId, this.photosBaseUrl);
     });
   }
 
@@ -173,8 +189,10 @@ export class MeService {
       email_verified_at: Date | null;
       created_at: Date;
       updated_at: Date;
+      photo_key: string | null;
     }> = await db.query(
-      `SELECT id, email, display_name, locale, email_verified_at, created_at, updated_at
+      `SELECT id, email, display_name, locale, email_verified_at, created_at,
+              updated_at, photo_key
          FROM users WHERE id = $1 AND deleted_at IS NULL`,
       [auth.userId],
     );
@@ -205,6 +223,9 @@ export class MeService {
         emailVerifiedAt: user.email_verified_at?.toISOString() ?? null,
         createdAt: user.created_at.toISOString(),
         updatedAt: user.updated_at.toISOString(),
+        photo: user.photo_key
+          ? profilePhotoUrls(this.photosBaseUrl, user.photo_key)
+          : null,
       },
       oauthIdentities: identities.map((i) => ({
         provider: i.provider,
@@ -235,6 +256,8 @@ export class MeService {
       );
       if (locked.length === 0) throw UNAUTHENTICATED(); // deleted concurrently
 
+      // The photo and any waiting upload go, their files listed for deletion.
+      await removeUserPhotos(tx, auth.userId);
       // The row stays (financial/legal records elsewhere may reference the id);
       // everything that identifies the person goes.
       await tx.query(
@@ -264,6 +287,7 @@ export class MeService {
         ),
       );
     });
+    await this.photoQueue.cleanup();
   }
 
   /**
@@ -316,30 +340,10 @@ export class MeService {
 }
 
 /**
- * The access token's sign-in session (`sid` = refresh-token family) must
- * still be live, so a token stops working at logout, reuse detection or the
- * Google auto-link revocation instead of lasting out its 15 minutes.
- */
-async function assertLiveSession(
-  db: EntityManager,
-  auth: AuthUser,
-): Promise<void> {
-  const [{ live }]: Array<{ live: boolean }> = await db.query(
-    `SELECT EXISTS (
-       SELECT 1 FROM refresh_tokens
-        WHERE family_id = $1 AND user_id = $2
-          AND revoked_at IS NULL AND rotated_at IS NULL AND expires_at > now()
-     ) AS live`,
-    [auth.sessionId, auth.userId],
-  );
-  if (!live) throw UNAUTHENTICATED();
-}
-
-/**
  * Published outbox rows are kept for a week (see @borrowbox/outbox), so the
- * `user.registered` (email, name) and `user.profile_updated` (name) envelopes
- * would otherwise keep personal data after erasure until then. Replace it
- * with the anonymised values; the contract shapes stay valid.
+ * `user.registered` (email, name) and `user.profile_updated` (name, photo)
+ * envelopes would otherwise keep personal data after erasure until then.
+ * Replace it with the anonymised values; the contract shapes stay valid.
  */
 async function redactUserEvents(
   tx: EntityManager,
@@ -361,7 +365,9 @@ async function redactUserEvents(
   );
   await tx.query(
     `UPDATE outbox
-        SET envelope = jsonb_set(envelope, '{payload,displayName}', to_jsonb($2::text))
+        SET envelope = jsonb_set(
+              jsonb_set(envelope, '{payload,displayName}', to_jsonb($2::text)),
+              '{payload,photo}', 'null'::jsonb)
       WHERE routing_key = $3
         AND envelope->'payload'->>'userId' = $1`,
     [userId, ANONYMISED_DISPLAY_NAME, UserProfileUpdatedV1.routingKey],

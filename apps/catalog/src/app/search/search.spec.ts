@@ -490,7 +490,7 @@ describe('Search and public item pages (integration)', () => {
         { id: expect.any(String), urls: expect.any(Object) },
         { id: expect.any(String), urls: expect.any(Object) },
       ],
-      lender: { id: owner, displayName: 'Eleni' },
+      lender: { id: owner, displayName: 'Eleni', photo: null },
       approximateLocation: expect.any(Object),
       publishedAt: '2026-10-01T10:00:00.000Z',
     });
@@ -703,7 +703,7 @@ describe('Search and public item pages (integration)', () => {
         '1_2_KM',
         'UNDER_1_KM',
       ]);
-      expect(items[0].lender).toEqual({ id: a, displayName: 'A' });
+      expect(items[0].lender).toEqual({ id: a, displayName: 'A', photo: null });
     });
 
     it('returns at most 8, and an empty list when nothing is similar', async () => {

@@ -2,6 +2,7 @@ import {
   createEnvelope,
   DISPLAY_NAME_MAX_LENGTH,
   UserDeletionRequestedV1,
+  UserProfileUpdatedV1,
   UserRegisteredV1,
   type EventEnvelope,
 } from '@borrowbox/contracts';
@@ -34,6 +35,38 @@ describe('parsePayload', () => {
     const payload = parsePayload(registered({}), UserNamePayload);
     expect(payload).toBeInstanceOf(UserNamePayload);
     expect(payload).toMatchObject({ userId, displayName: 'Maria' });
+  });
+
+  describe('the profile photo (user.profile_updated)', () => {
+    const updated = (photo: unknown): EventEnvelope =>
+      createEnvelope(UserProfileUpdatedV1, {
+        userId,
+        displayName: 'Maria',
+        locale: 'el',
+        photo,
+      } as never);
+    const urls = {
+      small: 'https://media.test/profiles/k/96.webp',
+      large: 'https://media.test/profiles/k/512.webp',
+    };
+
+    it('keeps the URLs, null, or nothing when absent', () => {
+      expect(parsePayload(updated(urls), UserNamePayload).photo).toEqual(urls);
+      expect(parsePayload(updated(null), UserNamePayload).photo).toBeNull();
+      expect(
+        parsePayload(registered({}), UserNamePayload).photo,
+      ).toBeUndefined();
+    });
+
+    it.each([
+      ['a non-http URL', { ...urls, small: 'javascript:alert(1)' }],
+      ['a missing size', { small: urls.small }],
+      ['a string instead of URLs', urls.small],
+    ])('rejects %s', (_, photo) => {
+      expect(() => parsePayload(updated(photo), UserNamePayload)).toThrow(
+        InvalidEventError,
+      );
+    });
   });
 
   it('accepts a deletion with just the user id', () => {

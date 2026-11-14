@@ -1,3 +1,4 @@
+import type { ProfilePhotoUrls } from '../identity/photos';
 import type { ItemCategory } from './categories';
 
 /**
@@ -80,6 +81,8 @@ export interface PublicPhoto {
 export interface LenderSummary {
   id: string;
   displayName: string;
+  /** Their public profile photo (ADR-0024), or null. */
+  photo: ProfilePhotoUrls | null;
 }
 
 /** The owner's view: everything, including the exact location. */

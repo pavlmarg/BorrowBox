@@ -27,6 +27,7 @@ import {
   type ListBookingsRequest,
   type RequestBookingRequest,
 } from '@borrowbox/contracts';
+import { ProfilePhotoUrlsResponse } from '../profile-photo.api';
 import { ItemPricingBody } from '../items/items.api';
 
 // HTTP DTOs for Bookings: validated here, validated again by Bookings, and
@@ -193,6 +194,12 @@ export class BookingPartyResponse {
     description: 'Null once the account is deleted',
   })
   displayName!: string | null;
+  @ApiProperty({
+    type: ProfilePhotoUrlsResponse,
+    nullable: true,
+    description: 'Public profile photo (ADR-0024); null for none',
+  })
+  photo!: ProfilePhotoUrlsResponse | null;
 }
 
 export class BookingViewResponse {
@@ -245,6 +252,12 @@ export class ListBookingsResponse {
 
 export class BookingsProfileResponse {
   @ApiProperty() displayName!: string;
+  @ApiProperty({
+    type: ProfilePhotoUrlsResponse,
+    nullable: true,
+    description: 'Public profile photo (ADR-0024); null for none',
+  })
+  photo!: ProfilePhotoUrlsResponse | null;
   @ApiProperty({ format: 'date-time' }) updatedAt!: string;
 }
 

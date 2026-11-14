@@ -467,6 +467,18 @@ describe('Catalog schema (integration)', () => {
         )
       ).map((r: { column_name: string }) => r.column_name);
 
+    const lenderColumns = async (): Promise<string[]> =>
+      (
+        await db.query(
+          `SELECT column_name FROM information_schema.columns
+            WHERE table_schema = 'catalog' AND table_name = 'lenders'
+            ORDER BY column_name`,
+        )
+      ).map((r: { column_name: string }) => r.column_name);
+
+    expect(await lenderColumns()).toContain('photo');
+    await db.undoLastMigration(); // lender photos
+    expect(await lenderColumns()).not.toContain('photo');
     await db.undoLastMigration(); // item bookings
     expect(await tables()).not.toContain('item_bookings');
     await db.undoLastMigration(); // rental limits, verified lenders
@@ -481,11 +493,12 @@ describe('Catalog schema (integration)', () => {
     expect(await tables()).toEqual(['item_photos', 'items', 'lenders']);
     await db.undoLastMigration(); // initial
     expect(await tables()).toEqual([]);
-    expect(await runMigrations(db)).toBe(4);
+    expect(await runMigrations(db)).toBe(5);
     expect(await tables()).toHaveLength(6);
     expect(await itemColumns()).toEqual([
       'max_rental_hours',
       'min_rental_hours',
     ]);
+    expect(await lenderColumns()).toContain('photo');
   });
 });

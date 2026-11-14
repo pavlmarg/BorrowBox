@@ -74,9 +74,12 @@ export class UserEventsConsumer implements OnApplicationBootstrap {
     switch (routingKey) {
       case UserRegisteredV1.routingKey:
       case UserProfileUpdatedV1.routingKey: {
-        const { userId, displayName } = parsePayload(envelope, UserNamePayload);
+        const { userId, displayName, photo } = parsePayload(
+          envelope,
+          UserNamePayload,
+        );
         await handleOnce(this.dataSource, USER_EVENTS_QUEUE, envelope, (tx) =>
-          saveUserName(tx, userId, displayName, envelope.occurredAt),
+          saveUserName(tx, userId, displayName, envelope.occurredAt, photo),
         );
         return;
       }

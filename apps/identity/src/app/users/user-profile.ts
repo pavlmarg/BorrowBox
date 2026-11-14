@@ -1,11 +1,22 @@
 import type { EntityManager } from 'typeorm';
-import type { Locale, OAuthProvider, UserProfile } from '@borrowbox/contracts';
+import {
+  createEnvelope,
+  UserProfileUpdatedV1,
+  type Locale,
+  type OAuthProvider,
+  type ProfilePhotoUploadStatus,
+  type UserProfile,
+} from '@borrowbox/contracts';
+import { addToOutbox } from '@borrowbox/outbox';
+import { profilePhotoUrls } from '../photos/photos.repository';
 
 interface ProfileRow {
   id: string;
   email: string;
   display_name: string;
   locale: Locale;
+  photo_key: string | null;
+  photo_upload: ProfilePhotoUploadStatus | null;
   has_password: boolean;
   email_verified: boolean;
   created_at: Date;
@@ -16,8 +27,9 @@ interface ProfileRow {
 export async function loadProfile(
   db: EntityManager,
   userId: string,
+  photosBaseUrl: string,
 ): Promise<UserProfile> {
-  const profile = await findProfile(db, userId);
+  const profile = await findProfile(db, userId, photosBaseUrl);
   if (!profile) throw new Error('User not found');
   return profile;
 }
@@ -26,9 +38,11 @@ export async function loadProfile(
 export async function findProfile(
   db: EntityManager,
   userId: string,
+  photosBaseUrl: string,
 ): Promise<UserProfile | null> {
   const rows: ProfileRow[] = await db.query(
-    `SELECT u.id, u.email, u.display_name, u.locale, u.created_at,
+    `SELECT u.id, u.email, u.display_name, u.locale, u.created_at, u.photo_key,
+            (SELECT p.status FROM user_photos p WHERE p.user_id = u.id) AS photo_upload,
             u.password_hash IS NOT NULL      AS has_password,
             u.email_verified_at IS NOT NULL  AS email_verified,
             COALESCE(array_agg(o.provider ORDER BY o.provider)
@@ -49,6 +63,49 @@ export async function findProfile(
     emailVerified: row.email_verified,
     hasPassword: row.has_password,
     providers: row.providers,
+    photo: row.photo_key
+      ? profilePhotoUrls(photosBaseUrl, row.photo_key)
+      : null,
+    photoUpload: row.photo_upload,
     createdAt: row.created_at.toISOString(),
   };
+}
+
+/**
+ * Writes `user.profile_updated` with all the live user's current public
+ * values (name, language, photo) to the outbox, in the caller's transaction.
+ * Call with the user's row locked, so events follow the order of the
+ * changes (consumers keep the newest).
+ */
+export async function announceProfile(
+  tx: EntityManager,
+  userId: string,
+  photosBaseUrl: string,
+  correlationId?: string,
+): Promise<void> {
+  const [user]: Array<{
+    display_name: string;
+    locale: Locale;
+    photo_key: string | null;
+  }> = await tx.query(
+    `SELECT display_name, locale, photo_key FROM users
+      WHERE id = $1 AND deleted_at IS NULL`,
+    [userId],
+  );
+  if (!user) return;
+  await addToOutbox(
+    tx,
+    createEnvelope(
+      UserProfileUpdatedV1,
+      {
+        userId,
+        displayName: user.display_name,
+        locale: user.locale,
+        photo: user.photo_key
+          ? profilePhotoUrls(photosBaseUrl, user.photo_key)
+          : null,
+      },
+      correlationId ? { correlationId } : {},
+    ),
+  );
 }

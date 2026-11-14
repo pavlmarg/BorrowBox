@@ -8,6 +8,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -26,6 +27,7 @@ import {
   type EventEnvelope,
   type ItemPricing,
   type ItemStatus,
+  type ProfilePhotoUrls,
 } from '@borrowbox/contracts';
 import { InvalidEventError, parsePayload } from '@borrowbox/service-kit';
 import type { ItemSnapshot } from './items.repository';
@@ -34,6 +36,19 @@ import type { ItemSnapshot } from './items.repository';
  * Identity's and Catalog's events as Bookings reads them, checked at runtime
  * with `parsePayload`: only the fields Bookings keeps.
  */
+
+const HTTP_URL = /^https?:\/\/\S+$/;
+
+/** A profile photo's addresses (ADR-0024), as Identity publishes them. */
+export class ProfilePhotoPayload implements ProfilePhotoUrls {
+  @Matches(HTTP_URL)
+  @MaxLength(2048)
+  small!: string;
+
+  @Matches(HTTP_URL)
+  @MaxLength(2048)
+  large!: string;
+}
 
 /** `user.registered.v1` and `user.profile_updated.v1`. */
 export class UserNamePayload {
@@ -44,6 +59,15 @@ export class UserNamePayload {
   @IsNotEmpty()
   @MaxLength(DISPLAY_NAME_MAX_LENGTH)
   displayName!: string;
+
+  /**
+   * `user.profile_updated` only: null for none; absent (`user.registered`,
+   * older events) means "unknown, keep what we have".
+   */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ProfilePhotoPayload)
+  photo?: ProfilePhotoPayload | null;
 }
 
 /** `user.email_verified.v1` and `user.deletion_requested.v1`. */

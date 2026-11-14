@@ -318,6 +318,7 @@ export class ItemsService {
       lenderProfile: profile
         ? {
             displayName: profile.displayName,
+            photo: profile.photo,
             updatedAt: profile.updatedAt.toISOString(),
           }
         : null,

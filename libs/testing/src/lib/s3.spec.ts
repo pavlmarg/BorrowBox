@@ -14,6 +14,7 @@ describe('startS3 (SeaweedFS + infra/storage scripts)', () => {
   let s3: TestS3;
   let admin: S3Client;
   let catalog: S3Client;
+  let identity: S3Client;
 
   const client = (credentials: S3Credentials) =>
     new S3Client({
@@ -30,11 +31,13 @@ describe('startS3 (SeaweedFS + infra/storage scripts)', () => {
     s3 = await startS3();
     admin = client(s3.admin);
     catalog = client(s3.catalog);
+    identity = client(s3.identity);
   });
 
   afterAll(async () => {
     admin?.destroy();
     catalog?.destroy();
+    identity?.destroy();
     await s3?.stop();
   });
 
@@ -165,14 +168,30 @@ describe('startS3 (SeaweedFS + infra/storage scripts)', () => {
     });
   });
 
-  describe("Catalog's key", () => {
+  describe.each([
+    ["Catalog's key", () => catalog],
+    ["Identity's key", () => identity],
+  ])('%s', (_name, service) => {
     it('cannot create or delete buckets', async () => {
       await expect(
-        catalog.send(new CreateBucketCommand({ Bucket: 'not-ours' })),
+        service().send(new CreateBucketCommand({ Bucket: 'not-ours' })),
       ).rejects.toMatchObject({ name: 'AccessDenied' });
       await expect(
-        catalog.send(new DeleteBucketCommand({ Bucket: s3.publicBucket })),
+        service().send(new DeleteBucketCommand({ Bucket: s3.publicBucket })),
       ).rejects.toMatchObject({ name: 'AccessDenied' });
+    });
+
+    it('can write processed photos to the public bucket', async () => {
+      await service().send(
+        new PutObjectCommand({
+          Bucket: s3.publicBucket,
+          Key: 'photos/key-check.jpg',
+          ContentType: 'image/jpeg',
+          Body: 'x',
+        }),
+      );
+      const read = await fetch(s3.publicUrl('photos/key-check.jpg'));
+      expect(read.status).toBe(200);
     });
   });
 });

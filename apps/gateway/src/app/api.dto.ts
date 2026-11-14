@@ -16,6 +16,8 @@ import {
   OAUTH_PROVIDERS,
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
+  PROFILE_PHOTO_UPLOAD_STATUSES,
+  type ProfilePhotoUploadStatus,
   isValidPassword,
   type Locale,
   type OAuthProvider,
@@ -28,6 +30,7 @@ import {
   NotificationsDataExportResponse,
 } from './messaging/messaging.api';
 import { PaymentsDataExportResponse } from './payments/payments.api';
+import { ProfilePhotoUrlsResponse } from './profile-photo.api';
 
 // HTTP DTOs: validated here, validated again by Identity (never trust the
 // edge alone), and the source of the OpenAPI spec the PWA client is generated from.
@@ -192,6 +195,20 @@ export class UserProfileResponse {
     isArray: true,
   })
   providers!: OAuthProvider[];
+  @ApiProperty({
+    type: ProfilePhotoUrlsResponse,
+    nullable: true,
+    description: 'Public profile photo (ADR-0024); null for none',
+  })
+  photo!: ProfilePhotoUrlsResponse | null;
+  @ApiProperty({
+    enum: PROFILE_PHOTO_UPLOAD_STATUSES,
+    enumName: 'ProfilePhotoUploadStatus',
+    nullable: true,
+    description:
+      'A new photo being processed (PENDING) or rejected (FAILED); null when none is waiting',
+  })
+  photoUpload!: ProfilePhotoUploadStatus | null;
   @ApiProperty({ format: 'date-time' }) createdAt!: string;
 }
 
@@ -217,6 +234,12 @@ export class ExportedUser {
   emailVerifiedAt!: string | null;
   @ApiProperty({ format: 'date-time' }) createdAt!: string;
   @ApiProperty({ format: 'date-time' }) updatedAt!: string;
+  @ApiProperty({
+    type: ProfilePhotoUrlsResponse,
+    nullable: true,
+    description: 'Public profile photo (ADR-0024); null for none',
+  })
+  photo!: ProfilePhotoUrlsResponse | null;
 }
 
 export class ExportedOAuthIdentity {

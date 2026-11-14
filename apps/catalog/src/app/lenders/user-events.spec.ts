@@ -163,6 +163,43 @@ describe('User events consumer (integration)', () => {
     expect((await lender(userId))?.display_name).toBe('Maria P.');
   });
 
+  it('keeps the newest profile photo, and forgets it on deletion', async () => {
+    const userId = randomUUID();
+    const photo = (key: string) => ({
+      small: `https://media.test/profiles/${key}/96.webp`,
+      large: `https://media.test/profiles/${key}/512.webp`,
+    });
+    const updated = (minute: number, value: unknown) =>
+      createEnvelope(
+        UserProfileUpdatedV1,
+        { userId, displayName: 'Maria', locale: 'el', photo: value } as never,
+        at(minute),
+      );
+    const photoOf = async () =>
+      (
+        await catalog.dataSource.query(
+          `SELECT photo FROM lenders WHERE user_id = $1`,
+          [userId],
+        )
+      )[0]?.photo;
+
+    await deliver(registered(userId, 'Maria', 0));
+    expect(await photoOf()).toBeNull();
+    await deliver(updated(10, photo('a')));
+    expect(await photoOf()).toEqual(photo('a'));
+    // Older, arriving late: ignored. Without the field: the photo stays.
+    await deliver(updated(5, photo('old')));
+    await deliver(renamed(userId, 'Maria P.', 20));
+    expect(await photoOf()).toEqual(photo('a'));
+    // Removed.
+    await deliver(updated(30, null));
+    expect(await photoOf()).toBeNull();
+
+    await deliver(updated(40, photo('b')));
+    await deliver(deleted(userId, 50));
+    expect(await photoOf()).toBeNull();
+  });
+
   it('creates the row from a profile update if the registration was missed', async () => {
     const userId = randomUUID();
     await deliver(renamed(userId, 'Nikos', 1));

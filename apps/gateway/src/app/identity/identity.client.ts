@@ -25,6 +25,8 @@ const STATUS: Record<IdentityErrorCode, HttpStatus> = {
   TOKEN_INVALID: HttpStatus.BAD_REQUEST,
   TOKEN_EXPIRED: HttpStatus.BAD_REQUEST,
   PASSWORD_NOT_SET: HttpStatus.CONFLICT,
+  // Confirming a profile photo with no upload waiting, or before it arrived.
+  INVALID_STATE: HttpStatus.CONFLICT,
   INTERNAL: HttpStatus.INTERNAL_SERVER_ERROR,
 };
 

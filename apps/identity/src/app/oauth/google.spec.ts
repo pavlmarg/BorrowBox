@@ -7,8 +7,10 @@ import {
 import {
   startPostgres,
   startRabbitMq,
+  startRedis,
   type TestPostgres,
   type TestRabbitMq,
+  type TestRedis,
 } from '@borrowbox/testing';
 import {
   FakeOidcProvider,
@@ -24,19 +26,22 @@ import { displayNameFor } from './google-auth.service';
 describe('Identity Google sign-in (integration)', () => {
   let pg: TestPostgres;
   let rabbit: TestRabbitMq;
+  let redis: TestRedis;
   let google: FakeOidcProvider;
   let identity: IdentityHarness;
   const savedEnv = { ...process.env };
 
   beforeAll(async () => {
-    [pg, rabbit, google] = await Promise.all([
+    [pg, rabbit, redis, google] = await Promise.all([
       startPostgres(),
       startRabbitMq(),
+      startRedis(),
       FakeOidcProvider.start(),
     ]);
     identity = await startIdentity({
       databaseUrl: pg.urlFor('identity'),
       rabbitmqUrl: rabbit.url,
+      redisUrl: redis.url,
       env: google.env,
     });
   });
@@ -44,7 +49,12 @@ describe('Identity Google sign-in (integration)', () => {
   afterAll(async () => {
     await identity?.close();
     process.env = savedEnv;
-    await Promise.all([pg?.stop(), rabbit?.stop(), google?.stop()]);
+    await Promise.all([
+      pg?.stop(),
+      rabbit?.stop(),
+      redis?.stop(),
+      google?.stop(),
+    ]);
   });
 
   let n = 0;
@@ -96,6 +106,8 @@ describe('Identity Google sign-in (integration)', () => {
       emailVerified: true,
       hasPassword: false,
       providers: ['google'],
+      photo: null,
+      photoUpload: null,
       createdAt: expect.any(String),
     });
     const verifier = await createAccessTokenVerifier(identity.keys);

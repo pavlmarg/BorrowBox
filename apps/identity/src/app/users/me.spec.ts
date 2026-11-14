@@ -8,8 +8,10 @@ import {
 import {
   startPostgres,
   startRabbitMq,
+  startRedis,
   type TestPostgres,
   type TestRabbitMq,
+  type TestRedis,
 } from '@borrowbox/testing';
 import {
   startIdentity,
@@ -21,21 +23,27 @@ import { hashRefreshToken } from '../auth/refresh-token';
 describe('Identity me.* (integration)', () => {
   let pg: TestPostgres;
   let rabbit: TestRabbitMq;
+  let redis: TestRedis;
   let identity: IdentityHarness;
   const savedEnv = { ...process.env };
 
   beforeAll(async () => {
-    [pg, rabbit] = await Promise.all([startPostgres(), startRabbitMq()]);
+    [pg, rabbit, redis] = await Promise.all([
+      startPostgres(),
+      startRabbitMq(),
+      startRedis(),
+    ]);
     identity = await startIdentity({
       databaseUrl: pg.urlFor('identity'),
       rabbitmqUrl: rabbit.url,
+      redisUrl: redis.url,
     });
   });
 
   afterAll(async () => {
     await identity?.close();
     process.env = savedEnv;
-    await Promise.all([pg?.stop(), rabbit?.stop()]);
+    await Promise.all([pg?.stop(), rabbit?.stop(), redis?.stop()]);
   });
 
   const PASSWORD = 'correct horse 42';
@@ -153,7 +161,12 @@ describe('Identity me.* (integration)', () => {
       await identity.send(IdentityRpc.updateMe, { locale: 'en' }, as(s));
       const events = await profileEvents(s.user.id);
       expect(events.map((e) => e.envelope['payload'])).toEqual([
-        { userId: s.user.id, displayName: s.user.displayName, locale: 'en' },
+        {
+          userId: s.user.id,
+          displayName: s.user.displayName,
+          locale: 'en',
+          photo: null,
+        },
       ]);
     });
 
@@ -215,6 +228,7 @@ describe('Identity me.* (integration)', () => {
         emailVerifiedAt: null,
         createdAt: s.user.createdAt,
         updatedAt: expect.any(String),
+        photo: null,
       });
       expect(data.oauthIdentities).toEqual([]);
       // Two sign-ins; the refresh rotated within the second session.
@@ -313,11 +327,13 @@ describe('Identity me.* (integration)', () => {
         displayName: 'Deleted user',
         locale: 'el',
       });
-      // …and the kept user.profile_updated row no longer holds the new name.
+      // …and the kept user.profile_updated row no longer holds the new name
+      // (or a photo).
       expect(events[1].envelope.payload).toEqual({
         userId: s.user.id,
         displayName: 'Deleted user',
         locale: 'el',
+        photo: null,
       });
       expect(JSON.stringify(events)).not.toContain(s.user.email);
       expect(JSON.stringify(events)).not.toContain('Renamed Before Deletion');

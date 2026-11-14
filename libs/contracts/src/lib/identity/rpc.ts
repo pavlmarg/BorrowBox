@@ -1,3 +1,6 @@
+import type { PhotoContentType } from '../catalog/validation';
+import type { ProfilePhotoUploadStatus, ProfilePhotoUrls } from './photos';
+
 /**
  * Gateway → Identity request/response contracts (NestJS TCP, ADR-0005).
  *
@@ -34,6 +37,8 @@ export type IdentityErrorCode =
   | 'TOKEN_EXPIRED'
   /** Changing the password needs a current one; accounts without one use a reset link instead. */
   | 'PASSWORD_NOT_SET'
+  /** A profile photo confirmed before its upload arrived, or with no upload started. */
+  | 'INVALID_STATE'
   /** Unexpected failure; details are only in Identity's logs. */
   | 'INTERNAL';
 
@@ -55,6 +60,10 @@ export interface UserProfile {
   /** False for OAuth-only accounts, and after an auto-link cleared an unverified password. */
   hasPassword: boolean;
   providers: OAuthProvider[];
+  /** The processed profile photo (ADR-0024), or null for the silhouette. Public, like the name. */
+  photo: ProfilePhotoUrls | null;
+  /** A new photo being processed or rejected; null when none is waiting. */
+  photoUpload: ProfilePhotoUploadStatus | null;
   createdAt: string;
 }
 
@@ -149,6 +158,24 @@ export interface ChangePasswordRequest {
   newPassword: string;
 }
 
+/**
+ * Starts a new profile photo (ADR-0024). Replaces any upload still waiting;
+ * the current photo stays until the new one is ready.
+ */
+export interface ProfilePhotoUploadRequest {
+  /** Signed into the upload URL: storage refuses any other type. */
+  contentType: PhotoContentType;
+  /** As declared; the worker checks the real size. */
+  sizeBytes: number;
+}
+
+/** PUT the file to `uploadUrl` with exactly `uploadHeaders`, then confirm. */
+export interface ProfilePhotoUpload {
+  uploadUrl: string;
+  uploadHeaders: Record<string, string>;
+  expiresAt: string;
+}
+
 /** Identity's part of `GET /me/export`. No secrets: no hashes, tokens or provider tokens. */
 export interface IdentityDataExport {
   exportedAt: string;
@@ -161,6 +188,8 @@ export interface IdentityDataExport {
     emailVerifiedAt: string | null;
     createdAt: string;
     updatedAt: string;
+    /** The public profile photo's addresses, or null. */
+    photo: ProfilePhotoUrls | null;
   };
   oauthIdentities: Array<{ provider: OAuthProvider; linkedAt: string }>;
   sessions: Array<{ createdAt: string; expiresAt: string }>;
@@ -183,6 +212,9 @@ export const IdentityRpc = {
   changePassword: 'identity.me.password.change',
   exportMe: 'identity.me.export',
   deleteMe: 'identity.me.delete',
+  requestPhotoUpload: 'identity.me.photo.upload',
+  confirmPhoto: 'identity.me.photo.confirm',
+  removePhoto: 'identity.me.photo.remove',
 } as const;
 
 /**
@@ -231,6 +263,20 @@ export interface IdentityRpcContract {
   [IdentityRpc.deleteMe]: {
     request: DeleteAccountRequest;
     response: void;
+  };
+  [IdentityRpc.requestPhotoUpload]: {
+    request: ProfilePhotoUploadRequest;
+    response: ProfilePhotoUpload;
+  };
+  /** The upload has arrived: queue processing. Repeating it is safe. */
+  [IdentityRpc.confirmPhoto]: {
+    request: Record<string, never>;
+    response: UserProfile;
+  };
+  /** Removes the photo and any upload waiting. A no-op without one. */
+  [IdentityRpc.removePhoto]: {
+    request: Record<string, never>;
+    response: UserProfile;
   };
 }
 

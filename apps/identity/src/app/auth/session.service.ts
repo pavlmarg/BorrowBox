@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { EntityManager } from 'typeorm';
 import type { AccessTokenSigner } from '@borrowbox/auth';
 import type { AuthSession } from '@borrowbox/contracts';
+import type { IdentityConfig } from '../config';
 import { loadProfile } from '../users/user-profile';
 import {
   REFRESH_TOKEN_TTL_MS,
@@ -15,9 +17,14 @@ export const ACCESS_TOKEN_SIGNER = Symbol('ACCESS_TOKEN_SIGNER');
 /** Issues access + refresh tokens. Always called inside the caller's transaction. */
 @Injectable()
 export class SessionService {
+  private readonly photosBaseUrl: string;
+
   constructor(
     @Inject(ACCESS_TOKEN_SIGNER) private readonly signer: AccessTokenSigner,
-  ) {}
+    config: ConfigService<IdentityConfig, true>,
+  ) {
+    this.photosBaseUrl = config.get('PHOTOS_BASE_URL', { infer: true });
+  }
 
   /**
    * A new sign-in: new token family, expiring 30 days from now. Also deletes
@@ -67,7 +74,7 @@ export class SessionService {
       accessTokenExpiresAt: access.expiresAt.toISOString(),
       refreshToken,
       refreshTokenExpiresAt: familyExpiresAt.toISOString(),
-      user: await loadProfile(tx, userId),
+      user: await loadProfile(tx, userId, this.photosBaseUrl),
     };
   }
 }

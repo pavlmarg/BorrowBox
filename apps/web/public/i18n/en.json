@@ -89,7 +89,20 @@
       "button": "Delete my account"
     },
     "editProfile": "Edit profile",
-    "changePhoto": "Profile photos are coming soon",
+    "photo": {
+      "change": "Change photo",
+      "remove": "Remove photo",
+      "uploading": "Uploading your photo…",
+      "processing": "Getting your photo ready…",
+      "hint": "Your photo is public, like your name, and is cropped to a square.",
+      "errors": {
+        "unsupported": "This file type isn't supported here. Try JPEG or PNG.",
+        "tooSmall": "Photo too small (at least 128 px on each side).",
+        "tooLarge": "File too large (up to 10 MB).",
+        "unreadable": "This photo can't be read.",
+        "rejected": "We couldn't use that photo. Try another one."
+      }
+    },
     "payouts": {
       "title": "Payouts",
       "description": "To accept paid bookings, set up the Stripe account BorrowBox pays you through.",

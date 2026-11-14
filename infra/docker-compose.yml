@@ -69,7 +69,7 @@ services:
 
   # S3-compatible object storage (Cloudflare R2 in production), ADR-0009:
   # a private uploads bucket and a public-read bucket for processed photos.
-  # Identities (admin / catalog / anonymous) come from infra/storage/seaweedfs.sh.
+  # Identities (admin / catalog / identity / anonymous) come from infra/storage/seaweedfs.sh.
   seaweedfs:
     image: chrislusf/seaweedfs:4.48
     environment:
@@ -77,6 +77,8 @@ services:
       S3_ADMIN_SECRET_ACCESS_KEY: ${S3_ADMIN_SECRET_ACCESS_KEY:?set in infra/.env}
       S3_CATALOG_ACCESS_KEY_ID: ${S3_CATALOG_ACCESS_KEY_ID:?set in infra/.env}
       S3_CATALOG_SECRET_ACCESS_KEY: ${S3_CATALOG_SECRET_ACCESS_KEY:?set in infra/.env}
+      S3_IDENTITY_ACCESS_KEY_ID: ${S3_IDENTITY_ACCESS_KEY_ID:?set in infra/.env}
+      S3_IDENTITY_SECRET_ACCESS_KEY: ${S3_IDENTITY_SECRET_ACCESS_KEY:?set in infra/.env}
       S3_UPLOADS_BUCKET: ${S3_UPLOADS_BUCKET:-borrowbox-uploads}
       S3_PUBLIC_BUCKET: ${S3_PUBLIC_BUCKET:-borrowbox-public}
     entrypoint: ['/bin/sh', '/storage/seaweedfs.sh']

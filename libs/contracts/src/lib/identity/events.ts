@@ -1,4 +1,5 @@
 import { defineEvent } from '../events/envelope';
+import type { ProfilePhotoUrls } from './photos';
 import type { Locale } from './rpc';
 
 /**
@@ -28,6 +29,12 @@ export interface UserProfileUpdatedV1Payload {
   userId: string;
   displayName: string;
   locale: Locale;
+  /**
+   * The public profile photo (ADR-0024): its addresses, or null for none.
+   * Added later, so optional: absent (older events) means "unknown, keep
+   * what you have". Sent with every change, including the photo's own.
+   */
+  photo?: ProfilePhotoUrls | null;
 }
 export const UserProfileUpdatedV1 = defineEvent<UserProfileUpdatedV1Payload>()(
   'user.profile_updated',

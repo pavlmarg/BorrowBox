@@ -1,3 +1,4 @@
+import type { ProfilePhotoUrls } from '../identity/photos';
 /**
  * Gateway → Catalog request/response contracts (NestJS TCP, ADR-0005).
  *
@@ -116,10 +117,15 @@ export interface ReorderPhotosRequest extends ItemRef {
 export interface CatalogDataExport {
   exportedAt: string;
   /**
-   * Catalog's copy of the caller's name (kept from Identity's events, shown
-   * on their items), or null if Catalog hasn't received it.
+   * Catalog's copy of the caller's name and profile photo (kept from
+   * Identity's events, shown on their items), or null if Catalog hasn't
+   * received it.
    */
-  lenderProfile: { displayName: string; updatedAt: string } | null;
+  lenderProfile: {
+    displayName: string;
+    photo: ProfilePhotoUrls | null;
+    updatedAt: string;
+  } | null;
   /** When Catalog learned the email was verified (publishing needs it), or null. */
   emailVerifiedAt: string | null;
   items: OwnItem[];
