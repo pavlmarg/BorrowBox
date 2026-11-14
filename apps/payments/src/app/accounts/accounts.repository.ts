@@ -104,6 +104,22 @@ export async function setStripeAccountId(
   );
 }
 
+/**
+ * Drops a row whose Stripe account was refused, so the next try writes a new
+ * row and so sends Stripe a new idempotency key. Only while no Stripe account
+ * is saved and the lender wasn't erased meanwhile.
+ */
+export async function forgetRefusedAccount(
+  tx: EntityManager,
+  id: string,
+): Promise<void> {
+  await tx.query(
+    `DELETE FROM connected_accounts
+      WHERE id = $1 AND stripe_account_id IS NULL AND deleted_at IS NULL`,
+    [id],
+  );
+}
+
 /** Stores the flags just fetched from Stripe, and what was announced. */
 export async function saveFlags(
   tx: EntityManager,

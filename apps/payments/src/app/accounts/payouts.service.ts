@@ -8,6 +8,7 @@ import type { PaymentsConfig } from '../config';
 import { PaymentsError, unauthenticated, viaStripe } from '../payments.error';
 import {
   STRIPE_API,
+  StripeRequestError,
   type StripeApi,
   type StripeLink,
 } from '../stripe/stripe-api';
@@ -15,6 +16,7 @@ import { findUser } from '../users/verified-users.repository';
 import {
   findAccountByUser,
   flagsOf,
+  forgetRefusedAccount,
   insertAccount,
   lockUser,
   setStripeAccountId,
@@ -55,7 +57,8 @@ export class PayoutsService {
    * Creates the lender's Stripe account the first time (A1) and returns a
    * link to Stripe's onboarding. Safe to repeat: the row is written first,
    * and Stripe's idempotency key is derived from it, so a retry after a
-   * crash gets the same Stripe account back.
+   * crash gets the same Stripe account back. A refused creation drops the
+   * row, so a retry isn't refused again under the same key.
    */
   async startOnboarding(userId: string): Promise<StripeLinkView> {
     const row = await this.dataSource.transaction(async (tx) => {
@@ -75,13 +78,23 @@ export class PayoutsService {
     let accountId = row.stripe_account_id;
     if (!accountId) {
       // Outside the transaction: no lock is held while Stripe answers.
-      accountId = await viaStripe(() =>
-        this.stripe.createAccount({
-          userId,
-          country: this.country,
-          idempotencyKey: `account-${row.id}`,
-        }),
-      );
+      accountId = await viaStripe(async () => {
+        try {
+          return await this.stripe.createAccount({
+            userId,
+            country: this.country,
+            idempotencyKey: `account-${row.id}`,
+          });
+        } catch (err) {
+          // Stripe made no account, but answers this key with the same
+          // refusal for 24 hours. A new row brings a new key, so the next
+          // try works as soon as the cause is fixed.
+          if (err instanceof StripeRequestError) {
+            await forgetRefusedAccount(this.dataSource.manager, row.id);
+          }
+          throw err;
+        }
+      });
       await setStripeAccountId(this.dataSource.manager, row.id, accountId);
     }
     // An erasure that came in while Stripe was answering wins: the worker
