@@ -25,7 +25,7 @@ ADRs — read the relevant one before touching that area:
 
 ## Current phase
 
-**Phase 4 – Payments, backend first** (update this line as phases complete; see roadmap in `README.md`). Phase 3's backend is merged; the PWA screens for Phases 3 and 4 are built together after Phase 4's backend. Phase 1 and 2 follow-ups are listed there.
+**Phase 5 – Handoff** (update this line as phases complete; see roadmap in `README.md`): QR pickup/return (ARCHITECTURE §5), condition photos, the 48 h claim window. Phases 3 and 4 are done, backend and PWA. Earlier phases' follow-ups are listed in the roadmap.
 
 - Only build what the current phase needs. If a task seems to require a later-phase feature, stop and ask.
 - Messaging and Reviews start as modules inside `apps/bookings` until their event contracts settle.
