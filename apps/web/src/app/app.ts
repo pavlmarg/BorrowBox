@@ -13,6 +13,7 @@ import { AuthStore } from './core/auth/auth.store';
 import { AccountLanguage } from './core/i18n/account-language';
 import { LANGUAGES, LanguageService } from './core/i18n/language';
 import { LanguageToggle } from './core/i18n/language-toggle';
+import { ThemeService } from './core/theme/theme';
 
 @Component({
   selector: 'bb-root',
@@ -37,6 +38,9 @@ export class App {
   );
 
   constructor() {
+    // Applies the saved theme and follows the device's while on "system".
+    inject(ThemeService);
+
     // Load every language up front so the flag toggle switches instantly.
     const transloco = inject(TranslocoService);
     for (const lang of LANGUAGES) transloco.load(lang).subscribe();

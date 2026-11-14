@@ -1,3 +1,4 @@
 {
-  "mapStyleUrl": "https://api.maptiler.com/maps/streets-v2/style.json?key=YOUR_MAPTILER_KEY"
+  "mapStyleUrl": "https://api.maptiler.com/maps/streets-v2/style.json?key=YOUR_MAPTILER_KEY",
+  "stripePublishableKey": "pk_test_YOUR_STRIPE_PUBLISHABLE_KEY"
 }

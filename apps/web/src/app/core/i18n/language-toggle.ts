@@ -4,9 +4,11 @@ import {
   computed,
   inject,
   output,
+  signal,
 } from '@angular/core';
 import { TranslocoDirective } from '@jsverse/transloco';
 import type { Locale } from '../../api/models';
+import { SmoothSwitch } from '../motion/smooth-switch';
 import { LanguageService } from './language';
 
 /** Counts instances, for unique SVG ids. */
@@ -30,7 +32,9 @@ let toggles = 0;
         t('nav.switchTo', { language: t('languages.' + next()) })
       "
       [attr.title]="t('languages.' + next())"
-      (click)="toggle()"
+      [class.pop]="popping()"
+      (click)="toggle($event)"
+      (animationend)="popping.set(false)"
     >
       @if (current() === 'en') {
         <span class="flag" lang="en">
@@ -78,8 +82,8 @@ let toggles = 0;
     .toggle {
       align-items: center;
       backdrop-filter: blur(8px);
-      background: rgb(255 255 255 / 0.78);
-      border: 1px solid rgb(16 58 99 / 0.1);
+      background: rgb(var(--bb-surface-rgb) / 0.78);
+      border: 1px solid rgb(var(--bb-line-rgb) / 0.1);
       border-radius: var(--bb-control-radius, 6px);
       box-shadow: var(--bb-shadow-sm);
       cursor: pointer;
@@ -100,6 +104,28 @@ let toggles = 0;
       outline: 3px solid var(--bb-sky-300);
       outline-offset: 2px;
     }
+    /* A small squeeze of the flag on click. */
+    .toggle.pop .flag {
+      animation: bb-flag-pop 320ms var(--bb-ease);
+    }
+    @keyframes bb-flag-pop {
+      40% {
+        transform: scale(0.8);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .toggle.pop .flag {
+        animation: none;
+      }
+    }
+    /* In the app's top bar and drawer: the plain flag, no box or lift. */
+    :host-context(bb-app-shell) .toggle {
+      backdrop-filter: none;
+      background: none;
+      border-color: transparent;
+      box-shadow: none;
+      transform: none;
+    }
 
     .flag {
       border-radius: var(--bb-flag-radius, 3px);
@@ -117,6 +143,8 @@ let toggles = 0;
 })
 export class LanguageToggle {
   private readonly language = inject(LanguageService);
+  private readonly smooth = inject(SmoothSwitch);
+  protected readonly popping = signal(false);
 
   /** Emits the newly chosen language (the app saves it for signed-in users). */
   readonly changed = output<Locale>();
@@ -128,7 +156,12 @@ export class LanguageToggle {
     this.current() === 'el' ? 'en' : 'el',
   );
 
-  protected toggle(): void {
-    this.changed.emit(this.next());
+  protected toggle(event: Event): void {
+    const next = this.next();
+    this.popping.set(true);
+    this.smooth.run(
+      () => this.changed.emit(next),
+      event.currentTarget as HTMLElement,
+    );
   }
 }

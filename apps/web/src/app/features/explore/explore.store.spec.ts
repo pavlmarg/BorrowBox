@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, type HttpRequest } from '@angular/common/http';
 import {
   HttpTestingController,
   provideHttpClientTesting,
@@ -20,7 +20,16 @@ function setup() {
   };
 }
 
-const SEARCH = { method: 'POST', url: '/api/items/search' };
+/** The search within the radius (not the "Further away" one after it). */
+const SEARCH = (req: HttpRequest<unknown>) =>
+  req.method === 'POST' &&
+  req.url === '/api/items/search' &&
+  !(req.body as { beyond?: boolean }).beyond;
+/** "Further away" (ADR-0023), loaded once the results run out. */
+const FURTHER = (req: HttpRequest<unknown>) =>
+  req.method === 'POST' &&
+  req.url === '/api/items/search' &&
+  (req.body as { beyond?: boolean }).beyond === true;
 const FEATURED = { method: 'POST', url: '/api/items/featured' };
 const COUNTS = { method: 'POST', url: '/api/items/category-counts' };
 const answer = (req: TestRequest, ids: string[], nextCursor: string | null) =>
@@ -59,6 +68,47 @@ describe('ExploreStore', () => {
 
     expect(store.items().map((i) => i.id)).toEqual(['a', 'b']);
     expect(store.hasMore()).toBe(false);
+  });
+
+  it('lists what is further away once the results run out, page by page', async () => {
+    const { store, http } = setup();
+    const first = store.start({ ...DEFAULT_FILTERS, category: 'garden' });
+    answer(http.expectOne(SEARCH), ['a'], 'next-1');
+    await first;
+    http.expectNone(FURTHER);
+
+    const more = store.loadMore();
+    answer(http.expectOne(SEARCH), ['b'], null);
+    await more;
+    const req = http.expectOne(FURTHER);
+    expect(req.request.body).toEqual(
+      expect.objectContaining({
+        beyond: true,
+        category: 'garden',
+        radiusKm: 5,
+      }),
+    );
+    expect(req.request.body.cursor).toBeUndefined();
+    answer(req, ['far-1'], 'far-next');
+    await tick();
+    expect(store.further().items.map((i) => i.id)).toEqual(['far-1']);
+
+    const next = store.loadFurther();
+    const page2 = http.expectOne(FURTHER);
+    expect(page2.request.body.cursor).toBe('far-next');
+    answer(page2, ['far-2'], null);
+    await next;
+    expect(store.further().items.map((i) => i.id)).toEqual(['far-1', 'far-2']);
+    expect(store.further().nextCursor).toBeNull();
+
+    // A new search starts the further list over.
+    const again = store.setFilters({ category: 'tools' });
+    expect(store.further().items).toEqual([]);
+    answer(http.expectOne(SEARCH), [], null);
+    await again;
+    answer(http.expectOne(FURTHER), ['far-3'], null);
+    await tick();
+    expect(store.further().items.map((i) => i.id)).toEqual(['far-3']);
   });
 
   it('starts over when a filter changes', async () => {
@@ -129,6 +179,10 @@ describe('ExploreStore', () => {
     expect(store.filters().radiusKm).toBe(2);
     http.expectOne(FEATURED);
     http.expectOne(COUNTS);
+    // Nothing here: what lies beyond the new area's radius.
+    expect(http.expectOne(FURTHER).request.body).toEqual(
+      expect.objectContaining({ near: { lat: 38, lng: 23.8 }, radiusKm: 2 }),
+    );
     http.verify();
   });
 

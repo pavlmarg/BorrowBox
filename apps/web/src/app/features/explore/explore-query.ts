@@ -102,10 +102,13 @@ export function searchBody(
   f: ExploreFilters,
   near: GeoPoint,
   cursor: string | null = null,
+  beyond = false,
 ): SearchItemsBody {
   return {
     near,
     radiusKm: f.radiusKm,
+    // "Further away" (ADR-0023): only what lies beyond the radius.
+    ...(beyond ? { beyond: true } : {}),
     ...(f.q ? { q: f.q } : {}),
     ...(f.category ? { category: f.category } : {}),
     ...(f.freeOnly ? { freeOnly: true } : {}),

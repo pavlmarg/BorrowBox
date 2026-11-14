@@ -19,13 +19,15 @@ import { ResultRow } from '../../shared/catalog/result-row';
 import { EurPipe } from '../../shared/format/eur.pipe';
 import { offeredRates } from '../../shared/format/pricing';
 import { MapView } from '../../shared/map/map-view';
+import { BookPanel } from '../bookings/book-panel';
+import { AskLender } from '../chat/ask-lender';
 import { ItemGallery } from './item-gallery';
 import { ItemStore } from './item.store';
 
 /**
- * An item's public page (step 12c). Anyone can open it. Requests open in
- * Phase 3, so the borrow button is shown but disabled. The map shows only
- * the approximate area (ADR-0007).
+ * An item's public page (step 12c). Anyone can open it; others than its
+ * owner can pick a period and request it (the booking part, ADR-0015). The
+ * map shows only the approximate area (ADR-0007).
  */
 @Component({
   selector: 'bb-item-page',
@@ -39,6 +41,8 @@ import { ItemStore } from './item.store';
     EurPipe,
     MapView,
     ItemGallery,
+    BookPanel,
+    AskLender,
   ],
   providers: [ItemStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -147,10 +151,14 @@ import { ItemStore } from './item.store';
                   <p class="hint">{{ t('item.depositHint') }}</p>
                 }
 
-                <button mat-flat-button type="button" class="cta" disabled>
-                  {{ t('item.requestToBorrow') }}
-                </button>
-                <p class="hint">{{ t('item.requestsSoon') }}</p>
+                @if (!isOwner()) {
+                  <bb-book-panel
+                    [item]="item"
+                    [initialStart]="start()"
+                    [initialEnd]="end()"
+                  />
+                  <bb-ask-lender [itemId]="item.id" />
+                }
 
                 <div class="lender">
                   <bb-avatar [size]="44" />
@@ -290,7 +298,7 @@ import { ItemStore } from './item.store';
     }
     .rate,
     .deposit {
-      border-bottom: 1px solid rgb(16 58 99 / 0.08);
+      border-bottom: 1px solid rgb(var(--bb-line-rgb) / 0.08);
       display: flex;
       justify-content: space-between;
       padding: 8px 0;
@@ -302,13 +310,9 @@ import { ItemStore } from './item.store';
       font-weight: 700;
       margin: 0;
     }
-    .cta {
-      margin-top: 20px;
-      width: 100%;
-    }
     .lender {
       align-items: center;
-      border-top: 1px solid rgb(16 58 99 / 0.08);
+      border-top: 1px solid rgb(var(--bb-line-rgb) / 0.08);
       display: flex;
       gap: 12px;
       margin-top: 24px;
@@ -331,7 +335,7 @@ import { ItemStore } from './item.store';
       margin-top: 40px;
     }
     .similar h2 {
-      border-bottom: 1px solid rgb(16 58 99 / 0.08);
+      border-bottom: 1px solid rgb(var(--bb-line-rgb) / 0.08);
       margin: 0;
       padding-bottom: 12px;
     }
@@ -354,7 +358,7 @@ import { ItemStore } from './item.store';
       gap: 12px;
     }
     .block {
-      background: rgb(16 58 99 / 0.07);
+      background: rgb(var(--bb-line-rgb) / 0.07);
       display: block;
     }
     .block.photo {
@@ -373,6 +377,9 @@ import { ItemStore } from './item.store';
 export class ItemPage {
   /** From the route (`/items/:id`). */
   readonly id = input.required<string>();
+  /** A period to offer in the booking part (`?start=&end=`, ISO instants). */
+  readonly start = input<string>();
+  readonly end = input<string>();
 
   protected readonly store = inject(ItemStore);
   protected readonly language = inject(LanguageService);

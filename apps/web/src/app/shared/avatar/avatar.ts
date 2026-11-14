@@ -24,7 +24,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
   `,
   styles: `
     :host {
-      background: #dde3ea;
+      background: var(--bb-avatar-bg);
       border-radius: 50%;
       display: block;
       flex: none;
@@ -40,7 +40,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
     }
     .silhouette {
       display: block;
-      fill: #9aa6b4;
+      fill: var(--bb-avatar-fg);
       height: 100%;
       width: 100%;
     }

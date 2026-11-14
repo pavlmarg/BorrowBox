@@ -20,19 +20,23 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
-import { Router } from '@angular/router';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { Router, RouterLink } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
 import { DISPLAY_NAME_MAX_LENGTH } from '@borrowbox/contracts';
 import type { Locale } from '../../api/models';
 import { errorKey } from '../../core/api-errors';
 import { AuthStore } from '../../core/auth/auth.store';
 import { LANGUAGES, LanguageService } from '../../core/i18n/language';
+import { ChangePassword } from '../account-emails/change-password';
+import { VerifyEmailNotice } from '../account-emails/verify-email-notice';
 import { GoogleButton } from '../auth/google-button';
 import {
   DeleteAccountDialog,
   type DeleteAccountDialogData,
   type DeleteAccountDialogResult,
 } from './delete-account.dialog';
+import { ThemeService } from '../../core/theme/theme';
 import { ProfileStore } from './profile.store';
 import { maxCharacters } from '../../shared/forms/validators';
 
@@ -41,6 +45,7 @@ import { maxCharacters } from '../../shared/forms/validators';
   imports: [
     DatePipe,
     ReactiveFormsModule,
+    RouterLink,
     TranslocoDirective,
     MatButtonModule,
     MatCardModule,
@@ -50,6 +55,9 @@ import { maxCharacters } from '../../shared/forms/validators';
     MatProgressBarModule,
     MatSelectModule,
     GoogleButton,
+    VerifyEmailNotice,
+    ChangePassword,
+    MatSlideToggleModule,
   ],
   providers: [ProfileStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -57,6 +65,7 @@ import { maxCharacters } from '../../shared/forms/validators';
     <ng-container *transloco="let t">
       @if (auth.user(); as user) {
         <h1 class="page-title">{{ t('nav.settings') }}</h1>
+        <bb-verify-email-notice />
 
         @if (store.busy()) {
           <mat-progress-bar mode="indeterminate" />
@@ -159,6 +168,42 @@ import { maxCharacters } from '../../shared/forms/validators';
             </mat-card-content>
           </mat-card>
 
+          <bb-change-password />
+
+          <mat-card appearance="outlined">
+            <mat-card-header>
+              <mat-card-title>{{
+                t('profile.appearance.title')
+              }}</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <mat-slide-toggle
+                [checked]="theme.preference() === 'system'"
+                (change)="followDevice($event.checked)"
+                >{{ t('profile.appearance.followDevice') }}</mat-slide-toggle
+              >
+              <p class="muted">{{ t('profile.appearance.hint') }}</p>
+            </mat-card-content>
+          </mat-card>
+
+          <mat-card appearance="outlined">
+            <mat-card-header>
+              <mat-card-title>{{ t('profile.payouts.title') }}</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <p class="muted">{{ t('profile.payouts.description') }}</p>
+              <a
+                class="payouts-link bb-text-action-host"
+                routerLink="/settings/payouts"
+              >
+                <span class="bb-text-action">{{
+                  t('profile.payouts.link')
+                }}</span>
+                <span aria-hidden="true">›</span>
+              </a>
+            </mat-card-content>
+          </mat-card>
+
           <mat-card appearance="outlined">
             <mat-card-header>
               <mat-card-title>{{ t('profile.export.title') }}</mat-card-title>
@@ -218,6 +263,14 @@ import { maxCharacters } from '../../shared/forms/validators';
     .danger {
       color: var(--mat-sys-error);
     }
+    .payouts-link {
+      align-items: center;
+      color: var(--mat-sys-primary);
+      display: inline-flex;
+      font-weight: 500;
+      gap: 6px;
+      text-decoration: none;
+    }
     mat-card-actions {
       gap: 12px;
     }
@@ -235,6 +288,7 @@ export class SettingsPage implements OnInit {
   protected readonly language = inject(LanguageService);
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
+  protected readonly theme = inject(ThemeService);
 
   protected readonly languages = LANGUAGES;
   protected readonly errorKey = errorKey;
@@ -305,5 +359,10 @@ export class SettingsPage implements OnInit {
           });
         }
       });
+  }
+
+  /** On: follow the device. Off: keep today's look, chosen by the top bar's button. */
+  protected followDevice(on: boolean): void {
+    this.theme.use(on ? 'system' : this.theme.theme());
   }
 }

@@ -1,27 +1,28 @@
 import type { ItemCategory } from '@borrowbox/contracts';
 
 /**
- * One accent colour per category, for its label and distance chip. Spread
- * around the colour wheel, each dark enough for text on the page background
- * (WCAG AA, 4.5:1). Typed against the category list, so a new category
- * can't be left without one.
+ * One accent colour per category, for its label and distance chip: a CSS
+ * variable (`--bb-cat-<category>` in styles.scss), so dark mode can give
+ * each a lighter shade. Spread around the colour wheel, each with AA
+ * contrast (4.5:1) for text on the page background in both themes. Typed
+ * against the category list, so a new category can't be left without one.
  */
 export const CATEGORY_COLORS: Record<ItemCategory, string> = {
-  party: '#b91c1c',
-  tools: '#c2410c',
-  'diy-ladders': '#b45309',
-  kitchen: '#854d0e',
-  camping: '#4d7c0f',
-  garden: '#15803d',
-  travel: '#0f766e',
-  cleaning: '#0e7490',
-  sports: '#1d4ed8',
-  electronics: '#4338ca',
-  'photo-video': '#6d28d9',
-  music: '#a21caf',
-  kids: '#be185d',
-  vehicles: '#334155',
-  other: '#57534e',
+  party: 'var(--bb-cat-party)',
+  tools: 'var(--bb-cat-tools)',
+  'diy-ladders': 'var(--bb-cat-diy-ladders)',
+  kitchen: 'var(--bb-cat-kitchen)',
+  camping: 'var(--bb-cat-camping)',
+  garden: 'var(--bb-cat-garden)',
+  travel: 'var(--bb-cat-travel)',
+  cleaning: 'var(--bb-cat-cleaning)',
+  sports: 'var(--bb-cat-sports)',
+  electronics: 'var(--bb-cat-electronics)',
+  'photo-video': 'var(--bb-cat-photo-video)',
+  music: 'var(--bb-cat-music)',
+  kids: 'var(--bb-cat-kids)',
+  vehicles: 'var(--bb-cat-vehicles)',
+  other: 'var(--bb-cat-other)',
 };
 
 export function categoryColor(category: string): string {

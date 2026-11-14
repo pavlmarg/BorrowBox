@@ -129,14 +129,15 @@ import { GoogleButton } from './google-button';
     .failure {
       animation: rise var(--bb-fade) var(--bb-ease) both;
       background: var(--bb-card-bg);
-      border: 1px solid rgb(186 26 26 / 0.18);
+      border: 1px solid
+        color-mix(in srgb, var(--mat-sys-error) 18%, transparent);
       border-radius: var(--bb-radius);
       box-shadow: var(--bb-shadow-sm);
       padding: 20px;
     }
     .icon {
       align-items: center;
-      background: rgb(186 26 26 / 0.08);
+      background: color-mix(in srgb, var(--mat-sys-error) 8%, transparent);
       border-radius: 50%;
       color: var(--mat-sys-error);
       display: inline-flex;

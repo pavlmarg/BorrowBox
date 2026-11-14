@@ -66,6 +66,7 @@ export class SearchService {
     const rows = await searchItems(this.dataSource.manager, {
       near: dto.near,
       radiusM: dto.radiusKm * 1000,
+      beyond: dto.beyond ?? false,
       text: dto.q ? dto.q : null,
       category: dto.category ?? null,
       freeOnly: dto.freeOnly ?? false,

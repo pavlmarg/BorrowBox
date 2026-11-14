@@ -31,6 +31,20 @@ import {
 
 export type ExploreStatus = 'idle' | 'loading' | 'ready' | 'error';
 
+/** "Further away" (ADR-0023): the results beyond the radius, after the last page. */
+interface FurtherState {
+  items: PublicItemSummaryResponse[];
+  nextCursor: string | null;
+  status: ExploreStatus;
+  loadingMore: boolean;
+}
+const NO_FURTHER: FurtherState = {
+  items: [],
+  nextCursor: null,
+  status: 'idle',
+  loadingMore: false,
+};
+
 interface ExploreState {
   /** The searcher's point: in memory only, never in the URL or storage. */
   center: GeoPoint;
@@ -51,6 +65,7 @@ interface ExploreState {
    * loaded (or when loading failed, so nothing shows a wrong number).
    */
   categoryCounts: Partial<Record<ItemCategory, number>> | null;
+  further: FurtherState;
 }
 
 const initialState: ExploreState = {
@@ -65,6 +80,7 @@ const initialState: ExploreState = {
   scrollTop: 0,
   featured: [],
   categoryCounts: null,
+  further: NO_FURTHER,
 };
 
 /**
@@ -148,6 +164,50 @@ export const ExploreStore = signalStore(
       }
     };
 
+    /**
+     * Once the results within the radius have run out: the first page of
+     * what lies beyond it, or the next one. Same filters, nearest first.
+     */
+    const loadFurther = async (): Promise<void> => {
+      const current = store.further();
+      const more = current.status === 'ready';
+      if (more && (!current.nextCursor || current.loadingMore)) return;
+      if (current.status === 'loading') return;
+      const seq = store._meta.seq;
+      patchState(store, {
+        further: more
+          ? { ...current, loadingMore: true }
+          : { ...NO_FURTHER, status: 'loading' },
+      });
+      try {
+        const page = await store._api.invoke(publicItemsControllerSearch, {
+          body: searchBody(
+            store.filters(),
+            store.center(),
+            more ? current.nextCursor : null,
+            true,
+          ),
+        });
+        if (seq !== store._meta.seq) return;
+        patchState(store, {
+          further: {
+            items: [...(more ? store.further().items : []), ...page.items],
+            nextCursor: page.nextCursor,
+            status: 'ready',
+            loadingMore: false,
+          },
+        });
+      } catch {
+        if (seq !== store._meta.seq) return;
+        // Best effort: the button (or the next search) tries again.
+        patchState(store, {
+          further: more
+            ? { ...store.further(), loadingMore: false }
+            : { ...NO_FURTHER, status: 'error' },
+        });
+      }
+    };
+
     const search = async (): Promise<void> => {
       void loadFeatured();
       void loadCounts();
@@ -160,6 +220,7 @@ export const ExploreStore = signalStore(
         nextCursor: null,
         selectedId: null,
         scrollTop: 0,
+        further: NO_FURTHER,
       });
       try {
         const page = await store._api.invoke(publicItemsControllerSearch, {
@@ -171,6 +232,7 @@ export const ExploreStore = signalStore(
           items: page.items,
           nextCursor: page.nextCursor,
         });
+        if (page.nextCursor === null) void loadFurther();
       } catch (err) {
         if (seq !== store._meta.seq) return;
         patchState(store, { status: 'error', error: errorCode(err) });
@@ -179,6 +241,7 @@ export const ExploreStore = signalStore(
 
     return {
       search,
+      loadFurther,
 
       /**
        * Opening Explore: searches with the URL's filters, unless the same
@@ -233,6 +296,7 @@ export const ExploreStore = signalStore(
             nextCursor: page.nextCursor,
             loadingMore: false,
           });
+          if (page.nextCursor === null) void loadFurther();
         } catch (err) {
           if (seq !== store._meta.seq) return;
           patchState(store, { loadingMore: false, error: errorCode(err) });

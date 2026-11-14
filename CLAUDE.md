@@ -10,7 +10,7 @@ ADRs — read the relevant one before touching that area:
 - Messaging / RabbitMQ topology → `docs/adr/0001-rabbitmq.md`
 - Monorepo layout, DB schemas & roles → `docs/adr/0002-nx-monorepo-schema-per-service.md`
 - Anything involving money / Stripe → `docs/adr/0003-stripe-separate-charges-transfers.md`, then `0019-payments-fees-and-policies.md` (onboarding, webhooks, payment timeout, checkout, refunds), then `0020-booking-fees.md` (the fees), then `0021-refunds-and-settlement.md` (refunds, settlement), then `0022-standard-service-agreement.md` (lenders' Stripe agreement)
-- Item locations, maps, photos → `docs/adr/0004-location-fuzzing.md`, then `0007-location-privacy-search.md` (supersedes parts of 0004), then `0011-one-offset-per-place.md` (amends 0007's offset rule)
+- Item locations, maps, photos → `docs/adr/0004-location-fuzzing.md`, then `0007-location-privacy-search.md` (supersedes parts of 0004), then `0011-one-offset-per-place.md` (amends 0007's offset rule), then `0023-further-away-results.md` (search beyond the radius)
 - Map tiles, setting item locations → `docs/adr/0008-maps-pin-drop.md`; Explore's map markers → `docs/adr/0014-price-tags-on-explore-map.md`
 - Photo uploads and processing → `docs/adr/0009-photo-pipeline.md`, then `0013-wider-photo-formats.md` (formats, browser conversion, camera)
 - Item pricing (rate card, free items) and its effects on Bookings/Payments → `docs/adr/0010-flexible-pricing.md`, then `0012-free-items-match-price-limits.md` (search price filter)

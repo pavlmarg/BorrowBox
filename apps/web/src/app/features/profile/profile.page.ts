@@ -6,6 +6,7 @@ import { TranslocoDirective } from '@jsverse/transloco';
 import { AuthStore } from '../../core/auth/auth.store';
 import { LanguageService } from '../../core/i18n/language';
 import { Avatar } from '../../shared/avatar/avatar';
+import { VerifyEmailNotice } from '../account-emails/verify-email-notice';
 
 /**
  * The user's profile at a glance. Editing lives in Settings; the photo,
@@ -13,7 +14,14 @@ import { Avatar } from '../../shared/avatar/avatar';
  */
 @Component({
   selector: 'bb-profile-page',
-  imports: [DatePipe, RouterLink, TranslocoDirective, MatButtonModule, Avatar],
+  imports: [
+    DatePipe,
+    RouterLink,
+    TranslocoDirective,
+    MatButtonModule,
+    Avatar,
+    VerifyEmailNotice,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ng-container *transloco="let t">
@@ -60,6 +68,7 @@ import { Avatar } from '../../shared/avatar/avatar';
             }}</a>
           </div>
         </section>
+        <bb-verify-email-notice class="verify" />
       }
     </ng-container>
   `,
@@ -79,7 +88,7 @@ import { Avatar } from '../../shared/avatar/avatar';
     }
     .photo-soon {
       background: var(--bb-sky-100);
-      border: 2px solid #fff;
+      border: 2px solid rgb(var(--bb-surface-rgb));
       border-radius: var(--bb-radius);
       bottom: -4px;
       color: var(--bb-sky-700);
@@ -92,6 +101,9 @@ import { Avatar } from '../../shared/avatar/avatar';
     }
     .who {
       min-width: 0;
+    }
+    .verify {
+      margin-top: 32px;
     }
     .name {
       font: var(--mat-sys-headline-small);
@@ -119,9 +131,9 @@ import { Avatar } from '../../shared/avatar/avatar';
       padding: 4px 10px;
     }
     .chip.ok {
-      background: #e8f6ee;
-      border-color: #b5e1c6;
-      color: #1d6b3f;
+      background: var(--bb-success-bg);
+      border-color: var(--bb-success-border);
+      color: var(--bb-success-strong);
     }
     .since {
       color: var(--mat-sys-on-surface-variant);

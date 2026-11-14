@@ -41,6 +41,8 @@ export type PublicItemRow = Pick<
 export interface SearchFilters {
   near: GeoPoint;
   radiusM: number;
+  /** Only items farther than `radiusM`, with no upper limit (ADR-0023). */
+  beyond: boolean;
   /** Trimmed; null for none. */
   text: string | null;
   category: ItemCategory | null;
@@ -74,12 +76,16 @@ const VISIBLE =
  * Text without a single searchable word ("!!!", "-") gives an empty query,
  * which would match nothing: it filters nothing instead, like blank text.
  */
-const SEARCH_MATCH =
+const SEARCH_POINT =
   ' CROSS JOIN (SELECT ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography AS pt) p' +
   " CROSS JOIN (SELECT websearch_to_tsquery('greek', $4::text)" +
   "                 || websearch_to_tsquery('english', $4::text) AS query) t" +
-  ` WHERE i.status = 'ACTIVE'
-      AND ST_DWithin(i.location_public, p.pt, $3::float8)
+  " WHERE i.status = 'ACTIVE'";
+/** Within the radius (GiST index), or beyond it ("Further away", ADR-0023). */
+const WITHIN_RADIUS = ' AND ST_DWithin(i.location_public, p.pt, $3::float8)';
+const BEYOND_RADIUS =
+  ' AND NOT ST_DWithin(i.location_public, p.pt, $3::float8)';
+const SEARCH_FILTERS = `
       AND ($4::text IS NULL
            OR numnode(t.query) = 0
            OR i.search_vector @@ t.query)
@@ -91,8 +97,12 @@ const SEARCH_MATCH =
                          WHEN 'WEEK' THEN i.weekly_cents
                          WHEN 'MONTH' THEN i.monthly_cents
            END <= $7::int)`;
+const SEARCH_MATCH = SEARCH_POINT + WITHIN_RADIUS + SEARCH_FILTERS;
+const SEARCH_MATCH_BEYOND = SEARCH_POINT + BEYOND_RADIUS + SEARCH_FILTERS;
 
-function matchParams(f: Omit<SearchFilters, 'after' | 'limit'>): unknown[] {
+function matchParams(
+  f: Omit<SearchFilters, 'beyond' | 'after' | 'limit'>,
+): unknown[] {
   return [
     f.near.lng,
     f.near.lat,
@@ -115,7 +125,7 @@ export async function searchItems(
       PUBLIC_COLUMNS +
       ', ST_Distance(i.location_public, p.pt) AS distance_m' +
       VISIBLE +
-      SEARCH_MATCH +
+      (f.beyond ? SEARCH_MATCH_BEYOND : SEARCH_MATCH) +
       ` AND ($9::float8 IS NULL
                OR ST_Distance(i.location_public, p.pt) > $9::float8
                OR (ST_Distance(i.location_public, p.pt) = $9::float8 AND i.id > $10::uuid))
@@ -133,7 +143,7 @@ export async function searchItems(
 /** Results per category for the search's filters, without its category. */
 export async function countByCategory(
   tx: EntityManager,
-  f: Omit<SearchFilters, 'category' | 'after' | 'limit'>,
+  f: Omit<SearchFilters, 'category' | 'beyond' | 'after' | 'limit'>,
 ): Promise<Array<{ category: ItemCategory; count: number }>> {
   const rows: Array<{ category: ItemCategory; count: string }> = await tx.query(
     'SELECT i.category, count(*) AS count' +

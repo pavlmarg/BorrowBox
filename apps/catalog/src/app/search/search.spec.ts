@@ -4,6 +4,7 @@ import {
   CatalogRpc,
   createEnvelope,
   FEATURED_ITEMS_MAX,
+  SEARCH_PAGE_SIZE_MAX,
   type GeoPoint,
   type ItemCategory,
   type ItemStatus,
@@ -216,6 +217,46 @@ describe('Search and public item pages (integration)', () => {
       '5_10_KM',
       'OVER_10_KM',
     ]);
+  });
+
+  it('lists what is further away: beyond the radius, any distance, filters kept', async () => {
+    const centre = newArea();
+    const owner = await lender();
+    const at = async (m: number, category: ItemCategory = 'tools') =>
+      seed({
+        lenderId: owner,
+        publicAt: await pointFrom(centre, m, 45),
+        category,
+      });
+    await at(900);
+    await at(4_000);
+    const m6000 = await at(6_000);
+    const m60000 = await at(60_000);
+    const m400000 = await at(400_000);
+    const camping = await at(80_000, 'camping');
+    const mine = new Set([m6000, m60000, m400000, camping]);
+
+    // Other tests' items are further away too: page through and keep ours.
+    const further = async (filters: Partial<SearchItemsRequest> = {}) => {
+      const found: string[] = [];
+      let cursor: string | undefined;
+      for (let pages = 0; pages < 50; pages++) {
+        const page = await search({
+          near: centre,
+          radiusKm: 5,
+          beyond: true,
+          limit: SEARCH_PAGE_SIZE_MAX,
+          cursor,
+          ...filters,
+        });
+        found.push(...ids(page.items).filter((id) => mine.has(id)));
+        cursor = page.nextCursor ?? undefined;
+        if (!cursor) break;
+      }
+      return found;
+    };
+    expect(await further()).toEqual([m6000, m60000, camping, m400000]);
+    expect(await further({ category: 'camping' })).toEqual([camping]);
   });
 
   it('uses only the public point: never the exact one', async () => {

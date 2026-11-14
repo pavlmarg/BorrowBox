@@ -39,6 +39,28 @@ export const appRoutes: Route[] = [
             (m) => m.myItemsRoutes,
           ),
       },
+      // Paying for a booking (Phase 4): before `bookings`, which would
+      // otherwise match first.
+      {
+        path: 'bookings/:id/pay',
+        canMatch: [authGuard],
+        loadComponent: () =>
+          import('./features/payments/pay.page').then((m) => m.PayPage),
+      },
+      {
+        path: 'bookings',
+        canMatch: [authGuard],
+        loadChildren: () =>
+          import('./features/bookings/bookings.routes').then(
+            (m) => m.bookingsRoutes,
+          ),
+      },
+      {
+        path: 'messages',
+        canMatch: [authGuard],
+        loadChildren: () =>
+          import('./features/chat/chat.routes').then((m) => m.chatRoutes),
+      },
       {
         path: 'profile',
         canMatch: [authGuard],
