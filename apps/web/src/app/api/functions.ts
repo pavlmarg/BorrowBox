@@ -73,6 +73,12 @@ export type { PublicItemsControllerGet$Params as PublicItemsControllerGet$Params
 export { publicItemsControllerGet as publicItemsControllerGet } from './fn/items/public-items-controller-get';
 export type { PublicItemsControllerSimilar$Params as PublicItemsControllerSimilar$Params } from './fn/items/public-items-controller-similar';
 export { publicItemsControllerSimilar as publicItemsControllerSimilar } from './fn/items/public-items-controller-similar';
+export type { UsersControllerProfile$Params as UsersControllerProfile$Params } from './fn/people/users-controller-profile';
+export { usersControllerProfile as usersControllerProfile } from './fn/people/users-controller-profile';
+export type { UsersControllerItems$Params as UsersControllerItems$Params } from './fn/people/users-controller-items';
+export { usersControllerItems as usersControllerItems } from './fn/people/users-controller-items';
+export type { PeopleControllerSuggest$Params as PeopleControllerSuggest$Params } from './fn/people/people-controller-suggest';
+export { peopleControllerSuggest as peopleControllerSuggest } from './fn/people/people-controller-suggest';
 export type { ItemBookingsControllerQuote$Params as ItemBookingsControllerQuote$Params } from './fn/bookings/item-bookings-controller-quote';
 export { itemBookingsControllerQuote as itemBookingsControllerQuote } from './fn/bookings/item-bookings-controller-quote';
 export type { ItemBookingsControllerBusy$Params as ItemBookingsControllerBusy$Params } from './fn/bookings/item-bookings-controller-busy';

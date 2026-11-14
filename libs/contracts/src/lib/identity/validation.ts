@@ -1,3 +1,5 @@
+import { hasContactDetails } from '../messaging/contacts';
+
 /**
  * Input rules shared by the PWA (form validation), the gateway (HTTP DTOs) and
  * Identity (RPC DTOs), so all three agree.
@@ -10,6 +12,32 @@ export const PASSWORD_MAX_LENGTH = 64;
 export const PASSWORD_RULE = /^(?=.*\p{L})(?=.*\p{Nd}).*$/u;
 
 export const DISPLAY_NAME_MAX_LENGTH = 50;
+/**
+ * The public bio (ADR-0025): a short note shown on the profile and the
+ * lender's item pages ("Message me after 9"). Counted in characters.
+ */
+export const BIO_MAX_LENGTH = 150;
+export const BIO_MAX_LINES = 3;
+
+/** Why a bio is refused (after `normaliseBio`), or null if it is fine. */
+export type BioProblem = 'TOO_LONG' | 'TOO_MANY_LINES' | 'CONTACT_DETAILS';
+
+/** Trimmed, with Windows and old Mac line breaks made `\n`. */
+export function normaliseBio(bio: string): string {
+  return bio.replace(/\r\n?/g, '\n').trim();
+}
+
+/**
+ * Checks a normalised bio. Phone numbers, emails and links are refused, so
+ * a bio can't hand out what chat hides until a booking (ADR-0017).
+ */
+export function bioProblem(bio: string): BioProblem | null {
+  if ([...bio].length > BIO_MAX_LENGTH) return 'TOO_LONG';
+  if (bio.split('\n').length > BIO_MAX_LINES) return 'TOO_MANY_LINES';
+  if (hasContactDetails(bio)) return 'CONTACT_DETAILS';
+  return null;
+}
+
 /** RFC 5321 limit for a forward path. */
 export const EMAIL_MAX_LENGTH = 254;
 

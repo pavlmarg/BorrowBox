@@ -27,6 +27,8 @@ const STATUS: Record<IdentityErrorCode, HttpStatus> = {
   PASSWORD_NOT_SET: HttpStatus.CONFLICT,
   // Confirming a profile photo with no upload waiting, or before it arrived.
   INVALID_STATE: HttpStatus.CONFLICT,
+  // An unknown or erased account's public profile.
+  NOT_FOUND: HttpStatus.NOT_FOUND,
   INTERNAL: HttpStatus.INTERNAL_SERVER_ERROR,
 };
 

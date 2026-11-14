@@ -5,6 +5,7 @@ import {
   type Locale,
   type OAuthProvider,
   type ProfilePhotoUploadStatus,
+  type PublicProfile,
   type UserProfile,
 } from '@borrowbox/contracts';
 import { addToOutbox } from '@borrowbox/outbox';
@@ -16,6 +17,7 @@ interface ProfileRow {
   display_name: string;
   locale: Locale;
   photo_key: string | null;
+  bio: string | null;
   photo_upload: ProfilePhotoUploadStatus | null;
   has_password: boolean;
   email_verified: boolean;
@@ -41,7 +43,7 @@ export async function findProfile(
   photosBaseUrl: string,
 ): Promise<UserProfile | null> {
   const rows: ProfileRow[] = await db.query(
-    `SELECT u.id, u.email, u.display_name, u.locale, u.created_at, u.photo_key,
+    `SELECT u.id, u.email, u.display_name, u.locale, u.created_at, u.photo_key, u.bio,
             (SELECT p.status FROM user_photos p WHERE p.user_id = u.id) AS photo_upload,
             u.password_hash IS NOT NULL      AS has_password,
             u.email_verified_at IS NOT NULL  AS email_verified,
@@ -67,13 +69,46 @@ export async function findProfile(
       ? profilePhotoUrls(photosBaseUrl, row.photo_key)
       : null,
     photoUpload: row.photo_upload,
+    bio: row.bio,
     createdAt: row.created_at.toISOString(),
   };
 }
 
 /**
+ * What anyone may see of a live account (ADR-0025), or null if it doesn't
+ * exist or was deleted. Never the email, language or sign-in methods.
+ */
+export async function findPublicProfile(
+  db: EntityManager,
+  userId: string,
+  photosBaseUrl: string,
+): Promise<PublicProfile | null> {
+  const [row]: Array<{
+    id: string;
+    display_name: string;
+    photo_key: string | null;
+    bio: string | null;
+    created_at: Date;
+  }> = await db.query(
+    `SELECT id, display_name, photo_key, bio, created_at FROM users
+      WHERE id = $1 AND deleted_at IS NULL`,
+    [userId],
+  );
+  if (!row) return null;
+  return {
+    id: row.id,
+    displayName: row.display_name,
+    photo: row.photo_key
+      ? profilePhotoUrls(photosBaseUrl, row.photo_key)
+      : null,
+    bio: row.bio,
+    memberSince: row.created_at.toISOString(),
+  };
+}
+
+/**
  * Writes `user.profile_updated` with all the live user's current public
- * values (name, language, photo) to the outbox, in the caller's transaction.
+ * values (name, language, photo, bio) to the outbox, in the caller's transaction.
  * Call with the user's row locked, so events follow the order of the
  * changes (consumers keep the newest).
  */
@@ -87,8 +122,9 @@ export async function announceProfile(
     display_name: string;
     locale: Locale;
     photo_key: string | null;
+    bio: string | null;
   }> = await tx.query(
-    `SELECT display_name, locale, photo_key FROM users
+    `SELECT display_name, locale, photo_key, bio FROM users
       WHERE id = $1 AND deleted_at IS NULL`,
     [userId],
   );
@@ -104,6 +140,7 @@ export async function announceProfile(
         photo: user.photo_key
           ? profilePhotoUrls(photosBaseUrl, user.photo_key)
           : null,
+        bio: user.bio,
       },
       correlationId ? { correlationId } : {},
     ),

@@ -4,6 +4,23 @@ import {
   type ValidationErrors,
   type ValidatorFn,
 } from '@angular/forms';
+import { bioProblem, normaliseBio } from '@borrowbox/contracts';
+
+/**
+ * The public bio (ADR-0025), checked with the server's own rule after the
+ * same normalising: `{ bio: 'TOO_LONG' | 'TOO_MANY_LINES' | 'CONTACT_DETAILS' }`.
+ */
+export const bioRule: ValidatorFn = (
+  control: AbstractControl<string>,
+): ValidationErrors | null => {
+  const problem = bioProblem(normaliseBio(control.value ?? ''));
+  return problem ? { bio: problem } : null;
+};
+
+/** How many characters of the bio count (as the server counts them). */
+export function bioLength(value: string): number {
+  return [...normaliseBio(value)].length;
+}
 
 /**
  * Length the way the server counts it (class-validator's `Length`, after

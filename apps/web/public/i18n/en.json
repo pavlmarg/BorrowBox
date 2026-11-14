@@ -74,9 +74,6 @@
     "memberSince": "Member since {{date}}",
     "emailVerified": "Verified email",
     "emailNotVerified": "Email not verified",
-    "signIn": "How you sign in",
-    "withPassword": "Email and password",
-    "withGoogle": "Google",
     "export": {
       "title": "Download your data",
       "description": "Get a copy of the personal data BorrowBox holds about you, as a JSON file.",
@@ -90,11 +87,15 @@
     },
     "editProfile": "Edit profile",
     "photo": {
-      "change": "Change photo",
-      "remove": "Remove photo",
+      "title": "Profile picture",
+      "change": "Change profile picture",
+      "remove": "Remove profile picture",
+      "removeTitle": "Remove your profile picture?",
+      "removeMessage": "People will see the default avatar instead. You can add a new picture at any time.",
+      "removeConfirm": "Remove",
+      "removeCancel": "Keep it",
       "uploading": "Uploading your photo…",
       "processing": "Getting your photo ready…",
-      "hint": "Your photo is public, like your name, and is cropped to a square.",
       "errors": {
         "unsupported": "This file type isn't supported here. Try JPEG or PNG.",
         "tooSmall": "Photo too small (at least 128 px on each side).",
@@ -112,6 +113,16 @@
       "title": "Appearance",
       "followDevice": "Follow my device's light or dark setting",
       "hint": "Turned off, the sun and moon button in the top bar chooses light or dark."
+    },
+    "bio": {
+      "label": "Bio",
+      "placeholder": "e.g. “Message me after 9”",
+      "hint": "Public, shown on your profile and items. No phone numbers, emails or links.",
+      "errors": {
+        "TOO_LONG": "Up to 150 characters.",
+        "TOO_MANY_LINES": "Up to 3 lines.",
+        "CONTACT_DETAILS": "Phone numbers, emails and links aren’t allowed: share them in chat once a booking goes ahead."
+      }
     }
   },
   "deleteDialog": {
@@ -198,7 +209,9 @@
       "MONTH": "/month"
     },
     "free": "Free",
-    "moreRates": "+{{count}} more"
+    "moreRates": "+{{count}} more",
+    "postedBy": "Posted by",
+    "postedByYou": "you"
   },
   "map": {
     "loading": "Loading map…",
@@ -278,6 +291,11 @@
       "title": "Further away",
       "hint": "More than {{km}} km from here, nearest first.",
       "show": "Show items further away"
+    },
+    "suggest": {
+      "items": "Items",
+      "people": "People",
+      "itemCount": "{{count}} items"
     }
   },
   "item": {
@@ -300,7 +318,9 @@
     "photoCount": "{{n}} / {{total}}",
     "enlargePhoto": "Enlarge photo",
     "requestToBorrow": "Request to borrow",
-    "requestsSoon": "Borrowing requests open soon."
+    "requestsSoon": "Borrowing requests open soon.",
+    "moreFrom": "More from {{name}}",
+    "seeAll": "See all"
   },
   "listing": {
     "backToItems": "My items",
@@ -918,5 +938,29 @@
     "withdrawMessage": "The renter won’t be able to book it any more.",
     "keep": "Keep it",
     "withdrawn": "Offer withdrawn."
+  },
+  "people": {
+    "loading": "Loading profile",
+    "notFound": "Profile not found",
+    "notFoundHint": "This account doesn’t exist or was deleted.",
+    "noBio": "No bio yet. Add one in Settings.",
+    "message": "Message",
+    "messageAbout": "About which item?",
+    "itemsOf": "{{name}}’s items",
+    "yourItems": "Your items",
+    "noItems": "No items yet."
+  },
+  "settings": {
+    "menu": "On this page",
+    "info": {
+      "photo": "Shown on your profile, next to your items and in chat. Public, like your name, and cropped to a square.",
+      "details": "Your name and bio are public; your email is only for you and BorrowBox."
+    },
+    "password": {
+      "info": "Change your password. Your other devices are signed out afterwards.",
+      "infoNone": "You sign in with Google, so you have no password yet. You can set one with a link to your email.",
+      "change": "Change password",
+      "set": "Set a password"
+    }
   }
 }

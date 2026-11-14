@@ -1,4 +1,4 @@
-import { MASK, maskContacts } from './masking';
+import { hasContactDetails, MASK, maskContacts } from './contacts';
 
 describe('maskContacts', () => {
   it.each([
@@ -40,4 +40,14 @@ describe('maskContacts', () => {
       expect(maskContacts(text)).toBe(text);
     },
   );
+});
+
+describe('hasContactDetails', () => {
+  it('finds what masking would hide, and nothing else', () => {
+    expect(hasContactDetails('Call 6912345678')).toBe(true);
+    expect(hasContactDetails('maria@example.gr')).toBe(true);
+    expect(hasContactDetails('see maria.gr')).toBe(true);
+    expect(hasContactDetails('Message only after 9, please')).toBe(false);
+    expect(hasContactDetails('Away 21/11/2026 - 23/11/2026')).toBe(false);
+  });
 });

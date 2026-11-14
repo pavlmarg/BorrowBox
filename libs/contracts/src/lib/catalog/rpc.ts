@@ -24,6 +24,12 @@ import type {
   SuggestItemsRequest,
   SuggestItemsResponse,
 } from './items';
+import type {
+  LenderItemsRequest,
+  LenderItemsResponse,
+  SuggestPeopleRequest,
+  SuggestPeopleResponse,
+} from './people';
 import type { PhotoContentType } from './validation';
 
 /** Carried in `RpcErrorBody.code` (see `../rpc/rpc.ts`). */
@@ -117,13 +123,14 @@ export interface ReorderPhotosRequest extends ItemRef {
 export interface CatalogDataExport {
   exportedAt: string;
   /**
-   * Catalog's copy of the caller's name and profile photo (kept from
+   * Catalog's copy of the caller's name, profile photo and bio (kept from
    * Identity's events, shown on their items), or null if Catalog hasn't
    * received it.
    */
   lenderProfile: {
     displayName: string;
     photo: ProfilePhotoUrls | null;
+    bio: string | null;
     updatedAt: string;
   } | null;
   /** When Catalog learned the email was verified (publishing needs it), or null. */
@@ -141,6 +148,8 @@ export const CatalogRpc = {
   similar: 'catalog.items.similar',
   featured: 'catalog.items.featured',
   categoryCounts: 'catalog.items.categories.count',
+  suggestPeople: 'catalog.people.suggest',
+  lenderItems: 'catalog.lenders.items',
   // The caller's own items.
   create: 'catalog.items.create',
   update: 'catalog.items.update',
@@ -179,6 +188,14 @@ export interface CatalogRpcContract {
   [CatalogRpc.featured]: {
     request: FeaturedItemsRequest;
     response: FeaturedItemsResponse;
+  };
+  [CatalogRpc.suggestPeople]: {
+    request: SuggestPeopleRequest;
+    response: SuggestPeopleResponse;
+  };
+  [CatalogRpc.lenderItems]: {
+    request: LenderItemsRequest;
+    response: LenderItemsResponse;
   };
   [CatalogRpc.create]: { request: CreateItemRequest; response: OwnItem };
   [CatalogRpc.update]: { request: UpdateItemRequest; response: OwnItem };

@@ -470,6 +470,32 @@ describe('Gateway (integration)', () => {
         .expect(400);
     });
 
+    it('PATCH normalises the bio and refuses contact details before Identity (ADR-0025)', async () => {
+      identity.on(IdentityRpc.updateMe, (m) => ({
+        ...user,
+        ...(m.data as object),
+      }));
+      const auth = await bearer();
+      await http()
+        .patch('/api/me')
+        .set('Authorization', auth)
+        .send({ bio: '  After 9\r\nplease ' })
+        .expect(200);
+      expect(identity.callsTo(IdentityRpc.updateMe)[0].message.data).toEqual({
+        bio: 'After 9\nplease',
+      });
+      for (const bio of ['Call 6912345678', 'x'.repeat(151), 'a\nb\nc\nd']) {
+        const res = await http()
+          .patch('/api/me')
+          .set('Authorization', auth)
+          .send({ bio })
+          .expect(400);
+        expect(res.body.code).toBe('VALIDATION_FAILED');
+        expect(JSON.stringify(res.body)).not.toContain('6912345678');
+      }
+      expect(identity.callsTo(IdentityRpc.updateMe)).toHaveLength(1);
+    });
+
     it('export is a no-store download', async () => {
       const exported = {
         exportedAt: '2026-09-29T00:00:00.000Z',

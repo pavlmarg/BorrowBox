@@ -4,6 +4,7 @@
 import { Locale } from '../models/locale';
 import { ProfilePhotoUrlsResponse } from '../models/profile-photo-urls-response';
 export interface ExportedUser {
+  bio: string | null;
   createdAt: string;
   displayName: string;
   email: string;

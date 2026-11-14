@@ -3,6 +3,7 @@
 
 import { ProfilePhotoUrlsResponse } from '../models/profile-photo-urls-response';
 export interface LenderProfileResponse {
+  bio: string | null;
   displayName: string;
 
   /**

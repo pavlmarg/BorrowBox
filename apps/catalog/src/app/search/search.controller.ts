@@ -4,17 +4,21 @@ import {
   CatalogRpc,
   type CategoryCountsResponse,
   type FeaturedItemsResponse,
+  type LenderItemsResponse,
   type PublicItemDetail,
   type SearchItemsResponse,
   type SimilarItemsResponse,
   type SuggestItemsResponse,
+  type SuggestPeopleResponse,
 } from '@borrowbox/contracts';
 import { ItemRefDto } from '../items/items.dto';
 import {
   CategoryCountsDto,
   FeaturedItemsDto,
+  LenderItemsDto,
   SearchItemsDto,
   SuggestItemsDto,
+  SuggestPeopleDto,
 } from './search.dto';
 import { SearchService } from './search.service';
 
@@ -50,6 +54,20 @@ export class SearchController {
     @Payload('data') dto: CategoryCountsDto,
   ): Promise<CategoryCountsResponse> {
     return this.search.categoryCounts(dto);
+  }
+
+  @MessagePattern(CatalogRpc.suggestPeople)
+  suggestPeople(
+    @Payload('data') dto: SuggestPeopleDto,
+  ): Promise<SuggestPeopleResponse> {
+    return this.search.suggestPeople(dto);
+  }
+
+  @MessagePattern(CatalogRpc.lenderItems)
+  lenderItems(
+    @Payload('data') dto: LenderItemsDto,
+  ): Promise<LenderItemsResponse> {
+    return this.search.lenderItems(dto.lenderId);
   }
 
   @MessagePattern(CatalogRpc.featured)

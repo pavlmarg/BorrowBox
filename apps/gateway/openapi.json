@@ -2038,6 +2038,153 @@
         ]
       }
     },
+    "/api/users/{userId}": {
+      "get": {
+        "description": "Name, photo, bio and member-since date; never the email.",
+        "operationId": "UsersController_profile",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND (unknown or deleted account)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Someone’s public profile",
+        "tags": [
+          "people"
+        ]
+      }
+    },
+    "/api/users/{userId}/items": {
+      "get": {
+        "description": "At most 10; empty for unknown or deleted accounts.",
+        "operationId": "UsersController_items",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LenderItemsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Someone’s active items, newest first",
+        "tags": [
+          "people"
+        ]
+      }
+    },
+    "/api/people/suggest": {
+      "post": {
+        "description": "From 2 characters; every typed word must start a word of the name. The text travels in the body and is never stored or logged. 300 requests per minute per IP.",
+        "operationId": "PeopleController_suggest",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuggestPeopleBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestPeopleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (300 per minute)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Find lenders by name as you type: up to 5",
+        "tags": [
+          "people"
+        ]
+      }
+    },
     "/api/items/{itemId}/quote": {
       "get": {
         "operationId": "ItemBookingsController_quote",
@@ -4018,6 +4165,11 @@
               }
             ]
           },
+          "bio": {
+            "type": "string",
+            "nullable": true,
+            "description": "Public bio (ADR-0025); null for none"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -4033,6 +4185,7 @@
           "providers",
           "photo",
           "photoUpload",
+          "bio",
           "createdAt"
         ]
       },
@@ -4137,6 +4290,11 @@
                 "$ref": "#/components/schemas/Locale"
               }
             ]
+          },
+          "bio": {
+            "type": "string",
+            "maxLength": 150,
+            "description": "Public bio (ADR-0025): trimmed, at most 150 characters and 3 lines, no phone numbers, emails or links. An empty string removes it."
           }
         }
       },
@@ -4261,6 +4419,10 @@
                 "$ref": "#/components/schemas/ProfilePhotoUrlsResponse"
               }
             ]
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
@@ -4271,7 +4433,8 @@
           "emailVerifiedAt",
           "createdAt",
           "updatedAt",
-          "photo"
+          "photo",
+          "bio"
         ]
       },
       "ExportedOAuthIdentity": {
@@ -4357,6 +4520,10 @@
               }
             ]
           },
+          "bio": {
+            "type": "string",
+            "nullable": true
+          },
           "updatedAt": {
             "type": "string",
             "format": "date-time"
@@ -4365,6 +4532,7 @@
         "required": [
           "displayName",
           "photo",
+          "bio",
           "updatedAt"
         ]
       },
@@ -6099,6 +6267,39 @@
           "urls"
         ]
       },
+      "LenderDetailResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "photo": {
+            "nullable": true,
+            "description": "Public profile photo (ADR-0024); null for none",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfilePhotoUrlsResponse"
+              }
+            ]
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true,
+            "description": "Public bio; null for none"
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "photo",
+          "bio"
+        ]
+      },
       "PublicItemDetailResponse": {
         "type": "object",
         "properties": {
@@ -6142,7 +6343,7 @@
             }
           },
           "lender": {
-            "$ref": "#/components/schemas/LenderSummaryResponse"
+            "$ref": "#/components/schemas/LenderDetailResponse"
           },
           "approximateLocation": {
             "$ref": "#/components/schemas/GeoPointResponse"
@@ -6180,6 +6381,155 @@
         },
         "required": [
           "items"
+        ]
+      },
+      "PublicProfileResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "photo": {
+            "nullable": true,
+            "description": "Public profile photo (ADR-0024); null for none",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfilePhotoUrlsResponse"
+              }
+            ]
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true,
+            "description": "Up to 150 characters, 3 lines"
+          },
+          "memberSince": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "photo",
+          "bio",
+          "memberSince"
+        ]
+      },
+      "LenderItemResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ItemCategory"
+              }
+            ]
+          },
+          "pricing": {
+            "$ref": "#/components/schemas/ItemPricingBody"
+          },
+          "depositCents": {
+            "type": "number"
+          },
+          "coverPhoto": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PhotoUrlsResponse"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "category",
+          "pricing",
+          "depositCents",
+          "coverPhoto"
+        ]
+      },
+      "LenderItemsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "description": "Active items, newest first (at most 10)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LenderItemResponse"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "SuggestPeopleBody": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100,
+            "description": "What has been typed so far; never stored or logged"
+          }
+        },
+        "required": [
+          "q"
+        ]
+      },
+      "PersonSuggestionResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "photoUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "itemCount": {
+            "type": "number",
+            "description": "How many active items they have"
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "photoUrl",
+          "itemCount"
+        ]
+      },
+      "SuggestPeopleResponse": {
+        "type": "object",
+        "properties": {
+          "people": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PersonSuggestionResponse"
+            }
+          }
+        },
+        "required": [
+          "people"
         ]
       },
       "QuoteResponse": {

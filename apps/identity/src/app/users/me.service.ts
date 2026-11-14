@@ -77,22 +77,32 @@ export class MeService {
   ): Promise<UserProfile> {
     return this.dataSource.transaction(async (tx) => {
       await assertLiveSession(tx, auth);
-      const [current]: Array<{ display_name: string; locale: Locale }> =
-        await tx.query(
-          `SELECT display_name, locale FROM users
-            WHERE id = $1 AND deleted_at IS NULL
-            FOR UPDATE`,
-          [auth.userId],
-        );
+      const [current]: Array<{
+        display_name: string;
+        locale: Locale;
+        bio: string | null;
+      }> = await tx.query(
+        `SELECT display_name, locale, bio FROM users
+          WHERE id = $1 AND deleted_at IS NULL
+          FOR UPDATE`,
+        [auth.userId],
+      );
       if (!current) throw UNAUTHENTICATED(); // deleted meanwhile
 
       const displayName = dto.displayName ?? current.display_name;
       const locale = dto.locale ?? current.locale;
-      if (displayName !== current.display_name || locale !== current.locale) {
+      // An empty bio removes it.
+      const bio = dto.bio === undefined ? current.bio : dto.bio || null;
+      if (
+        displayName !== current.display_name ||
+        locale !== current.locale ||
+        bio !== current.bio
+      ) {
         await tx.query(
-          `UPDATE users SET display_name = $2, locale = $3, updated_at = now()
+          `UPDATE users
+              SET display_name = $2, locale = $3, bio = $4, updated_at = now()
             WHERE id = $1`,
-          [auth.userId, displayName, locale],
+          [auth.userId, displayName, locale, bio],
         );
         await announceProfile(
           tx,
@@ -190,9 +200,10 @@ export class MeService {
       created_at: Date;
       updated_at: Date;
       photo_key: string | null;
+      bio: string | null;
     }> = await db.query(
       `SELECT id, email, display_name, locale, email_verified_at, created_at,
-              updated_at, photo_key
+              updated_at, photo_key, bio
          FROM users WHERE id = $1 AND deleted_at IS NULL`,
       [auth.userId],
     );
@@ -226,6 +237,7 @@ export class MeService {
         photo: user.photo_key
           ? profilePhotoUrls(this.photosBaseUrl, user.photo_key)
           : null,
+        bio: user.bio,
       },
       oauthIdentities: identities.map((i) => ({
         provider: i.provider,
@@ -262,7 +274,7 @@ export class MeService {
       // everything that identifies the person goes.
       await tx.query(
         `UPDATE users
-            SET email = $2, display_name = NULL, password_hash = NULL,
+            SET email = $2, display_name = NULL, password_hash = NULL, bio = NULL,
                 email_verified_at = NULL, updated_at = now(), deleted_at = now()
           WHERE id = $1`,
         [auth.userId, anonymisedEmail(auth.userId)],
@@ -341,7 +353,7 @@ export class MeService {
 
 /**
  * Published outbox rows are kept for a week (see @borrowbox/outbox), so the
- * `user.registered` (email, name) and `user.profile_updated` (name, photo)
+ * `user.registered` (email, name) and `user.profile_updated` (name, photo, bio)
  * envelopes would otherwise keep personal data after erasure until then.
  * Replace it with the anonymised values; the contract shapes stay valid.
  */
@@ -365,9 +377,10 @@ async function redactUserEvents(
   );
   await tx.query(
     `UPDATE outbox
-        SET envelope = jsonb_set(
+        SET envelope = jsonb_set(jsonb_set(
               jsonb_set(envelope, '{payload,displayName}', to_jsonb($2::text)),
-              '{payload,photo}', 'null'::jsonb)
+              '{payload,photo}', 'null'::jsonb),
+              '{payload,bio}', 'null'::jsonb)
       WHERE routing_key = $3
         AND envelope->'payload'->>'userId' = $1`,
     [userId, ANONYMISED_DISPLAY_NAME, UserProfileUpdatedV1.routingKey],

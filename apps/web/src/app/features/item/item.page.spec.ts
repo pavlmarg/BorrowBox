@@ -111,6 +111,61 @@ describe('ItemPage', () => {
     expect(el.querySelector('.owner-note')).toBeNull();
   });
 
+  it('links the lender to their profile, with their bio and other items (ADR-0025)', async () => {
+    const { el, fixture, respond } = await render();
+    await respond(
+      detail({
+        lender: {
+          id: 'lender-1',
+          displayName: 'Eleni',
+          photo: null,
+          bio: 'After 9, please',
+        },
+      }),
+    );
+    const lender = el.querySelector('a.lender');
+    expect(lender?.getAttribute('href')).toBe('/users/lender-1');
+    expect(el.querySelector('.lender-bio')?.textContent).toContain(
+      'After 9, please',
+    );
+
+    // "More from …": the lender's other items, this one left out.
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/api/users/lender-1/items').flush({
+      items: [
+        {
+          id: 'i-1',
+          title: 'Bosch drill',
+          category: 'tools',
+          pricing: { free: true },
+          depositCents: 0,
+          coverPhoto: null,
+        },
+        {
+          id: 'i-2',
+          title: 'Ladder',
+          category: 'tools',
+          pricing: { free: true },
+          depositCents: 0,
+          coverPhoto: null,
+        },
+      ],
+    });
+    await tick();
+    await fixture.whenStable();
+    const cards = el.querySelectorAll('.more bb-item-card');
+    expect(cards.length).toBe(1);
+    expect(cards[0].querySelector('a')?.getAttribute('href')).toBe(
+      '/items/i-2',
+    );
+    expect(el.querySelector('.more h2')?.textContent).toContain(
+      'item.moreFrom',
+    );
+    expect(el.querySelector('.see-all')?.getAttribute('href')).toBe(
+      '/users/lender-1',
+    );
+  });
+
   it('says free for free items', async () => {
     const { el, respond } = await render();
     await respond(detail({ pricing: { free: true }, depositCents: 0 }), []);

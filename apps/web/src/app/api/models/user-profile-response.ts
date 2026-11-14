@@ -6,6 +6,11 @@ import { OAuthProvider } from '../models/o-auth-provider';
 import { ProfilePhotoUploadStatus } from '../models/profile-photo-upload-status';
 import { ProfilePhotoUrlsResponse } from '../models/profile-photo-urls-response';
 export interface UserProfileResponse {
+
+  /**
+   * Public bio (ADR-0025); null for none
+   */
+  bio: string | null;
   createdAt: string;
   displayName: string;
   email: string;

@@ -9,6 +9,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import {
+  BIO_MAX_LENGTH,
   DISPLAY_NAME_MAX_LENGTH,
   type ProfilePhotoUrls,
 } from '@borrowbox/contracts';
@@ -49,6 +50,13 @@ export class UserNamePayload {
   @ValidateNested()
   @Type(() => ProfilePhotoPayload)
   photo?: ProfilePhotoPayload | null;
+
+  /** Like `photo` (ADR-0025): null for none, absent keeps what we have. */
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(BIO_MAX_LENGTH * 2) // a loose bound: Identity enforces the rule
+  bio?: string | null;
 }
 
 /** `user.email_verified.v1`. */

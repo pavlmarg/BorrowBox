@@ -1,11 +1,11 @@
 import {
   bookingFees,
+  maskContacts,
   type ConversationView,
   type MessageView,
   type OfferStatus,
   type OfferView,
 } from '@borrowbox/contracts';
-import { maskContacts } from './masking';
 import type {
   ConversationRow,
   MessageRow,

@@ -319,6 +319,7 @@ export class ItemsService {
         ? {
             displayName: profile.displayName,
             photo: profile.photo,
+            bio: profile.bio,
             updatedAt: profile.updatedAt.toISOString(),
           }
         : null,

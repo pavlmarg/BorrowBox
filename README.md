@@ -59,19 +59,19 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
         *   ~~Search as you type sends a request per pause in typing: give `catalog.items.suggest`'s gateway endpoint its own, higher rate limit (step 11).~~ Done in step 11 (300 per minute).
         *   Greek word forms: Postgres' Greek stemmer gives some forms of a word different stems (e.g. "μπαταρίας" vs "μπαταρία"), so typing one full form can miss the other. Partial words match both. Revisit if users notice (e.g. a Greek dictionary or `pg_trgm`).
         *   Suggestions check each typed word per item rather than through the full-text index. Fine for a neighbourhood's items; if it gets slow at scale, build one prefix `tsquery` and use the GIN index.
-        *   "More from this lender" on item pages: Phase 6 (Trust), with reviews. Not a people search: names are never searchable.
+        *   ~~"More from this lender" on item pages: Phase 6 (Trust), with reviews. Not a people search: names are never searchable.~~ Done after Phase 4's web pass (ADR-0025): "More from" on item pages, and lenders (only) can be found by name in Explore's search bar.
         *   The production Docker image must use a base image `sharp` ships binaries for (e.g. Debian slim; Alpine needs the musl build) (Phase 7).
         *   Production CSP for maps: `connect-src` and `img-src` must allow `https://api.maptiler.com`; MapLibre's worker is served from our own origin, so `worker-src 'self'` is enough. The deployment writes the PWA's `config.json` with the production MapTiler key, restricted to the production domain (Phase 7).
         *   Paid extra listing slots (e.g. packs of 5 or 10 beyond the free 10 items): after Phase 4 (Payments), and only after an ADR on pricing, one-off vs subscription, what happens to items over the limit when it ends, refunds and EU VAT.
         *   ~~Explore's featured carousel shows the newest items nearby for now; rank it by bookings once they exist (Phase 3).~~ Done in Phase 3: the most booked in the last 90 days first, counted from `booking.accepted` / `booking.confirmed`.
-        *   ~~Profile photos: "Change photo" is a placeholder and avatars are a silhouette. Uploading one reuses the photo pipeline (ADR-0009) and must be covered by export and deletion (GDPR).~~ Done after Phase 4's web pass (ADR-0024): Identity runs the pipeline with its own storage key; export and erasure cover it.
+        *   ~~Profile photos: "Change photo" is a placeholder and avatars are a silhouette. Uploading one reuses the photo pipeline (ADR-0009) and must be covered by export and deletion (GDPR).~~ Done after Phase 4's web pass (ADR-0024): Identity runs the pipeline with its own storage key; export and erasure cover it. Public profiles with bios, "More from" and finding lenders by name followed (ADR-0025).
         *   Item titles and descriptions are searched in the language they were written in. If cross-language search matters, first add a hint in the listing wizard ("add the English name too"); machine translation would mean a new data processor (GDPR) and an ADR.
         *   Price tags on Explore's map (ADR-0014): revisit if users take them for exact addresses.
         *   ~~CI speed-up: cache `.nx/cache` and pre-pull the Testcontainers images in GitHub Actions.~~ Done in Phase 3.
-*   [ ] **Phase 3 – Bookings:** availability, request / accept / decline, state machine, email notifications, in-app chat with price offers
-    *   The backend is merged; its PWA screens (borrowing, bookings, chat, the email-link pages) are built together with Phase 4's, after Phase 4's backend.
-*   [ ] **Phase 4 – Payments:** Stripe Connect onboarding, checkout, webhooks, transfers & refunds (test mode)
-    *   Backend first ([ADR-0019](docs/adr/0019-payments-fees-and-policies.md), fees in [ADR-0020](docs/adr/0020-booking-fees.md)): lender onboarding, webhooks, checkout, refunds and settlement done ([ADR-0021](docs/adr/0021-refunds-and-settlement.md)); a live run with Stripe test mode before pushing.
+*   [x] **Phase 3 – Bookings:** availability, request / accept / decline, state machine, email notifications, in-app chat with price offers, and the PWA's booking, bookings, chat and email-link pages
+*   [x] **Phase 4 – Payments:** Stripe Connect onboarding, checkout, webhooks, transfers & refunds (test mode) ([ADR-0019](docs/adr/0019-payments-fees-and-policies.md)–[0022](docs/adr/0022-standard-service-agreement.md)), and the PWA's payment and payouts pages
+    *   Built alongside the web pass: dark mode, profile photos ([ADR-0024](docs/adr/0024-profile-photos.md)), public profiles and bios ([ADR-0025](docs/adr/0025-public-profiles.md)), a sectioned Settings page.
+    *   Until Phase 5, nothing emits `booking.completed`, so settlement only runs when that event is published by hand (see "Live run with Stripe test mode").
 *   [ ] **Phase 5 – Handoff:** QR pickup/return protocol, condition photos, claim window
 *   [ ] **Phase 6 – Trust & Social:** chat, reviews, trust score, ID verification
 *   [ ] **Phase 7 – Hardening:** observability stack, e2e tests, VPS deployment

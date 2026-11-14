@@ -21,6 +21,7 @@ import {
 } from '@borrowbox/contracts';
 import {
   catchError,
+  combineLatest,
   debounceTime,
   distinctUntilChanged,
   from,
@@ -29,20 +30,39 @@ import {
   switchMap,
 } from 'rxjs';
 import { Api } from '../../api/api';
-import { publicItemsControllerSuggest } from '../../api/functions';
-import type { ItemSuggestionResponse } from '../../api/models';
+import {
+  peopleControllerSuggest,
+  publicItemsControllerSuggest,
+} from '../../api/functions';
+import type {
+  ItemSuggestionResponse,
+  PersonSuggestionResponse,
+} from '../../api/models';
 import { NavIcon } from '../../core/layout/nav-icon';
+import { Avatar } from '../../shared/avatar/avatar';
 import { ExploreStore } from './explore.store';
 
 /** Search as you type waits for this pause before asking. */
 const SUGGEST_DEBOUNCE_MS = 250;
 
-type QueryValue = string | ItemSuggestionResponse;
+/** A picked suggestion: an item, or a person (ADR-0025). */
+type Suggestion =
+  | { kind: 'item'; item: ItemSuggestionResponse }
+  | { kind: 'person'; person: PersonSuggestionResponse };
+type QueryValue = string | Suggestion;
+
+interface Suggestions {
+  items: ItemSuggestionResponse[];
+  people: PersonSuggestionResponse[];
+}
+const NONE: Suggestions = { items: [], people: [] };
 
 /**
- * The search box. Enter searches; while typing, up to 5 nearby items whose
- * words start with what's typed are suggested, and picking one opens it
- * (E13). What's typed is never stored or logged (ADR-0007).
+ * The search box. Enter searches items; while typing, up to 5 nearby items
+ * whose words start with what's typed are suggested (E13), and apart from
+ * them up to 5 people whose names do (ADR-0025). Picking one opens the item
+ * or the person's profile. People never appear in the results themselves.
+ * What's typed is never stored or logged (ADR-0007).
  */
 @Component({
   selector: 'bb-search-bar',
@@ -53,6 +73,7 @@ type QueryValue = string | ItemSuggestionResponse;
     MatFormFieldModule,
     MatInputModule,
     NavIcon,
+    Avatar,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -86,20 +107,39 @@ type QueryValue = string | ItemSuggestionResponse;
         [displayWith]="display"
         (optionSelected)="open($event)"
       >
-        @for (s of suggestions(); track s.id) {
-          <mat-option [value]="s">
-            <span class="suggestion">
-              <span class="thumb">
-                @if (s.thumbnailUrl) {
-                  <img [src]="s.thumbnailUrl" alt="" />
-                }
-              </span>
-              <span class="title">{{ s.title }}</span>
-              <span class="band">{{
-                t('catalog.distance.' + s.distanceBand)
-              }}</span>
-            </span>
-          </mat-option>
+        @if (suggestions().items.length > 0) {
+          <mat-optgroup [label]="t('explore.suggest.items')">
+            @for (s of suggestions().items; track s.id) {
+              <mat-option [value]="{ kind: 'item', item: s }">
+                <span class="suggestion">
+                  <span class="thumb">
+                    @if (s.thumbnailUrl) {
+                      <img [src]="s.thumbnailUrl" alt="" />
+                    }
+                  </span>
+                  <span class="title">{{ s.title }}</span>
+                  <span class="band">{{
+                    t('catalog.distance.' + s.distanceBand)
+                  }}</span>
+                </span>
+              </mat-option>
+            }
+          </mat-optgroup>
+        }
+        @if (suggestions().people.length > 0) {
+          <mat-optgroup [label]="t('explore.suggest.people')">
+            @for (p of suggestions().people; track p.id) {
+              <mat-option [value]="{ kind: 'person', person: p }">
+                <span class="suggestion">
+                  <bb-avatar [size]="40" [photoUrl]="p.photoUrl" />
+                  <span class="title">{{ p.displayName }}</span>
+                  <span class="band">{{
+                    t('explore.suggest.itemCount', { count: p.itemCount })
+                  }}</span>
+                </span>
+              </mat-option>
+            }
+          </mat-optgroup>
         }
       </mat-autocomplete>
     </form>
@@ -183,9 +223,7 @@ export class SearchBar {
   });
 
   private readonly typed = toSignal(
-    this.query.valueChanges.pipe(
-      map((v) => (typeof v === 'string' ? v : v.title)),
-    ),
+    this.query.valueChanges.pipe(map((v) => this.display(v))),
     { initialValue: '' },
   );
   protected readonly hasText = () => this.typed().trim() !== '';
@@ -197,27 +235,39 @@ export class SearchBar {
       distinctUntilChanged(),
       switchMap((q) =>
         q.length < SUGGEST_MIN_LENGTH
-          ? of([])
-          : from(
-              this.api.invoke(publicItemsControllerSuggest, {
-                body: {
-                  q,
-                  near: this.store.center(),
-                  radiusKm: this.store.filters().radiusKm,
-                },
-              }),
-            ).pipe(
-              map((r) => r.suggestions),
-              // Suggestions are a convenience: failing quietly is fine.
-              catchError(() => of([])),
-            ),
+          ? of(NONE)
+          : combineLatest({
+              items: from(
+                this.api.invoke(publicItemsControllerSuggest, {
+                  body: {
+                    q,
+                    near: this.store.center(),
+                    radiusKm: this.store.filters().radiusKm,
+                  },
+                }),
+              ).pipe(
+                map((r) => r.suggestions),
+                // Suggestions are a convenience: failing quietly is fine.
+                catchError(() => of([])),
+              ),
+              people: from(
+                this.api.invoke(peopleControllerSuggest, { body: { q } }),
+              ).pipe(
+                map((r) => r.people),
+                catchError(() => of([])),
+              ),
+            }),
       ),
     ),
-    { initialValue: [] as ItemSuggestionResponse[] },
+    { initialValue: NONE },
   );
 
-  protected readonly display = (v: QueryValue | null) =>
-    typeof v === 'string' ? v : (v?.title ?? '');
+  protected readonly display = (v: QueryValue | null): string =>
+    typeof v === 'string'
+      ? v
+      : v?.kind === 'person'
+        ? v.person.displayName
+        : (v?.item.title ?? '');
 
   constructor() {
     // Show the search that's on screen (from the URL, or coming back).
@@ -242,7 +292,11 @@ export class SearchBar {
   }
 
   protected open(event: MatAutocompleteSelectedEvent): void {
-    const suggestion = event.option.value as ItemSuggestionResponse;
-    void this.router.navigate(['/items', suggestion.id]);
+    const picked = event.option.value as Suggestion;
+    void this.router.navigate(
+      picked.kind === 'person'
+        ? ['/users', picked.person.id]
+        : ['/items', picked.item.id],
+    );
   }
 }

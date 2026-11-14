@@ -32,6 +32,12 @@ export const appRoutes: Route[] = [
           import('./features/item/item.page').then((m) => m.ItemPage),
       },
       {
+        // Public, like item pages (ADR-0025).
+        path: 'users/:id',
+        loadComponent: () =>
+          import('./features/people/person.page').then((m) => m.PersonPage),
+      },
+      {
         path: 'my-items',
         canMatch: [authGuard],
         loadChildren: () =>

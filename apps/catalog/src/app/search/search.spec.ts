@@ -465,6 +465,10 @@ describe('Search and public item pages (integration)', () => {
   it('shows an item page with processed photos in order and the lender’s name', async () => {
     const centre = newArea();
     const owner = await lender('Eleni');
+    await catalog.dataSource.query(
+      `UPDATE lenders SET bio = 'After 9, please' WHERE user_id = $1`,
+      [owner],
+    );
     const itemId = await seed({
       lenderId: owner,
       publicAt: await pointFrom(centre, 400, 300),
@@ -490,7 +494,12 @@ describe('Search and public item pages (integration)', () => {
         { id: expect.any(String), urls: expect.any(Object) },
         { id: expect.any(String), urls: expect.any(Object) },
       ],
-      lender: { id: owner, displayName: 'Eleni', photo: null },
+      lender: {
+        id: owner,
+        displayName: 'Eleni',
+        photo: null,
+        bio: 'After 9, please',
+      },
       approximateLocation: expect.any(Object),
       publishedAt: '2026-10-01T10:00:00.000Z',
     });
@@ -629,6 +638,123 @@ describe('Search and public item pages (integration)', () => {
   });
 
   // --- similar items (9c) -----------------------------------------------------------------
+
+  describe('people (ADR-0025)', () => {
+    async function people(q: string) {
+      const response = await catalog.send(CatalogRpc.suggestPeople, { q });
+      responses.push(response);
+      return response.people;
+    }
+
+    it('finds lenders with a visible item by the start of their names’ words', async () => {
+      const centre = newArea();
+      const maria = await lender('Μαρία Παπαδοπούλου');
+      const nikos = await lender('Νίκος Zorbas-Ξυλουργός');
+      const renter = await lender('Μαριάννα Ρέντερ'); // no items
+      const drafts = await lender('Μαρίνα Ντραφτ'); // only a draft
+      const gone = await lender('Μαρία Gone', true);
+      await seed({ lenderId: maria, publicAt: centre });
+      await seed({ lenderId: maria, publicAt: centre });
+      await seed({ lenderId: nikos, publicAt: centre });
+      await seed({ lenderId: drafts, publicAt: centre, status: 'DRAFT' });
+      await seed({ lenderId: gone, publicAt: centre });
+      await catalog.dataSource.query(
+        `UPDATE lenders SET photo = $2::jsonb WHERE user_id = $1`,
+        [
+          maria,
+          JSON.stringify({
+            small: 'https://m.test/96',
+            large: 'https://m.test/512',
+          }),
+        ],
+      );
+
+      // Case and Greek accents don't matter; every word must match.
+      expect(await people('ΜΑΡΙΑ')).toEqual([
+        {
+          id: maria,
+          displayName: 'Μαρία Παπαδοπούλου',
+          photoUrl: 'https://m.test/96',
+          itemCount: 2,
+        },
+      ]);
+      expect((await people('παπαδ μαρ')).map((p) => p.id)).toEqual([maria]);
+      expect((await people('ξυλουργος')).map((p) => p.id)).toEqual([nikos]);
+      expect((await people('zorb')).map((p) => p.id)).toEqual([nikos]);
+      // Only word starts, and no renters, drafts-only or erased accounts.
+      expect(await people('αρία')).toEqual([]);
+      expect(await people('μαρια ξυλ')).toEqual([]);
+      expect((await people('μαρ')).map((p) => p.id)).toEqual([maria]);
+      expect([renter, drafts, gone]).not.toContain(
+        (await people('Μαρ'))[0]?.id,
+      );
+    });
+
+    it('treats punctuation as separators and rejects text that is too short', async () => {
+      expect(await people('%_')).toEqual([]);
+      expect((await failure(people('a'))).code).toBe('VALIDATION_FAILED');
+    });
+  });
+
+  describe('lender items (ADR-0025)', () => {
+    it('lists the lender’s visible items, newest first, without any location', async () => {
+      const centre = newArea();
+      const owner = await lender('Anna');
+      const older = await seed({
+        lenderId: owner,
+        publicAt: centre,
+        title: 'Ladder',
+        publishedAt: new Date('2026-10-01T10:00:00Z'),
+      });
+      const newer = await seed({
+        lenderId: owner,
+        publicAt: centre,
+        title: 'Tent',
+        free: true,
+        readyPhotos: 0,
+        publishedAt: new Date('2026-10-05T10:00:00Z'),
+      });
+      await seed({ lenderId: owner, publicAt: centre, status: 'PAUSED' });
+      await seed({ lenderId: owner, publicAt: centre, status: 'DRAFT' });
+
+      const response = await catalog.send(CatalogRpc.lenderItems, {
+        lenderId: owner,
+      });
+      responses.push(response);
+      expect(response.items).toEqual([
+        {
+          id: newer,
+          title: 'Tent',
+          category: 'tools',
+          pricing: { free: true },
+          depositCents: 1000,
+          coverPhoto: null,
+        },
+        {
+          id: older,
+          title: 'Ladder',
+          category: 'tools',
+          pricing: { free: false, dailyCents: 500 },
+          depositCents: 1000,
+          coverPhoto: expect.objectContaining({ small: expect.any(String) }),
+        },
+      ]);
+    });
+
+    it('is empty for unknown and erased lenders, and refuses a malformed id', async () => {
+      const gone = await lender('Gone', true);
+      await seed({ lenderId: gone, publicAt: newArea() });
+      for (const lenderId of [gone, randomUUID()]) {
+        await expect(
+          catalog.send(CatalogRpc.lenderItems, { lenderId }),
+        ).resolves.toEqual({ items: [] });
+      }
+      expect(
+        (await failure(catalog.send(CatalogRpc.lenderItems, { lenderId: 'x' })))
+          .code,
+      ).toBe('VALIDATION_FAILED');
+    });
+  });
 
   describe('similar', () => {
     async function similar(itemId: string): Promise<PublicItemSummary[]> {

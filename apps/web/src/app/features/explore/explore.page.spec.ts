@@ -64,7 +64,12 @@ describe('ExplorePage', () => {
     expect(photo?.getAttribute('href')).toBe('/items/a');
     expect(photo?.getAttribute('tabindex')).toBe('-1');
     expect(photo?.getAttribute('aria-hidden')).toBe('true');
-    expect(rows[0].querySelectorAll('a')).toHaveLength(2);
+    // The third link: who posted it, to their profile (ADR-0025).
+    expect(rows[0].querySelectorAll('a')).toHaveLength(3);
+    const poster = rows[0].querySelector('a.poster');
+    expect(poster?.getAttribute('href')).toBe('/users/l-1');
+    expect(poster?.textContent).toContain('catalog.postedBy');
+    expect(poster?.textContent).toContain('Lena');
     // Its category in the category's colour, and the description's start.
     expect(rows[0].textContent).toContain('catalog.categories.tools');
     expect(rows[0].textContent).toContain('Works well');

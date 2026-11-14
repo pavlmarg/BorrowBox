@@ -13,6 +13,7 @@ ADRs — read the relevant one before touching that area:
 - Item locations, maps, photos → `docs/adr/0004-location-fuzzing.md`, then `0007-location-privacy-search.md` (supersedes parts of 0004), then `0011-one-offset-per-place.md` (amends 0007's offset rule), then `0023-further-away-results.md` (search beyond the radius)
 - Map tiles, setting item locations → `docs/adr/0008-maps-pin-drop.md`; Explore's map markers → `docs/adr/0014-price-tags-on-explore-map.md`
 - Photo uploads and processing → `docs/adr/0009-photo-pipeline.md`, then `0013-wider-photo-formats.md` (formats, browser conversion, camera); profile photos (Identity) → `0024-profile-photos.md`
+- Public profiles, bios, finding people by name, "More from" → `docs/adr/0025-public-profiles.md`
 - Item pricing (rate card, free items) and its effects on Bookings/Payments → `docs/adr/0010-flexible-pricing.md`, then `0012-free-items-match-price-limits.md` (search price filter)
 - Gateway → service calls (NestJS TCP) → `docs/adr/0005-gateway-service-transport-tcp.md`
 - UI kit (Angular Material) → `docs/adr/0006-ui-kit-angular-material.md`
@@ -24,7 +25,7 @@ ADRs — read the relevant one before touching that area:
 
 ## Current phase
 
-**Phase 4 – Payments, backend first** (update this line as phases complete; see roadmap in `README.md`). Phase 3's backend is merged; the PWA screens for Phases 3 and 4 are built together after Phase 4's backend. Phase 1 and 2 follow-ups are listed there.
+**Phase 5 – Handoff** (update this line as phases complete; see roadmap in `README.md`): QR pickup/return (ARCHITECTURE §5), condition photos, the 48 h claim window. Phases 3 and 4 are done, backend and PWA. Earlier phases' follow-ups are listed in the roadmap.
 
 - Only build what the current phase needs. If a task seems to require a later-phase feature, stop and ask.
 - Messaging and Reviews start as modules inside `apps/bookings` until their event contracts settle.

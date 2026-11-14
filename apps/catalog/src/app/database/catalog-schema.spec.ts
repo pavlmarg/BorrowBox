@@ -476,6 +476,9 @@ describe('Catalog schema (integration)', () => {
         )
       ).map((r: { column_name: string }) => r.column_name);
 
+    expect(await lenderColumns()).toContain('bio');
+    await db.undoLastMigration(); // lender bios
+    expect(await lenderColumns()).not.toContain('bio');
     expect(await lenderColumns()).toContain('photo');
     await db.undoLastMigration(); // lender photos
     expect(await lenderColumns()).not.toContain('photo');
@@ -493,7 +496,7 @@ describe('Catalog schema (integration)', () => {
     expect(await tables()).toEqual(['item_photos', 'items', 'lenders']);
     await db.undoLastMigration(); // initial
     expect(await tables()).toEqual([]);
-    expect(await runMigrations(db)).toBe(5);
+    expect(await runMigrations(db)).toBe(6);
     expect(await tables()).toHaveLength(6);
     expect(await itemColumns()).toEqual([
       'max_rental_hours',

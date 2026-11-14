@@ -40,7 +40,7 @@ import {
 type Busy = 'changing' | 'sending' | null;
 
 /**
- * Settings' "Password" section. With a password: current + new + confirm,
+ * The password page (`/settings/password`, from Settings). With a password: current + new + confirm,
  * after which Identity signs out the other sessions (this one stays).
  * Google-only accounts have none to change, so they get a reset link to
  * their own address instead (setting it signs out every session).
@@ -60,9 +60,7 @@ type Busy = 'changing' | 'sending' | null;
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <mat-card appearance="outlined" *transloco="let t">
-      <mat-card-header>
-        <mat-card-title>{{ t('accountEmails.password.title') }}</mat-card-title>
-      </mat-card-header>
+      <!-- The page's heading is its title (/settings/password). -->
       <mat-card-content>
         @if (busy()) {
           <mat-progress-bar mode="indeterminate" />
@@ -205,7 +203,6 @@ type Busy = 'changing' | 'sending' | null;
       margin: 0 0 12px;
     }
     /* No panel (as Settings' other sections): content lines up with the title. */
-    mat-card-header,
     mat-card-content {
       padding-inline: 0;
     }

@@ -17,6 +17,7 @@ interface LiveUser {
   locale: Locale;
   email_verified_at: Date | null;
   photo_key: string | null;
+  bio: string | null;
 }
 
 /**
@@ -63,7 +64,7 @@ async function republish(
 ): Promise<string> {
   return dataSource.transaction(async (tx) => {
     const users: LiveUser[] = await tx.query(
-      `SELECT id, email, display_name, locale, email_verified_at, photo_key
+      `SELECT id, email, display_name, locale, email_verified_at, photo_key, bio
          FROM users WHERE deleted_at IS NULL ORDER BY created_at, id`,
     );
     let verified = 0;
@@ -82,6 +83,7 @@ async function republish(
               photo: user.photo_key
                 ? profilePhotoUrls(baseUrl, user.photo_key)
                 : null,
+              bio: user.bio,
             }),
       );
       if (user.email_verified_at) {

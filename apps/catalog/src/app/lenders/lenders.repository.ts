@@ -2,17 +2,17 @@ import type { EntityManager } from 'typeorm';
 import type { ProfilePhotoUrls } from '@borrowbox/contracts';
 
 /**
- * The `lenders` read model: every account's display name and profile
- * photo, kept from Identity's events. Events may arrive late or out of
+ * The `lenders` read model: every account's display name, profile photo
+ * and bio, kept from Identity's events. Events may arrive late or out of
  * order, so:
- * - the newest `occurredAt` wins for the name and photo;
+ * - the newest `occurredAt` wins for the name, photo and bio;
  * - deletion is final: later name events never bring a deleted user back.
  */
 
 /**
  * From `user.registered` or `user.profile_updated`; creates the row if
- * missing. `photo` undefined (the event doesn't carry it) keeps the stored
- * one; null removes it.
+ * missing. `photo` or `bio` undefined (the event doesn't carry it) keeps
+ * the stored one; null removes it.
  */
 export async function saveLenderName(
   tx: EntityManager,
@@ -20,14 +20,16 @@ export async function saveLenderName(
   displayName: string,
   occurredAt: string,
   photo?: ProfilePhotoUrls | null,
+  bio?: string | null,
 ): Promise<void> {
   await tx.query(
-    `INSERT INTO lenders (user_id, display_name, name_updated_at, photo)
-     VALUES ($1, $2, $3, $4::jsonb)
+    `INSERT INTO lenders (user_id, display_name, name_updated_at, photo, bio)
+     VALUES ($1, $2, $3, $4::jsonb, $6)
      ON CONFLICT (user_id) DO UPDATE
        SET display_name = EXCLUDED.display_name,
            name_updated_at = EXCLUDED.name_updated_at,
-           photo = CASE WHEN $5 THEN EXCLUDED.photo ELSE lenders.photo END
+           photo = CASE WHEN $5 THEN EXCLUDED.photo ELSE lenders.photo END,
+           bio = CASE WHEN $7 THEN EXCLUDED.bio ELSE lenders.bio END
        WHERE lenders.deleted_at IS NULL
          AND lenders.name_updated_at < EXCLUDED.name_updated_at`,
     [
@@ -36,6 +38,8 @@ export async function saveLenderName(
       occurredAt,
       photo ? JSON.stringify({ small: photo.small, large: photo.large }) : null,
       photo !== undefined,
+      bio ?? null,
+      bio !== undefined,
     ],
   );
 }
@@ -87,6 +91,7 @@ export async function markLenderDeleted(
      ON CONFLICT (user_id) DO UPDATE
        SET display_name = NULL,
            photo = NULL,
+           bio = NULL,
            deleted_at = COALESCE(lenders.deleted_at, now())`,
     [userId, occurredAt],
   );
@@ -126,17 +131,18 @@ export async function isLenderDeleted(
   return rows.length > 0;
 }
 
-/** The live lender's stored name and photo, for their data export; null if unknown or deleted. */
+/** The live lender's stored name, photo and bio, for their data export; null if unknown or deleted. */
 export async function findLenderProfile(
   tx: EntityManager,
   lenderId: string,
 ): Promise<{
   displayName: string;
   photo: ProfilePhotoUrls | null;
+  bio: string | null;
   updatedAt: Date;
 } | null> {
   const [row] = await tx.query(
-    `SELECT display_name, photo, name_updated_at FROM lenders
+    `SELECT display_name, photo, bio, name_updated_at FROM lenders
       WHERE user_id = $1 AND deleted_at IS NULL`,
     [lenderId],
   );
@@ -144,6 +150,7 @@ export async function findLenderProfile(
     ? {
         displayName: row.display_name,
         photo: row.photo ?? null,
+        bio: row.bio ?? null,
         updatedAt: row.name_updated_at,
       }
     : null;

@@ -1,5 +1,6 @@
 /**
- * Hides contact details in chat until a booking goes ahead (ADR-0017):
+ * Contact details in free text. Chat hides them until a booking goes ahead
+ * (ADR-0017), and public bios refuse them (ADR-0025):
  * email addresses, links and phone numbers become `•••`. This is friction,
  * not security: spelled-out numbers, short numbers and numbers written with
  * dots or slashes get through. In exchange, dates, prices and ordinary words
@@ -29,4 +30,10 @@ export function maskContacts(text: string): string {
     .replace(URL, MASK)
     .replace(DOMAIN, MASK)
     .replace(PHONE, MASK);
+}
+
+/** True if `text` contains something `maskContacts` would hide. */
+export function hasContactDetails(text: string): boolean {
+  // The patterns never match the mask itself, so any change means a match.
+  return maskContacts(text) !== text;
 }

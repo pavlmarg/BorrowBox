@@ -3,6 +3,11 @@
 
 import { Locale } from '../models/locale';
 export interface UpdateProfileBody {
+
+  /**
+   * Public bio (ADR-0025): trimmed, at most 150 characters and 3 lines, no phone numbers, emails or links. An empty string removes it.
+   */
+  bio?: string;
   displayName?: string;
   locale?: Locale;
 }
