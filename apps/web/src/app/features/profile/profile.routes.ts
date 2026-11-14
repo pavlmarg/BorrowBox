@@ -13,6 +13,10 @@ export const settingsRoutes: Route[] = [
     loadComponent: () => import('./settings.page').then((m) => m.SettingsPage),
   },
   {
+    path: 'password',
+    loadComponent: () => import('./password.page').then((m) => m.PasswordPage),
+  },
+  {
     // Stripe sends lenders back here (ADR-0019): /settings/payouts?stripe=…
     path: 'payouts',
     loadComponent: () =>

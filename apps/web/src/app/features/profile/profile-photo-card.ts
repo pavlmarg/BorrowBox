@@ -4,8 +4,6 @@ import {
   computed,
   inject,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslocoDirective } from '@jsverse/transloco';
 import { errorKey, type KnownErrorCode } from '../../core/api-errors';
@@ -17,96 +15,82 @@ import { ProfileStore } from './profile.store';
 const LOCAL_PROBLEMS = ['unsupported', 'tooSmall', 'tooLarge', 'unreadable'];
 
 /**
- * Settings' "Profile picture" card (ADR-0024): change the photo (cropped to
- * a square, public like the name) or remove it. Uses the page's ProfileStore.
+ * The profile picture at the top of Settings (ADR-0024): the photo, large,
+ * with two small buttons below it, change (cropped to a square, public
+ * like the name) and remove. No hover effects, only a press. Uses the
+ * page's ProfileStore; the section heading comes from the page.
  */
 @Component({
   selector: 'bb-profile-photo-card',
-  imports: [
-    TranslocoDirective,
-    MatButtonModule,
-    MatCardModule,
-    MatProgressSpinnerModule,
-    Avatar,
-  ],
+  imports: [TranslocoDirective, MatProgressSpinnerModule, Avatar],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ng-container *transloco="let t">
-      <mat-card appearance="outlined">
-        <mat-card-header>
-          <mat-card-title>{{ t('profile.photo.title') }}</mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="row">
-            <div class="avatar-wrap" [attr.aria-busy]="photoBusy()">
-              <bb-avatar
-                [size]="88"
-                [photoUrl]="auth.user()?.photo?.large ?? null"
-              />
-              @if (photoBusy()) {
-                <div class="photo-busy">
-                  <mat-spinner diameter="28" />
-                </div>
-              }
-            </div>
-            <div class="side">
-              <div class="actions">
-                <button
-                  mat-stroked-button
-                  type="button"
-                  [disabled]="store.photoStep() !== 'idle'"
-                  (click)="fileInput.click()"
-                >
-                  {{ t('profile.photo.change') }}
-                </button>
-                @if (auth.user()?.photo) {
-                  <button
-                    mat-button
-                    type="button"
-                    [disabled]="store.photoStep() !== 'idle'"
-                    (click)="store.removePhoto()"
-                  >
-                    {{ t('profile.photo.remove') }}
-                  </button>
-                }
-                <input
-                  #fileInput
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  (change)="onFile($event)"
-                />
-              </div>
-              @if (photoBusy()) {
-                <p class="status" role="status">
-                  {{
-                    t(
-                      store.photoStep() === 'uploading'
-                        ? 'profile.photo.uploading'
-                        : 'profile.photo.processing'
-                    )
-                  }}
-                </p>
-              }
-              @if (photoProblemKey(); as key) {
-                <p class="form-error status" role="alert">{{ t(key) }}</p>
-              }
-              <p class="hint">{{ t('profile.photo.hint') }}</p>
-            </div>
+      <div class="avatar-wrap" [attr.aria-busy]="photoBusy()">
+        <bb-avatar
+          class="avatar"
+          [size]="128"
+          [photoUrl]="auth.user()?.photo?.large ?? null"
+        />
+        @if (photoBusy()) {
+          <div class="photo-busy">
+            <mat-spinner diameter="36" />
           </div>
-        </mat-card-content>
-      </mat-card>
+        }
+      </div>
+      <div class="actions">
+        <button
+          type="button"
+          class="pill"
+          [disabled]="store.photoStep() !== 'idle'"
+          (click)="fileInput.click()"
+        >
+          {{ t('profile.photo.change') }}
+        </button>
+        @if (auth.user()?.photo) {
+          <button
+            type="button"
+            class="pill danger"
+            [disabled]="store.photoStep() !== 'idle'"
+            (click)="store.removePhoto()"
+          >
+            {{ t('profile.photo.remove') }}
+          </button>
+        }
+        <input
+          #fileInput
+          type="file"
+          accept="image/*"
+          hidden
+          (change)="onFile($event)"
+        />
+      </div>
+      @if (photoBusy()) {
+        <p class="status" role="status">
+          {{
+            t(
+              store.photoStep() === 'uploading'
+                ? 'profile.photo.uploading'
+                : 'profile.photo.processing'
+            )
+          }}
+        </p>
+      }
+      @if (photoProblemKey(); as key) {
+        <p class="form-error status" role="alert">{{ t(key) }}</p>
+      }
     </ng-container>
   `,
   styles: `
-    .row {
-      align-items: center;
-      display: flex;
-      gap: 24px;
+    :host {
+      display: block;
     }
     .avatar-wrap {
-      flex: none;
       position: relative;
+      width: 128px;
+    }
+    .avatar {
+      box-shadow: var(--bb-shadow-sm);
     }
     .photo-busy {
       align-items: center;
@@ -117,36 +101,50 @@ const LOCAL_PROBLEMS = ['unsupported', 'tooSmall', 'tooLarge', 'unreadable'];
       justify-content: center;
       position: absolute;
     }
-    .side {
-      min-width: 0;
-    }
     .actions {
-      align-items: center;
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
+      margin-top: 16px;
+    }
+    /* Small, flat buttons: no hover effect, only a short press. */
+    .pill {
+      background: transparent;
+      border: 1px solid rgb(var(--bb-line-rgb) / 0.24);
+      border-radius: var(--bb-button-radius);
+      color: var(--mat-sys-on-surface);
+      cursor: pointer;
+      font: var(--mat-sys-label-medium);
+      padding: 6px 12px;
+      transition: transform 120ms var(--bb-ease);
+    }
+    .pill:active:not(:disabled) {
+      transform: scale(0.94);
+    }
+    .pill:focus-visible {
+      outline: 3px solid var(--bb-sky-300);
+      outline-offset: 2px;
+    }
+    .pill:disabled {
+      cursor: default;
+      opacity: 0.5;
+    }
+    .pill.danger {
+      background: color-mix(in srgb, var(--mat-sys-error) 8%, transparent);
+      border-color: color-mix(in srgb, var(--mat-sys-error) 45%, transparent);
+      color: var(--mat-sys-error);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .pill {
+        transition: none;
+      }
+      .pill:active:not(:disabled) {
+        transform: none;
+      }
     }
     .status {
       font: var(--mat-sys-body-medium);
       margin: 12px 0 0;
-    }
-    .hint {
-      color: var(--mat-sys-on-surface-variant);
-      font: var(--mat-sys-body-small);
-      margin: 12px 0 0;
-    }
-    /* The cards have no panel, so their content lines up with the title. */
-    mat-card-header,
-    mat-card-content {
-      padding-inline: 0;
-    }
-
-    @media (max-width: 599px) {
-      .row {
-        align-items: flex-start;
-        flex-direction: column;
-        gap: 16px;
-      }
     }
   `,
 })

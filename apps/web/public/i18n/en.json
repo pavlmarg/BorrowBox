@@ -74,9 +74,6 @@
     "memberSince": "Member since {{date}}",
     "emailVerified": "Verified email",
     "emailNotVerified": "Email not verified",
-    "signIn": "How you sign in",
-    "withPassword": "Email and password",
-    "withGoogle": "Google",
     "export": {
       "title": "Download your data",
       "description": "Get a copy of the personal data BorrowBox holds about you, as a JSON file.",
@@ -95,7 +92,6 @@
       "remove": "Remove profile picture",
       "uploading": "Uploading your photo…",
       "processing": "Getting your photo ready…",
-      "hint": "Your photo is public, like your name, and is cropped to a square.",
       "errors": {
         "unsupported": "This file type isn't supported here. Try JPEG or PNG.",
         "tooSmall": "Photo too small (at least 128 px on each side).",
@@ -949,5 +945,18 @@
     "itemsOf": "{{name}}’s items",
     "yourItems": "Your items",
     "noItems": "No items yet."
+  },
+  "settings": {
+    "menu": "On this page",
+    "info": {
+      "photo": "Shown on your profile, next to your items and in chat. Public, like your name, and cropped to a square.",
+      "details": "Your name and bio are public; your email is only for you and BorrowBox."
+    },
+    "password": {
+      "info": "Change your password. Your other devices are signed out afterwards.",
+      "infoNone": "You sign in with Google, so you have no password yet. You can set one with a link to your email.",
+      "change": "Change password",
+      "set": "Set a password"
+    }
   }
 }
