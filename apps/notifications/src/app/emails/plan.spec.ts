@@ -6,10 +6,13 @@ import {
   onConfirmed,
   onDeclined,
   onExpired,
+  onHandoffUnconfirmed,
   onPaid,
   onPaymentFailed,
   onRefunded,
   onRequested,
+  onReturned,
+  onReviewRequested,
   onSettled,
 } from './plan';
 
@@ -71,6 +74,49 @@ describe('which booking emails go to whom (N1)', () => {
       'BOOKING_EXPIRED>renter',
       'BOOKING_EXPIRED>lender',
     ]);
+    // Nobody confirmed the pickup: both hear it ended (ADR-0026).
+    expect(who(onExpired({ ...booking, reason: 'NO_HANDOFF' }))).toEqual([
+      'BOOKING_EXPIRED>renter',
+      'BOOKING_EXPIRED>lender',
+    ]);
+  });
+
+  it('asks only those who have not answered whether a handoff happened', () => {
+    const asked = onHandoffUnconfirmed({
+      ...booking,
+      phase: 'PICKUP',
+      round: 2,
+      askUserIds: ['renter'],
+      decideAt: '2026-11-04T10:00:00.000Z',
+    });
+    expect(who(asked)).toEqual(['HANDOFF_QUESTION>renter']);
+    expect(asked[0].data).toMatchObject({
+      otherId: 'lender',
+      phase: 'PICKUP',
+      round: 2,
+      decideAt: '2026-11-04T10:00:00.000Z',
+    });
+  });
+
+  it('tells both the item was returned, with the claim window if any', () => {
+    const emails = onReturned({
+      ...booking,
+      claimUntil: '2026-11-03T12:00:00.000Z',
+    });
+    expect(who(emails)).toEqual([
+      'BOOKING_RETURNED>renter',
+      'BOOKING_RETURNED>lender',
+    ]);
+    expect(emails[1].data.claimUntil).toBe('2026-11-03T12:00:00.000Z');
+    expect(
+      onReturned({ ...booking, claimUntil: null })[0].data.claimUntil,
+    ).toBeUndefined();
+  });
+
+  it('tells both an admin will look into a handoff', () => {
+    expect(
+      who(onReviewRequested({ ...booking, reason: 'PICKUP_UNCONFIRMED' })),
+    ).toEqual(['BOOKING_IN_REVIEW>renter', 'BOOKING_IN_REVIEW>lender']);
   });
 
   it('tells both people once a booking is paid', () => {

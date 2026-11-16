@@ -2,6 +2,9 @@ import type {
   BookingCancelledV1Payload,
   BookingDeclinedV1Payload,
   BookingExpiredV1Payload,
+  BookingHandoffUnconfirmedV1Payload,
+  BookingReturnedV1Payload,
+  BookingReviewRequestedV1Payload,
   BookingSnapshotV1,
   ConversationUnreadV1Payload,
   EmailKind,
@@ -38,6 +41,12 @@ export interface EmailData {
   expiresAt?: string;
   reason?: string;
   unreadCount?: number;
+  /** Handoffs (ADR-0026): which one, the round of asking, the deadline. */
+  phase?: string;
+  round?: number;
+  decideAt?: string;
+  /** Until when the lender can report damage. */
+  claimUntil?: string;
 }
 
 export interface PlannedEmail {
@@ -164,9 +173,14 @@ export function onDeclined(b: BookingDeclinedV1Payload): PlannedEmail[] {
   return [toRenter('BOOKING_DECLINED', b, b.reason)];
 }
 
-/** The renter always; the lender too when they never answered, or it wasn't paid. */
+/**
+ * The renter always; the lender too when they never answered, it wasn't
+ * paid, or nobody confirmed the pickup.
+ */
 export function onExpired(b: BookingExpiredV1Payload): PlannedEmail[] {
-  return b.reason === 'NO_ANSWER' || b.reason === 'PAYMENT_TIMEOUT'
+  return b.reason === 'NO_ANSWER' ||
+    b.reason === 'PAYMENT_TIMEOUT' ||
+    b.reason === 'NO_HANDOFF'
     ? [
         toRenter('BOOKING_EXPIRED', b, b.reason),
         toLender('BOOKING_EXPIRED', b, b.reason),
@@ -190,6 +204,43 @@ export function onCancelled(b: BookingCancelledV1Payload): PlannedEmail[] {
         toLender('BOOKING_CANCELLED', b, b.reason),
       ].map((e) => ({ ...e, delayMs: ERASURE_EMAIL_DELAY_MS }));
   }
+}
+
+/**
+ * booking.handoff_unconfirmed.v1: "did the pickup (return) happen?" to
+ * those who haven't answered yet (ADR-0026).
+ */
+export function onHandoffUnconfirmed(
+  b: BookingHandoffUnconfirmedV1Payload,
+): PlannedEmail[] {
+  return b.askUserIds.map((recipientId) => ({
+    kind: 'HANDOFF_QUESTION',
+    recipientId,
+    data: {
+      ...bookingData(b, recipientId === b.lenderId ? b.renterId : b.lenderId),
+      phase: b.phase,
+      round: b.round,
+      decideAt: b.decideAt,
+    },
+  }));
+}
+
+/** booking.returned.v1: both, with the claim window's end if there is one. */
+export function onReturned(b: BookingReturnedV1Payload): PlannedEmail[] {
+  const extra = b.claimUntil ? { claimUntil: b.claimUntil } : {};
+  return [toRenter('BOOKING_RETURNED', b), toLender('BOOKING_RETURNED', b)].map(
+    (e) => ({ ...e, data: { ...e.data, ...extra } }),
+  );
+}
+
+/** booking.review_requested.v1: both hear an admin will look into it. */
+export function onReviewRequested(
+  b: BookingReviewRequestedV1Payload,
+): PlannedEmail[] {
+  return [
+    toRenter('BOOKING_IN_REVIEW', b, b.reason),
+    toLender('BOOKING_IN_REVIEW', b, b.reason),
+  ];
 }
 
 export function onOfferSent(o: OfferSentV1Payload): PlannedEmail[] {
