@@ -5,6 +5,7 @@ import {
   BookingCancelledV1,
   BookingCompletedV1,
   BookingDisputedV1,
+  BookingExpiredV1,
   BookingPaidV1,
   createEnvelope,
   PaymentsRpc,
@@ -209,6 +210,20 @@ describe('Refunds and settlement (integration)', () => {
         expect(refundsOf(intent)).toEqual([7200]);
       },
     );
+
+    it('refunds everything when nobody confirmed the pickup (NO_HANDOFF, ADR-0026)', async () => {
+      // A paid booking already started: a renter's late cancellation would
+      // split the rent, but a pickup that never happened is not their doing.
+      const lender = await payableLender();
+      const { b, intent } = await paidBooking(5, lender.userId);
+      await service.receive(
+        createEnvelope(BookingExpiredV1, { ...b, reason: 'NO_HANDOFF' }),
+      );
+      await service.runDue();
+      expect(refundsOf(intent)).toEqual([7200]);
+      expect(transfersOf(b)).toEqual([]);
+      expect((await payment(b)).status).toBe('REFUNDED');
+    });
 
     it("treats a renter's erasure as the renter cancelling, a lender's as not", async () => {
       const byRenter = await paidBooking(30);
