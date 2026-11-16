@@ -350,6 +350,10 @@ export class OffersService {
     if (booking.status === 'ACCEPTED' && booking.pay_by) {
       await this.expiry.checkAt(booking.id, booking.pay_by);
     }
+    if (booking.handoff_due_at) {
+      // Nothing to pay: it goes ahead; the pickup timeline starts (ADR-0026).
+      await this.expiry.checkAt(booking.id, booking.handoff_due_at);
+    }
     return toView(booking, user.userId);
   }
 

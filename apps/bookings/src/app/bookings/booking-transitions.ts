@@ -2,21 +2,32 @@ import type { EntityManager } from 'typeorm';
 import {
   BookingAcceptedV1,
   BookingCancelledV1,
+  BookingCompletedV1,
   BookingConfirmedV1,
   BookingDeclinedV1,
   BookingExpiredV1,
   BookingPaidV1,
+  BookingPickedUpV1,
+  BookingReturnedV1,
+  claimUntil,
+  confirmRoundAt,
   createEnvelope,
+  handoffBase,
   PAYMENT_WINDOW_HOURS,
   type BookingCancelReason,
   type BookingDeclineReason,
   type BookingExpireReason,
   type CreateEnvelopeOptions,
   type EventEnvelope,
+  type BookingStatus,
   type SystemMessageCode,
 } from '@borrowbox/contracts';
 import { addToOutbox } from '@borrowbox/outbox';
 import type { ChatPushes } from '../messaging/chat-publisher';
+import {
+  setHandoffTimes,
+  type HandoffTimes,
+} from '../handoff/handoff.repository';
 import { addBookingLine } from '../messaging/system-messages';
 import { assertTransition } from './booking-state';
 import {
@@ -33,6 +44,10 @@ export type BookingMove =
   | { to: 'ACCEPTED' }
   | { to: 'CONFIRMED' }
   | { to: 'PAID' }
+  /** Handoffs (ADR-0026). */
+  | { to: 'PICKED_UP' }
+  | { to: 'RETURNED' }
+  | { to: 'COMPLETED' }
   | { to: 'DECLINED'; reason: BookingDeclineReason }
   | { to: 'EXPIRED'; reason: BookingExpireReason }
   | {
@@ -51,6 +66,9 @@ const LINES: Record<BookingMove['to'], SystemMessageCode> = {
   DECLINED: 'BOOKING_DECLINED',
   EXPIRED: 'BOOKING_EXPIRED',
   CANCELLED: 'BOOKING_CANCELLED',
+  PICKED_UP: 'BOOKING_PICKED_UP',
+  RETURNED: 'BOOKING_RETURNED',
+  COMPLETED: 'BOOKING_COMPLETED',
 };
 
 /**
@@ -59,7 +77,9 @@ const LINES: Record<BookingMove['to'], SystemMessageCode> = {
  * the conversation (ADR-0017), all in the caller's transaction. The caller
  * holds the row lock.
  *
- * `cause` is the RPC's correlation id, or the event being handled.
+ * `cause` is the RPC's correlation id, or the event being handled; `at`
+ * is when it happened (the handoff times count from it). The returned
+ * row's `handoff_due_at` is when the handoff timeline next looks at it.
  */
 export async function moveBooking(
   tx: EntityManager,
@@ -67,10 +87,13 @@ export async function moveBooking(
   move: BookingMove,
   cause: Cause | null,
   pushes: ChatPushes | null = null,
+  at: Date = new Date(),
 ): Promise<BookingRow> {
   assertTransition(booking.status, move.to);
   const reason = 'reason' in move ? move.reason : null;
   await setBookingStatus(tx, booking.id, move.to, reason);
+  const times = handoffTimesFor(booking, move.to, at);
+  await setHandoffTimes(tx, booking.id, times);
 
   const snapshot = toSnapshot(booking);
   // Waiting for payment: Payments and Notifications need the pay-by time.
@@ -78,7 +101,10 @@ export async function moveBooking(
     snapshot.payBy = booking.pay_by.toISOString();
   }
   const options: CreateEnvelopeOptions = cause ?? {};
-  await addToOutbox(tx, envelopeFor(move, snapshot, options));
+  await addToOutbox(
+    tx,
+    envelopeFor(move, snapshot, options, times.claimUntil ?? null),
+  );
   await addBookingLine(tx, booking, LINES[move.to], pushes);
   return (await findBooking(tx, booking.id)) as BookingRow;
 }
@@ -145,12 +171,51 @@ export async function acceptBooking(
   return accepted;
 }
 
+/**
+ * The handoff columns after a move (ADR-0026): a booking going ahead waits
+ * for its pickup, one picked up for its return, one returned for the end of
+ * its claim window (none without a deposit: it completes straight away).
+ * Any other status ends the timeline.
+ */
+export function handoffTimesFor(
+  booking: Pick<BookingRow, 'start' | 'end' | 'deposit_cents'>,
+  to: BookingStatus,
+  at: Date,
+): HandoffTimes {
+  switch (to) {
+    case 'PAID':
+    case 'CONFIRMED':
+      return { dueAt: confirmRoundAt(booking.start, 1), reset: true };
+    case 'PICKED_UP': {
+      const base = handoffBase('RETURN', { ...booking, pickedUpAt: at });
+      return { pickedUpAt: at, dueAt: confirmRoundAt(base, 1), reset: true };
+    }
+    case 'RETURNED': {
+      const until = booking.deposit_cents > 0 ? claimUntil(at) : null;
+      return { returnedAt: at, claimUntil: until, dueAt: until, reset: true };
+    }
+    default:
+      return { dueAt: null, reset: true };
+  }
+}
+
 function envelopeFor(
   move: BookingMove,
   snapshot: ReturnType<typeof toSnapshot>,
   options: CreateEnvelopeOptions,
+  claimUntilAt: Date | null,
 ): EventEnvelope {
   switch (move.to) {
+    case 'PICKED_UP':
+      return createEnvelope(BookingPickedUpV1, snapshot, options);
+    case 'RETURNED':
+      return createEnvelope(
+        BookingReturnedV1,
+        { ...snapshot, claimUntil: claimUntilAt?.toISOString() ?? null },
+        options,
+      );
+    case 'COMPLETED':
+      return createEnvelope(BookingCompletedV1, snapshot, options);
     case 'ACCEPTED':
       return createEnvelope(BookingAcceptedV1, snapshot, options);
     case 'CONFIRMED':

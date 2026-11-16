@@ -62,6 +62,8 @@ describe('Bookings AppModule (integration)', () => {
         [
           'bookings',
           'conversations',
+          'handoff_answers',
+          'handoffs',
           'items',
           'message_reports',
           'messages',
@@ -77,7 +79,7 @@ describe('Bookings AppModule (integration)', () => {
     }
     // Idempotent: nothing left to run.
     expect(await bookings.dataSource.showMigrations()).toBe(false);
-    expect(MIGRATIONS).toHaveLength(5);
+    expect(MIGRATIONS).toHaveLength(6);
   });
 
   describe('database guards', () => {

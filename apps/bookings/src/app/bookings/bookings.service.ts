@@ -17,6 +17,7 @@ import {
 import { addToOutbox } from '@borrowbox/outbox';
 import { DATA_SOURCE } from '@borrowbox/service-kit';
 import { ExpiryQueue } from '../expiry/expiry-queue';
+import { listHandoffsForExport } from '../handoff/handoff.repository';
 import { ChatPublisher, ChatPushes } from '../messaging/chat-publisher';
 import { addBookingLine } from '../messaging/system-messages';
 import { findItem, type ItemRow } from '../read-models/items.repository';
@@ -265,6 +266,10 @@ export class BookingsService {
       // Unpaid by then, it expires (PAYMENT_TIMEOUT).
       await this.expiry.checkAt(booking.id, booking.pay_by);
     }
+    if (booking.handoff_due_at) {
+      // Nothing to pay: it goes ahead; the pickup timeline starts (ADR-0026).
+      await this.expiry.checkAt(booking.id, booking.handoff_due_at);
+    }
     return toView(booking, user.userId);
   }
 
@@ -382,14 +387,16 @@ export class BookingsService {
 
   /**
    * Everything Bookings holds about the caller (GDPR Art. 15/20): their
-   * stored name, verification, and their bookings on both sides.
+   * stored name, verification, their bookings on both sides and their
+   * handoffs.
    */
   async exportMe(user: AuthUser): Promise<BookingsDataExport> {
     const tx = this.dataSource.manager;
     const me = await findUser(tx, user.userId);
-    const [asRenter, asLender] = await Promise.all([
+    const [asRenter, asLender, handoffs] = await Promise.all([
       listAllBookings(tx, user.userId, 'RENTER'),
       listAllBookings(tx, user.userId, 'LENDER'),
+      listHandoffsForExport(tx, user.userId),
     ]);
     return {
       exportedAt: new Date().toISOString(),
@@ -404,6 +411,7 @@ export class BookingsService {
       emailVerifiedAt: me?.email_verified_at?.toISOString() ?? null,
       asRenter: asRenter.map((row) => toView(row, user.userId)),
       asLender: asLender.map((row) => toView(row, user.userId)),
+      handoffs,
     };
   }
 

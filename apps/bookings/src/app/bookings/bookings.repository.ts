@@ -1,6 +1,13 @@
 import type { EntityManager } from 'typeorm';
 import {
   BOOKING_HOLDING_STATUSES,
+  handoffBase,
+  handoffDecideAt,
+  pickupOpensAt,
+  type BookingHandoffView,
+  type BookingReviewReason,
+  type HandoffAnswer,
+  type HandoffPhase,
   type BookingCloseReason,
   type BookingSnapshotV1,
   type BookingStatus,
@@ -33,6 +40,15 @@ export interface BookingRow {
   lender_fee_cents: number;
   /** While ACCEPTED: when it expires unless paid. */
   pay_by: Date | null;
+  /** Handoffs (ADR-0026). */
+  picked_up_at: Date | null;
+  returned_at: Date | null;
+  claim_until: Date | null;
+  handoff_due_at: Date | null;
+  handoff_rounds: number;
+  review_reason: BookingReviewReason | null;
+  /** The current handoff's answers by user id (see `currentPhase`), or null. */
+  answers: Record<string, HandoffAnswer> | null;
   created_at: Date;
   updated_at: Date;
   renter_name: string | null;
@@ -66,7 +82,12 @@ const SELECT_BOOKINGS = `
          lower(b.period) AS start, upper(b.period) AS "end",
          b.status, b.reason, b.expires_at, b.offer_id, b.fee_cents,
          b.lender_fee_cents, b.pay_by, b.created_at,
-         b.updated_at,
+         b.updated_at, b.picked_up_at, b.returned_at, b.claim_until,
+         b.handoff_due_at, b.handoff_rounds, b.review_reason,
+         (SELECT json_object_agg(a.user_id, a.answer) FROM handoff_answers a
+           WHERE a.booking_id = b.id
+             AND a.phase = CASE WHEN b.status = 'PICKED_UP'
+                                THEN 'RETURN' ELSE 'PICKUP' END) AS answers,
          r.display_name AS renter_name, l.display_name AS lender_name,
          r.photo AS renter_photo, l.photo AS lender_photo
     FROM bookings b
@@ -387,7 +408,65 @@ export function toView(row: BookingRow, userId: string): BookingView {
         : null,
     payBy:
       row.status === 'ACCEPTED' && row.pay_by ? row.pay_by.toISOString() : null,
+    handoff: handoffView(row, userId),
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
+  };
+}
+
+/**
+ * The handoff a booking waits for: the pickup while it goes ahead
+ * (`PAID`, `CONFIRMED`), the return while the item is out; else null.
+ */
+export function currentPhase(
+  row: Pick<BookingRow, 'status'>,
+): HandoffPhase | null {
+  if (row.status === 'PAID' || row.status === 'CONFIRMED') return 'PICKUP';
+  if (row.status === 'PICKED_UP') return 'RETURN';
+  return null;
+}
+
+/** When the current handoff's outcome falls due without the answers. */
+export function decideAtOf(row: BookingRow, phase: HandoffPhase): Date {
+  return handoffDecideAt(
+    handoffBase(phase, {
+      start: row.start,
+      end: row.end,
+      pickedUpAt: row.picked_up_at,
+    }),
+  );
+}
+
+/** True while both are asked whether the current handoff happened. */
+export function isQuestionOpen(row: BookingRow): boolean {
+  return (
+    currentPhase(row) !== null &&
+    row.review_reason === null &&
+    row.handoff_rounds > 0
+  );
+}
+
+function handoffView(row: BookingRow, userId: string): BookingHandoffView {
+  const phase = currentPhase(row);
+  const answers = row.answers ?? {};
+  const otherId = row.renter_id === userId ? row.lender_id : row.renter_id;
+  return {
+    pickupOpensAt: pickupOpensAt(row.start).toISOString(),
+    pickedUpAt: row.picked_up_at?.toISOString() ?? null,
+    returnedAt: row.returned_at?.toISOString() ?? null,
+    claimUntil:
+      row.status === 'RETURNED' && row.claim_until
+        ? row.claim_until.toISOString()
+        : null,
+    question:
+      phase && isQuestionOpen(row)
+        ? {
+            phase,
+            myAnswer: answers[userId] ?? null,
+            otherAnswered: otherId in answers,
+            decideAt: decideAtOf(row, phase).toISOString(),
+          }
+        : null,
+    review: row.review_reason,
   };
 }

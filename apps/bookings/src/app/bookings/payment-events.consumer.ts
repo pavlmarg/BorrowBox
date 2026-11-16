@@ -20,6 +20,7 @@ import {
   InvalidEventError,
   parsePayload,
 } from '@borrowbox/service-kit';
+import { ExpiryQueue } from '../expiry/expiry-queue';
 import { ChatPublisher, ChatPushes } from '../messaging/chat-publisher';
 import { UserIdPayload } from '../read-models/event-payloads';
 import { savePayoutsReady } from '../read-models/users.repository';
@@ -54,6 +55,7 @@ export class PaymentEventsConsumer implements OnApplicationBootstrap {
     @Inject(DATA_SOURCE) private readonly dataSource: DataSource,
     @Inject(EVENT_BUS) private readonly bus: EventBus,
     private readonly chat: ChatPublisher,
+    private readonly expiry: ExpiryQueue,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -96,7 +98,7 @@ export class PaymentEventsConsumer implements OnApplicationBootstrap {
       PaymentCapturedPayload,
     );
     const pushes = new ChatPushes();
-    let moved = false;
+    let moved: Date | null = null;
     const ran = await handleOnce(
       this.dataSource,
       PAYMENT_EVENTS_QUEUE,
@@ -125,16 +127,20 @@ export class PaymentEventsConsumer implements OnApplicationBootstrap {
           );
           return;
         }
-        await moveBooking(
+        const paid = await moveBooking(
           tx,
           booking,
           { to: 'PAID' },
           { causedBy: envelope },
           pushes,
         );
-        moved = true;
+        moved = paid.handoff_due_at;
       },
     );
-    if (ran && moved) await this.chat.flush(pushes);
+    if (ran && moved) {
+      await this.chat.flush(pushes);
+      // It goes ahead: the pickup timeline starts (ADR-0026).
+      await this.expiry.checkAt(bookingId, moved);
+    }
   }
 }

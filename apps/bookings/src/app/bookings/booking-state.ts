@@ -1,7 +1,8 @@
 import type { BookingStatus } from '@borrowbox/contracts';
 
 /**
- * The booking state machine: ARCHITECTURE.md §4 with ADR-0015's changes.
+ * The booking state machine: ARCHITECTURE.md §4 with ADR-0015's and
+ * ADR-0026's changes.
  * Every status change goes through `assertTransition`; nothing else may set
  * a booking's status. Who may trigger a transition is checked by the
  * caller (BookingsService); this table only says which ones exist.
@@ -10,9 +11,10 @@ const TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]> = {
   REQUESTED: ['ACCEPTED', 'CONFIRMED', 'DECLINED', 'EXPIRED', 'CANCELLED'],
   // PAID on payment.captured; EXPIRED when unpaid by its pay-by time.
   ACCEPTED: ['PAID', 'EXPIRED', 'CANCELLED'],
-  // Phase 5: PICKED_UP on the pickup QR scan.
-  CONFIRMED: ['CANCELLED', 'PICKED_UP'],
-  PAID: ['CANCELLED', 'PICKED_UP'],
+  // PICKED_UP on the pickup scan or both confirming it; EXPIRED
+  // (NO_HANDOFF) when nobody does (ADR-0026).
+  CONFIRMED: ['CANCELLED', 'PICKED_UP', 'EXPIRED'],
+  PAID: ['CANCELLED', 'PICKED_UP', 'EXPIRED'],
   PICKED_UP: ['RETURNED'],
   RETURNED: ['COMPLETED', 'DISPUTED'],
   DISPUTED: ['COMPLETED'],
