@@ -262,6 +262,53 @@ function english(input: TemplateInput): EmailContent {
         ],
         action: booking,
       };
+    case 'CLAIM_FILED':
+      return {
+        ...base,
+        subject: `${other} reported damage to ${item}`,
+        paragraphs: [
+          `${other} claims ${euros(data.amountCents, 'en')} from your ${deposit} deposit for damage.`,
+          'See the claim and the photos, then agree or disagree. If you disagree, our team will decide. Until then your deposit stays where it is.',
+        ],
+        action: { ...booking, label: 'See the claim' },
+      };
+    case 'CLAIM_AGREED':
+      return {
+        ...base,
+        subject: `${other} agreed to your claim for ${item}`,
+        paragraphs: [
+          `${euros(data.amountCents, 'en')} of the deposit goes to you with the rent. You'll get an email when it's sent.`,
+        ],
+        action: booking,
+      };
+    case 'CLAIM_DISAGREED':
+      return {
+        ...base,
+        subject: `${other} disagrees with your claim for ${item}`,
+        paragraphs: [
+          `${other} doesn't agree to pay ${euros(data.amountCents, 'en')}. Our team will look at the claim and the photos and decide.`,
+          'You can still withdraw the claim; the booking then completes as usual.',
+        ],
+        action: booking,
+      };
+    case 'CLAIM_WITHDRAWN':
+      return {
+        ...base,
+        subject: `The damage claim for ${item} was withdrawn`,
+        paragraphs: [
+          `${other} withdrew the claim. Your whole deposit is on its way back; you'll get an email when it's sent.`,
+        ],
+        action: booking,
+      };
+    case 'CLAIM_DECIDED':
+      return {
+        ...base,
+        subject: `The damage claim for ${item} was decided`,
+        paragraphs: [
+          `Our team decided that ${euros(data.amountCents, 'en')} of the ${deposit} deposit goes to the lender; the rest goes back to the renter.`,
+        ],
+        action: booking,
+      };
     case 'MESSAGES_UNREAD':
       return {
         ...base,
@@ -480,6 +527,53 @@ function greek(input: TemplateInput): EmailContent {
             ? `Η επιστροφή για ${item} (${period}) δεν επιβεβαιώθηκε και από τους δύο.`
             : `Η παραλαβή για ${item} (${period}) δεν επιβεβαιώθηκε και από τους δύο.`,
           'Η ομάδα μας θα επικοινωνήσει μαζί σας. Μέχρι τότε δεν μετακινούνται χρήματα. Αν συναντηθείτε για την επιστροφή, η σάρωση του κωδικού επιστροφής το διευθετεί.',
+        ],
+        action: booking,
+      };
+    case 'CLAIM_FILED':
+      return {
+        ...base,
+        subject: `${other} ανέφερε ζημιά για ${item}`,
+        paragraphs: [
+          `${other} ζητά ${euros(data.amountCents, 'el')} από την εγγύηση των ${deposit} για ζημιά.`,
+          'Δες το αίτημα και τις φωτογραφίες και απάντησε αν συμφωνείς ή όχι. Αν διαφωνείς, θα αποφασίσει η ομάδα μας. Μέχρι τότε η εγγύησή σου μένει ως έχει.',
+        ],
+        action: { ...booking, label: 'Δες το αίτημα' },
+      };
+    case 'CLAIM_AGREED':
+      return {
+        ...base,
+        subject: `${other} συμφώνησε με το αίτημά σου για ${item}`,
+        paragraphs: [
+          `${euros(data.amountCents, 'el')} από την εγγύηση σού αποδίδονται μαζί με το ενοίκιο. Θα λάβεις email όταν σταλούν.`,
+        ],
+        action: booking,
+      };
+    case 'CLAIM_DISAGREED':
+      return {
+        ...base,
+        subject: `${other} διαφωνεί με το αίτημά σου για ${item}`,
+        paragraphs: [
+          `${other} δεν δέχεται να πληρώσει ${euros(data.amountCents, 'el')}. Η ομάδα μας θα εξετάσει το αίτημα και τις φωτογραφίες και θα αποφασίσει.`,
+          'Μπορείς ακόμη να αποσύρεις το αίτημα· τότε η κράτηση ολοκληρώνεται κανονικά.',
+        ],
+        action: booking,
+      };
+    case 'CLAIM_WITHDRAWN':
+      return {
+        ...base,
+        subject: `Το αίτημα ζημιάς για ${item} αποσύρθηκε`,
+        paragraphs: [
+          `${other} απέσυρε το αίτημα. Όλη η εγγύησή σου επιστρέφεται· θα λάβεις email όταν σταλεί.`,
+        ],
+        action: booking,
+      };
+    case 'CLAIM_DECIDED':
+      return {
+        ...base,
+        subject: `Αποφασίστηκε το αίτημα ζημιάς για ${item}`,
+        paragraphs: [
+          `Η ομάδα μας αποφάσισε ότι ${euros(data.amountCents, 'el')} από την εγγύηση των ${deposit} αποδίδονται στον δανειστή· τα υπόλοιπα επιστρέφονται στον δανειζόμενο.`,
         ],
         action: booking,
       };

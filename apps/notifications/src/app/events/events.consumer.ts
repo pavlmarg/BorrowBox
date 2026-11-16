@@ -9,6 +9,9 @@ import {
   BookingCancelledV1,
   BookingConfirmedV1,
   BookingDeclinedV1,
+  BookingDisputedV1,
+  DisputeDisagreedV1,
+  DisputeResolvedV1,
   BookingExpiredV1,
   BookingHandoffUnconfirmedV1,
   BookingPaidV1,
@@ -39,6 +42,9 @@ import {
   onCancelled,
   onConfirmed,
   onDeclined,
+  onDisputeDisagreed,
+  onDisputeResolved,
+  onDisputed,
   onExpired,
   onHandoffUnconfirmed,
   onOfferSent,
@@ -60,6 +66,9 @@ import {
   BookingPayload,
   CancelledPayload,
   DeclinedPayload,
+  DisputeDisagreedPayload,
+  DisputeResolvedPayload,
+  DisputedPayload,
   ExpiredPayload,
   HandoffUnconfirmedPayload,
   OfferSentPayload,
@@ -106,6 +115,9 @@ export class EventsConsumer implements OnApplicationBootstrap {
         BookingHandoffUnconfirmedV1.routingKey,
         BookingReturnedV1.routingKey,
         BookingReviewRequestedV1.routingKey,
+        BookingDisputedV1.routingKey,
+        DisputeDisagreedV1.routingKey,
+        DisputeResolvedV1.routingKey,
         PaymentFailedV1.routingKey,
         PaymentRefundedV1.routingKey,
         PaymentSettledV1.routingKey,
@@ -166,6 +178,16 @@ export class EventsConsumer implements OnApplicationBootstrap {
       case BookingReviewRequestedV1.routingKey:
         return queue(
           onReviewRequested(parsePayload(envelope, ReviewRequestedPayload)),
+        );
+      case BookingDisputedV1.routingKey:
+        return queue(onDisputed(parsePayload(envelope, DisputedPayload)));
+      case DisputeDisagreedV1.routingKey:
+        return queue(
+          onDisputeDisagreed(parsePayload(envelope, DisputeDisagreedPayload)),
+        );
+      case DisputeResolvedV1.routingKey:
+        return queue(
+          onDisputeResolved(parsePayload(envelope, DisputeResolvedPayload)),
         );
       case PaymentFailedV1.routingKey:
         return queue(

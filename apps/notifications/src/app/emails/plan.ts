@@ -5,7 +5,10 @@ import type {
   BookingHandoffUnconfirmedV1Payload,
   BookingReturnedV1Payload,
   BookingReviewRequestedV1Payload,
+  BookingDisputedV1Payload,
   BookingSnapshotV1,
+  DisputeDisagreedV1Payload,
+  DisputeResolvedV1Payload,
   ConversationUnreadV1Payload,
   EmailKind,
   OfferSentV1Payload,
@@ -241,6 +244,42 @@ export function onReviewRequested(
     toRenter('BOOKING_IN_REVIEW', b, b.reason),
     toLender('BOOKING_IN_REVIEW', b, b.reason),
   ];
+}
+
+/** booking.disputed.v1: the renter learns of the claim and how to answer (ADR-0028). */
+export function onDisputed(b: BookingDisputedV1Payload): PlannedEmail[] {
+  const e = toRenter('CLAIM_FILED', b);
+  return [{ ...e, data: { ...e.data, amountCents: b.claimCents ?? 0 } }];
+}
+
+/** dispute.disagreed.v1: the lender learns an admin will decide. */
+export function onDisputeDisagreed(
+  b: DisputeDisagreedV1Payload,
+): PlannedEmail[] {
+  const e = toLender('CLAIM_DISAGREED', b);
+  return [{ ...e, data: { ...e.data, amountCents: b.claimCents } }];
+}
+
+/**
+ * dispute.resolved.v1: the other side of whoever ended it; both when an
+ * admin decided. The settlement emails follow with the money.
+ */
+export function onDisputeResolved(b: DisputeResolvedV1Payload): PlannedEmail[] {
+  const withAward = (e: PlannedEmail): PlannedEmail => ({
+    ...e,
+    data: { ...e.data, amountCents: b.awardCents },
+  });
+  switch (b.resolvedBy) {
+    case 'RENTER_AGREED':
+      return [withAward(toLender('CLAIM_AGREED', b))];
+    case 'LENDER_WITHDREW':
+      return [withAward(toRenter('CLAIM_WITHDRAWN', b))];
+    case 'ADMIN':
+      return [
+        withAward(toRenter('CLAIM_DECIDED', b)),
+        withAward(toLender('CLAIM_DECIDED', b)),
+      ];
+  }
 }
 
 export function onOfferSent(o: OfferSentV1Payload): PlannedEmail[] {

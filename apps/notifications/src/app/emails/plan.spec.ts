@@ -5,6 +5,9 @@ import {
   onCancelled,
   onConfirmed,
   onDeclined,
+  onDisputeDisagreed,
+  onDisputeResolved,
+  onDisputed,
   onExpired,
   onHandoffUnconfirmed,
   onPaid,
@@ -111,6 +114,34 @@ describe('which booking emails go to whom (N1)', () => {
     expect(
       onReturned({ ...booking, claimUntil: null })[0].data.claimUntil,
     ).toBeUndefined();
+  });
+
+  it('tells the renter about a claim, and the right side how it ended (ADR-0028)', () => {
+    const filed = onDisputed({ ...booking, claimCents: 3000 });
+    expect(who(filed)).toEqual(['CLAIM_FILED>renter']);
+    expect(filed[0].data.amountCents).toBe(3000);
+    expect(who(onDisputeDisagreed({ ...booking, claimCents: 3000 }))).toEqual([
+      'CLAIM_DISAGREED>lender',
+    ]);
+    const resolved = (
+      resolvedBy: 'RENTER_AGREED' | 'LENDER_WITHDREW' | 'ADMIN',
+    ) =>
+      onDisputeResolved({
+        ...booking,
+        claimCents: 3000,
+        awardCents: resolvedBy === 'LENDER_WITHDREW' ? 0 : 1500,
+        resolvedBy,
+      });
+    expect(who(resolved('RENTER_AGREED'))).toEqual(['CLAIM_AGREED>lender']);
+    expect(who(resolved('LENDER_WITHDREW'))).toEqual([
+      'CLAIM_WITHDRAWN>renter',
+    ]);
+    const decided = resolved('ADMIN');
+    expect(who(decided)).toEqual([
+      'CLAIM_DECIDED>renter',
+      'CLAIM_DECIDED>lender',
+    ]);
+    expect(decided[1].data.amountCents).toBe(1500);
   });
 
   it('tells both an admin will look into a handoff', () => {

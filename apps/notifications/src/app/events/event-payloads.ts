@@ -20,6 +20,7 @@ import {
   BOOKING_DECLINE_REASONS,
   BOOKING_EXPIRE_REASONS,
   BOOKING_REVIEW_REASONS,
+  DISPUTE_RESOLUTIONS,
   HANDOFF_PHASES,
   DISPLAY_NAME_MAX_LENGTH,
   EMAIL_MAX_LENGTH,
@@ -32,6 +33,10 @@ import {
   type BookingReturnedV1Payload,
   type BookingReviewReason,
   type BookingReviewRequestedV1Payload,
+  type BookingDisputedV1Payload,
+  type DisputeDisagreedV1Payload,
+  type DisputeResolution,
+  type DisputeResolvedV1Payload,
   type HandoffPhase,
   type BookingSnapshotV1,
   type ConversationUnreadV1Payload,
@@ -253,6 +258,44 @@ export class ReviewRequestedPayload
 {
   @IsIn(BOOKING_REVIEW_REASONS)
   reason!: BookingReviewReason;
+}
+
+/** `booking.disputed.v1` (the claim's amount since ADR-0028). */
+export class DisputedPayload
+  extends BookingPayload
+  implements BookingDisputedV1Payload
+{
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  claimCents?: number;
+}
+
+/** `dispute.disagreed.v1`. */
+export class DisputeDisagreedPayload
+  extends BookingPayload
+  implements DisputeDisagreedV1Payload
+{
+  @IsInt()
+  @Min(0)
+  claimCents!: number;
+}
+
+/** `dispute.resolved.v1`. */
+export class DisputeResolvedPayload
+  extends BookingPayload
+  implements DisputeResolvedV1Payload
+{
+  @IsInt()
+  @Min(0)
+  claimCents!: number;
+
+  @IsInt()
+  @Min(0)
+  awardCents!: number;
+
+  @IsIn(DISPUTE_RESOLUTIONS)
+  resolvedBy!: DisputeResolution;
 }
 
 /** `offer.sent.v1`. */
