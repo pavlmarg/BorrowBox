@@ -39,9 +39,12 @@ export interface CancellationPlan {
 }
 
 export interface SettlementPlan {
-  /** Transferred to the lender: the rent minus their deposit fee. */
+  /**
+   * Transferred to the lender: the rent minus their deposit fee, plus any
+   * damage award (ADR-0028).
+   */
   transferCents: number;
-  /** Back to the renter: the whole deposit. */
+  /** Back to the renter: the deposit minus any damage award. */
   depositRefundCents: number;
   keptCents: number;
 }
@@ -91,12 +94,26 @@ export function cancellationPlan(
   };
 }
 
-/** The money of a completed booking: the lender is paid, the deposit goes back. */
-export function settlementPlan(paid: PaidAmounts): SettlementPlan {
-  const transferCents = paid.rentCents - paid.lenderFeeCents;
+/**
+ * The money of a completed booking: the lender is paid, the deposit goes
+ * back. A damage award (ADR-0028) moves that much of the deposit from the
+ * renter's refund to the lender's transfer; what BorrowBox keeps doesn't
+ * change. An award outside 0…deposit is a bug and throws.
+ */
+export function settlementPlan(
+  paid: PaidAmounts,
+  damageAwardCents = 0,
+): SettlementPlan {
+  if (
+    !Number.isInteger(damageAwardCents) ||
+    damageAwardCents < 0 ||
+    damageAwardCents > paid.depositCents
+  ) {
+    throw new RangeError('Damage award outside 0 to the deposit');
+  }
   return {
-    transferCents,
-    depositRefundCents: paid.depositCents,
+    transferCents: paid.rentCents - paid.lenderFeeCents + damageAwardCents,
+    depositRefundCents: paid.depositCents - damageAwardCents,
     keptCents: paid.feeCents + paid.lenderFeeCents,
   };
 }

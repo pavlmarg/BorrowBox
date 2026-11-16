@@ -118,3 +118,64 @@ describe('settlementPlan (ADR-0021)', () => {
     });
   });
 });
+
+describe('settlementPlan with a damage award (ADR-0028)', () => {
+  it.each([
+    // award, lender, renter back
+    [0, 1850, 5000],
+    [3000, 4850, 2000],
+    [5000, 6850, 0],
+  ])(
+    '€20 rent, €50 deposit, award %i: lender %i, renter %i',
+    (award, lender, renter) => {
+      const plan = settlementPlan(paid, award);
+      expect(plan).toEqual({
+        transferCents: lender,
+        depositRefundCents: renter,
+        keptCents: 350,
+      });
+      // Everything charged is accounted for.
+      expect(
+        plan.transferCents + plan.depositRefundCents + plan.keptCents,
+      ).toBe(chargeOf(paid));
+    },
+  );
+
+  it('pays a free item’s lender only the award (€50 deposit, award €20)', () => {
+    const fees = bookingFees(0, 5000);
+    const free: PaidAmounts = {
+      rentCents: 0,
+      depositCents: 5000,
+      feeCents: fees.renterFeeCents,
+      lenderFeeCents: fees.lenderFeeCents,
+    };
+    expect(chargeOf(free)).toBe(5208);
+    expect(settlementPlan(free, 2000)).toEqual({
+      transferCents: 2000,
+      depositRefundCents: 3000,
+      keptCents: 208,
+    });
+  });
+
+  it('€10 rent, €20 deposit, the whole deposit awarded', () => {
+    const fees = bookingFees(1000, 2000);
+    const small: PaidAmounts = {
+      rentCents: 1000,
+      depositCents: 2000,
+      feeCents: fees.renterFeeCents,
+      lenderFeeCents: fees.lenderFeeCents,
+    };
+    expect(chargeOf(small)).toBe(3100);
+    expect(settlementPlan(small, 2000)).toEqual({
+      transferCents: 2940,
+      depositRefundCents: 0,
+      keptCents: 160,
+    });
+  });
+
+  it('refuses an award outside 0 to the deposit', () => {
+    for (const award of [-1, 5001, 12.5]) {
+      expect(() => settlementPlan(paid, award)).toThrow(RangeError);
+    }
+  });
+});

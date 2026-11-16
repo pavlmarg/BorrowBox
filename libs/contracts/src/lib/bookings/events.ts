@@ -4,6 +4,7 @@ import type {
   BookingDeclineReason,
   BookingExpireReason,
 } from './bookings';
+import type { DisputeResolution } from './claims';
 import type { BookingReviewReason, HandoffPhase } from './handoff';
 
 /**
@@ -151,11 +152,17 @@ export const BookingReviewRequestedV1 =
   defineEvent<BookingReviewRequestedV1Payload>()('booking.review_requested', 1);
 
 /**
- * The claim window after the return passed (or a dispute was resolved):
- * the lender is paid and the deposit goes back (ADR-0021). Emitted from
- * Phase 5 (handoff); Payments consumes it from Phase 4.
+ * The claim window after the return passed, or a dispute was resolved:
+ * the lender is paid and the deposit goes back (ADR-0021), minus any
+ * damage award (ADR-0028), which goes to the lender instead.
  */
-export type BookingCompletedV1Payload = BookingSnapshotV1;
+export interface BookingCompletedV1Payload extends BookingSnapshotV1 {
+  /**
+   * After a damage claim: what goes to the lender from the deposit
+   * (0 to the deposit). Absent when there was no claim.
+   */
+  damageAwardCents?: number;
+}
 export const BookingCompletedV1 = defineEvent<BookingCompletedV1Payload>()(
   'booking.completed',
   1,
@@ -163,10 +170,37 @@ export const BookingCompletedV1 = defineEvent<BookingCompletedV1Payload>()(
 
 /**
  * The lender filed a damage claim within the claim window: settlement waits
- * for the dispute's outcome (ADR-0021). Emitted from Phase 5.
+ * for the dispute's outcome (ADR-0021, ADR-0028).
  */
-export type BookingDisputedV1Payload = BookingSnapshotV1;
+export interface BookingDisputedV1Payload extends BookingSnapshotV1 {
+  /** What the lender claims (optional: added with claims, ADR-0028). */
+  claimCents?: number;
+}
 export const BookingDisputedV1 = defineEvent<BookingDisputedV1Payload>()(
   'booking.disputed',
+  1,
+);
+
+/** The renter disagrees with the claim: an admin decides (ADR-0028). */
+export interface DisputeDisagreedV1Payload extends BookingSnapshotV1 {
+  claimCents: number;
+}
+export const DisputeDisagreedV1 = defineEvent<DisputeDisagreedV1Payload>()(
+  'dispute.disagreed',
+  1,
+);
+
+/**
+ * A dispute ended (ADR-0028). For information (emails, later reviews):
+ * the money follows `booking.completed`, emitted in the same transaction
+ * with the same award.
+ */
+export interface DisputeResolvedV1Payload extends BookingSnapshotV1 {
+  claimCents: number;
+  awardCents: number;
+  resolvedBy: DisputeResolution;
+}
+export const DisputeResolvedV1 = defineEvent<DisputeResolvedV1Payload>()(
+  'dispute.resolved',
   1,
 );

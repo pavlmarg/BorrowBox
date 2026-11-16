@@ -27,6 +27,12 @@ export const EMAIL_KINDS = [
   'HANDOFF_QUESTION',
   'BOOKING_RETURNED',
   'BOOKING_IN_REVIEW',
+  /** Damage claims (ADR-0028). */
+  'CLAIM_FILED',
+  'CLAIM_AGREED',
+  'CLAIM_DISAGREED',
+  'CLAIM_WITHDRAWN',
+  'CLAIM_DECIDED',
 ] as const;
 export type EmailKind = (typeof EMAIL_KINDS)[number];
 

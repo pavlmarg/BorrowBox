@@ -40,6 +40,10 @@ export const SYSTEM_MESSAGE_CODES = [
   'BOOKING_COMPLETED',
   /** The answers about a handoff disagree: an admin will look into it. */
   'BOOKING_IN_REVIEW',
+  /** Damage claims (ADR-0028). */
+  'CLAIM_FILED',
+  'CLAIM_DISAGREED',
+  'CLAIM_RESOLVED',
   'OFFER_WITHDRAWN',
 ] as const;
 export type SystemMessageCode = (typeof SYSTEM_MESSAGE_CODES)[number];

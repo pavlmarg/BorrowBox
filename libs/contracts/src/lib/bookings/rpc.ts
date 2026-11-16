@@ -14,6 +14,12 @@ import type {
   BookingView,
 } from './bookings';
 import type {
+  AnswerClaimRequest,
+  ClaimResponse,
+  ClaimView,
+  FileClaimRequest,
+} from './claims';
+import type {
   ConditionPhotoRef,
   ConditionPhotoUpload,
   ConditionPhotoUploadRequest,
@@ -64,6 +70,8 @@ export type BookingsErrorCode =
   | 'HANDOFF_UNAVAILABLE'
   /** Already `CONDITION_PHOTOS_MAX_PER_PHASE` photos for this handoff (ADR-0027). */
   | 'PHOTO_LIMIT_REACHED'
+  /** The booking already has a damage claim (ADR-0028). */
+  | 'CLAIM_EXISTS'
   /** Unexpected failure; details are only in Bookings' logs. */
   | 'INTERNAL';
 
@@ -180,6 +188,20 @@ export interface BookingsDataExport {
   handoffs: BookingHandoffExport[];
   /** Condition photos the caller took, with links valid 5 minutes (ADR-0027). */
   conditionPhotos: ConditionPhotoExport[];
+  /** Damage claims on the caller's bookings, with only the caller's own texts (ADR-0028). */
+  claims: ClaimExport[];
+}
+
+export interface ClaimExport {
+  bookingId: string;
+  role: 'RENTER' | 'LENDER';
+  amountCents: number;
+  status: ClaimView['status'];
+  awardCents: number | null;
+  filedAt: string;
+  resolvedAt: string | null;
+  /** The description if the caller is the lender, the reply if the renter. */
+  myText: string | null;
 }
 
 export interface ConditionPhotoExport {
@@ -227,6 +249,11 @@ export const BookingsRpc = {
   photoConfirm: 'bookings.photos.confirm',
   photoRemove: 'bookings.photos.remove',
   photoList: 'bookings.photos.list',
+  // Damage claims (ADR-0028).
+  claimFile: 'bookings.claims.file',
+  claimWithdraw: 'bookings.claims.withdraw',
+  claimAnswer: 'bookings.claims.answer',
+  claimGet: 'bookings.claims.get',
   // GDPR.
   exportMe: 'bookings.me.export',
 } as const;
@@ -279,6 +306,13 @@ export interface BookingsRpcContract {
     request: BookingRef;
     response: ConditionPhotosView;
   };
+  [BookingsRpc.claimFile]: { request: FileClaimRequest; response: ClaimView };
+  [BookingsRpc.claimWithdraw]: { request: BookingRef; response: ClaimView };
+  [BookingsRpc.claimAnswer]: {
+    request: AnswerClaimRequest;
+    response: ClaimView;
+  };
+  [BookingsRpc.claimGet]: { request: BookingRef; response: ClaimResponse };
   [BookingsRpc.exportMe]: {
     request: Record<string, never>;
     response: BookingsDataExport;
