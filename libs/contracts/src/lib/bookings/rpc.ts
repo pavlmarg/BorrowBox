@@ -13,6 +13,7 @@ import type {
   BookingStatus,
   BookingView,
 } from './bookings';
+import type { HandoffAnswer, HandoffPhase } from './handoff';
 
 /** Carried in `RpcErrorBody.code` (see `../rpc/rpc.ts`). */
 export type BookingsErrorCode =
@@ -44,6 +45,16 @@ export type BookingsErrorCode =
   | 'REQUEST_LIMIT_REACHED'
   /** Accepting a booking with something to pay needs the lender's payouts set up (ADR-0019). */
   | 'PAYOUTS_NOT_SET_UP'
+  /** A handoff token or code that isn't one of ours, or not for this booking and phase. */
+  | 'TOKEN_INVALID'
+  /** A handoff token or code past its 45 seconds, or already used. */
+  | 'TOKEN_EXPIRED'
+  /** The caller showed this code; the other person has to scan it. */
+  | 'NOT_COUNTERPARTY'
+  /** Too many wrong handoff codes for this booking; try again later. */
+  | 'RATE_LIMITED'
+  /** Handoffs can't be checked right now (Redis unreachable); try again shortly. */
+  | 'HANDOFF_UNAVAILABLE'
   /** Unexpected failure; details are only in Bookings' logs. */
   | 'INTERNAL';
 
@@ -106,6 +117,43 @@ export interface ListBookingsResponse {
   nextCursor: string | null;
 }
 
+/** The person showing the code asks for a token (ARCHITECTURE.md §5). */
+export interface HandoffTokenRequest extends BookingRef {
+  phase: HandoffPhase;
+}
+
+export interface HandoffTokenResponse {
+  /** Goes into the QR code as it is; opaque to the PWA. */
+  token: string;
+  /** The 6-digit fallback for the same token. */
+  code: string;
+  expiresAt: string;
+  /** Fetch the next token after this many seconds. */
+  refreshAfterSeconds: number;
+}
+
+/** The other person scanned the QR code, or typed the code. One of the two. */
+export interface HandoffScanRequest extends BookingRef {
+  token?: string;
+  /** With `code`: which handoff it's for. */
+  phase?: HandoffPhase;
+  code?: string;
+}
+
+/** "Did the handoff happen?", after nobody scanned it (ADR-0026). Final. */
+export interface HandoffAnswerRequest extends BookingRef {
+  phase: HandoffPhase;
+  answer: HandoffAnswer;
+}
+
+/**
+ * Whether the caller has an item out (`PICKED_UP`, `RETURNED`, `DISPUTED`):
+ * the gateway refuses account deletion until those finish (ADR-0026).
+ */
+export interface ActiveRentalsResponse {
+  active: boolean;
+}
+
 /** Bookings' part of `GET /me/export`. */
 export interface BookingsDataExport {
   exportedAt: string;
@@ -119,7 +167,24 @@ export interface BookingsDataExport {
   emailVerifiedAt: string | null;
   asRenter: BookingView[];
   asLender: BookingView[];
+  /** Pickups and returns the caller showed or scanned, or answered about. */
+  handoffs: BookingHandoffExport[];
 }
+
+export interface BookingHandoffExport {
+  bookingId: string;
+  phase: HandoffPhase;
+  /** How it happened: scanned, typed code, or confirmed by answers. */
+  method: HandoffMethod | null;
+  at: string | null;
+  /** The caller's answer to "did it happen?", if they were asked. */
+  answer: HandoffAnswer | null;
+  answeredAt: string | null;
+}
+
+/** How a handoff was recorded. */
+export type HandoffMethod =
+  'QR' | 'CODE' | 'CONFIRMED' | 'ADMIN' | 'RETURN_SCAN';
 
 // --- Patterns ---------------------------------------------------------------
 
@@ -134,6 +199,11 @@ export const BookingsRpc = {
   cancel: 'bookings.cancel',
   get: 'bookings.get',
   listMine: 'bookings.list',
+  // Handoff (ARCHITECTURE.md §5, ADR-0026).
+  handoffToken: 'bookings.handoff.token',
+  handoffScan: 'bookings.handoff.scan',
+  handoffAnswer: 'bookings.handoff.answer',
+  activeRentals: 'bookings.me.active-rentals',
   // GDPR.
   exportMe: 'bookings.me.export',
 } as const;
@@ -156,6 +226,22 @@ export interface BookingsRpcContract {
   [BookingsRpc.listMine]: {
     request: ListBookingsRequest;
     response: ListBookingsResponse;
+  };
+  [BookingsRpc.handoffToken]: {
+    request: HandoffTokenRequest;
+    response: HandoffTokenResponse;
+  };
+  [BookingsRpc.handoffScan]: {
+    request: HandoffScanRequest;
+    response: BookingView;
+  };
+  [BookingsRpc.handoffAnswer]: {
+    request: HandoffAnswerRequest;
+    response: BookingView;
+  };
+  [BookingsRpc.activeRentals]: {
+    request: Record<string, never>;
+    response: ActiveRentalsResponse;
   };
   [BookingsRpc.exportMe]: {
     request: Record<string, never>;
