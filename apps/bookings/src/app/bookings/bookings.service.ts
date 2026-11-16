@@ -17,6 +17,7 @@ import {
 import { addToOutbox } from '@borrowbox/outbox';
 import { DATA_SOURCE } from '@borrowbox/service-kit';
 import { ExpiryQueue } from '../expiry/expiry-queue';
+import { listClaimsForExport } from '../claims/claims.repository';
 import { listHandoffsForExport } from '../handoff/handoff.repository';
 import { PhotosService } from '../photos/photos.service';
 import { ChatPublisher, ChatPushes } from '../messaging/chat-publisher';
@@ -395,12 +396,14 @@ export class BookingsService {
   async exportMe(user: AuthUser): Promise<BookingsDataExport> {
     const tx = this.dataSource.manager;
     const me = await findUser(tx, user.userId);
-    const [asRenter, asLender, handoffs, conditionPhotos] = await Promise.all([
-      listAllBookings(tx, user.userId, 'RENTER'),
-      listAllBookings(tx, user.userId, 'LENDER'),
-      listHandoffsForExport(tx, user.userId),
-      this.photos.exportOf(tx, user.userId),
-    ]);
+    const [asRenter, asLender, handoffs, conditionPhotos, claims] =
+      await Promise.all([
+        listAllBookings(tx, user.userId, 'RENTER'),
+        listAllBookings(tx, user.userId, 'LENDER'),
+        listHandoffsForExport(tx, user.userId),
+        this.photos.exportOf(tx, user.userId),
+        listClaimsForExport(tx, user.userId),
+      ]);
     return {
       exportedAt: new Date().toISOString(),
       profile:
@@ -416,6 +419,7 @@ export class BookingsService {
       asLender: asLender.map((row) => toView(row, user.userId)),
       handoffs,
       conditionPhotos,
+      claims,
     };
   }
 

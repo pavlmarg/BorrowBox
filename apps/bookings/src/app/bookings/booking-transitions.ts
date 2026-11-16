@@ -4,6 +4,7 @@ import {
   BookingCancelledV1,
   BookingCompletedV1,
   BookingConfirmedV1,
+  BookingDisputedV1,
   BookingDeclinedV1,
   BookingExpiredV1,
   BookingPaidV1,
@@ -47,7 +48,9 @@ export type BookingMove =
   /** Handoffs (ADR-0026). */
   | { to: 'PICKED_UP' }
   | { to: 'RETURNED' }
-  | { to: 'COMPLETED' }
+  /** A damage claim (ADR-0028); the award when it was resolved. */
+  | { to: 'DISPUTED'; claimCents: number }
+  | { to: 'COMPLETED'; damageAwardCents?: number }
   | { to: 'DECLINED'; reason: BookingDeclineReason }
   | { to: 'EXPIRED'; reason: BookingExpireReason }
   | {
@@ -69,6 +72,7 @@ const LINES: Record<BookingMove['to'], SystemMessageCode> = {
   PICKED_UP: 'BOOKING_PICKED_UP',
   RETURNED: 'BOOKING_RETURNED',
   COMPLETED: 'BOOKING_COMPLETED',
+  DISPUTED: 'CLAIM_FILED',
 };
 
 /**
@@ -215,7 +219,19 @@ function envelopeFor(
         options,
       );
     case 'COMPLETED':
-      return createEnvelope(BookingCompletedV1, snapshot, options);
+      return createEnvelope(
+        BookingCompletedV1,
+        move.damageAwardCents === undefined
+          ? snapshot
+          : { ...snapshot, damageAwardCents: move.damageAwardCents },
+        options,
+      );
+    case 'DISPUTED':
+      return createEnvelope(
+        BookingDisputedV1,
+        { ...snapshot, claimCents: move.claimCents },
+        options,
+      );
     case 'ACCEPTED':
       return createEnvelope(BookingAcceptedV1, snapshot, options);
     case 'CONFIRMED':

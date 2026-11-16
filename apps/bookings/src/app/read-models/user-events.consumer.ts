@@ -24,6 +24,7 @@ import { cancelBookings } from '../bookings/booking-transitions';
 import { lockBookingsToCancel } from '../bookings/bookings.repository';
 import { hasActiveRentals } from '../handoff/handoff.repository';
 import { removePhotosOf } from '../photos/photos.repository';
+import { blankClaimTextsOf } from '../claims/claims.repository';
 import { ChatPublisher, ChatPushes } from '../messaging/chat-publisher';
 import {
   eraseMessagesOf,
@@ -132,6 +133,8 @@ export class UserEventsConsumer implements OnApplicationBootstrap {
             itemsOut = await hasActiveRentals(tx, userId);
             // Their condition photos go (ADR-0027); the sweeper deletes the files.
             await removePhotosOf(tx, userId);
+            // Their claim texts go; amounts stay as financial records (ADR-0028).
+            await blankClaimTextsOf(tx, userId);
           },
         );
         if (ran) {

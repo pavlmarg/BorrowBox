@@ -61,6 +61,7 @@ describe('Bookings AppModule (integration)', () => {
       expect(rows).toEqual(
         [
           'bookings',
+          'claims',
           'condition_photos',
           'conversations',
           'handoff_answers',
@@ -81,7 +82,7 @@ describe('Bookings AppModule (integration)', () => {
     }
     // Idempotent: nothing left to run.
     expect(await bookings.dataSource.showMigrations()).toBe(false);
-    expect(MIGRATIONS).toHaveLength(7);
+    expect(MIGRATIONS).toHaveLength(8);
   });
 
   describe('database guards', () => {

@@ -14,6 +14,7 @@ import { BookingsDatabaseModule } from './database/database.module';
 import { ExpiryModule } from './expiry/expiry.module';
 import { HandoffModule } from './handoff/handoff.module';
 import { PhotosModule } from './photos/photos.module';
+import { ClaimsModule } from './claims/claims.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { ReadModelsModule } from './read-models/read-models.module';
 
@@ -40,6 +41,7 @@ export const configModule = serviceConfigModule('bookings', validateConfig);
     BookingsModule,
     HandoffModule,
     PhotosModule,
+    ClaimsModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: rpcValidationPipe },

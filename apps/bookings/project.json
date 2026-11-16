@@ -59,6 +59,13 @@
       "options": {
         "command": "node dist/apps/bookings/main.js migrate"
       }
+    },
+    "resolve-dispute": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "node dist/apps/bookings/main.js resolve-dispute"
+      }
     }
   }
 }
