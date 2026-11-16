@@ -13,6 +13,13 @@ import type {
   BookingStatus,
   BookingView,
 } from './bookings';
+import type {
+  ConditionPhotoRef,
+  ConditionPhotoUpload,
+  ConditionPhotoUploadRequest,
+  ConditionPhotoView,
+  ConditionPhotosView,
+} from './condition-photos';
 import type { HandoffAnswer, HandoffPhase } from './handoff';
 
 /** Carried in `RpcErrorBody.code` (see `../rpc/rpc.ts`). */
@@ -55,6 +62,8 @@ export type BookingsErrorCode =
   | 'RATE_LIMITED'
   /** Handoffs can't be checked right now (Redis unreachable); try again shortly. */
   | 'HANDOFF_UNAVAILABLE'
+  /** Already `CONDITION_PHOTOS_MAX_PER_PHASE` photos for this handoff (ADR-0027). */
+  | 'PHOTO_LIMIT_REACHED'
   /** Unexpected failure; details are only in Bookings' logs. */
   | 'INTERNAL';
 
@@ -169,6 +178,15 @@ export interface BookingsDataExport {
   asLender: BookingView[];
   /** Pickups and returns the caller showed or scanned, or answered about. */
   handoffs: BookingHandoffExport[];
+  /** Condition photos the caller took, with links valid 5 minutes (ADR-0027). */
+  conditionPhotos: ConditionPhotoExport[];
+}
+
+export interface ConditionPhotoExport {
+  bookingId: string;
+  phase: HandoffPhase;
+  takenAt: string | null;
+  urls: ConditionPhotoView['urls'];
 }
 
 export interface BookingHandoffExport {
@@ -204,6 +222,11 @@ export const BookingsRpc = {
   handoffScan: 'bookings.handoff.scan',
   handoffAnswer: 'bookings.handoff.answer',
   activeRentals: 'bookings.me.active-rentals',
+  // Condition photos (ADR-0027).
+  photoUpload: 'bookings.photos.upload',
+  photoConfirm: 'bookings.photos.confirm',
+  photoRemove: 'bookings.photos.remove',
+  photoList: 'bookings.photos.list',
   // GDPR.
   exportMe: 'bookings.me.export',
 } as const;
@@ -242,6 +265,19 @@ export interface BookingsRpcContract {
   [BookingsRpc.activeRentals]: {
     request: Record<string, never>;
     response: ActiveRentalsResponse;
+  };
+  [BookingsRpc.photoUpload]: {
+    request: ConditionPhotoUploadRequest;
+    response: ConditionPhotoUpload;
+  };
+  [BookingsRpc.photoConfirm]: {
+    request: ConditionPhotoRef;
+    response: ConditionPhotoView;
+  };
+  [BookingsRpc.photoRemove]: { request: ConditionPhotoRef; response: void };
+  [BookingsRpc.photoList]: {
+    request: BookingRef;
+    response: ConditionPhotosView;
   };
   [BookingsRpc.exportMe]: {
     request: Record<string, never>;
