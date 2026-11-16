@@ -60,7 +60,7 @@ flowchart TB
 | **Notifications** | recipients, email jobs (later: preferences, push, inbox) | – | `user.registered`, `.profile_updated`, `.deletion_requested`, `booking.*`, `payment.failed`, `.refunded`, `.settled`, `offer.sent`, `conversation.unread` |
 | **Reviews** | reviews, trust scores | `review.created` | `booking.completed`, `.disputed`, `user.verified` |
 
-**Media** (shared lib, [ADR-0009](adr/0009-photo-pipeline.md), [ADR-0013](adr/0013-wider-photo-formats.md)): presigned uploads to a private bucket; a BullMQ worker in the owning service (Catalog: item photos; Identity: profile photos, its own storage key) strips all metadata with `sharp` and writes resized copies to a public bucket. Only processed photos are served. JPEG/PNG/WebP/AVIF/GIF/TIFF (never SVG); the PWA re-encodes to JPEG (HEIC included). Under 320 px, unreadable or mislabelled → `FAILED`. Removing a photo, item or account deletes the row and queues its files in `photo_file_deletions` in one transaction; the worker also pre-registers files it's writing. A sweeper (10 min) re-queues interrupted photos, removes day-old abandoned uploads and retries deletions.
+**Media** (shared lib, [ADR-0009](adr/0009-photo-pipeline.md), [ADR-0013](adr/0013-wider-photo-formats.md)): presigned uploads to a private bucket; a BullMQ worker in the owning service (Catalog: item photos; Identity: profile photos, its own storage key) strips all metadata with `sharp` and writes resized copies to a public bucket. Bookings' condition photos ([ADR-0027](adr/0027-condition-photos.md)) go to a private evidence bucket instead, read only through 5-minute presigned links by the booking's two people, and are deleted 30 days after the booking finished. Only processed photos are served. JPEG/PNG/WebP/AVIF/GIF/TIFF (never SVG); the PWA re-encodes to JPEG (HEIC included). Under 320 px, unreadable or mislabelled → `FAILED`. Removing a photo, item or account deletes the row and queues its files in `photo_file_deletions` in one transaction; the worker also pre-registers files it's writing. A sweeper (10 min) re-queues interrupted photos, removes day-old abandoned uploads and retries deletions.
 
 ### Gateway
 - REST under `/api`; typed clients per service extend one `ServiceClient`. Forwards the access token and `X-Request-Id`.
@@ -74,7 +74,7 @@ flowchart TB
   - **Auth/account:** `POST /auth/register|login|refresh|logout`, `GET /auth/google` + `/google/callback`; public `POST /auth/verify-email`, `/password-reset` (always `202`), `/password-reset/confirm` (also clears the cookie); `GET|PATCH|DELETE /me` (`PATCH` also takes the bio), `GET /me/export`, `POST /me/verification-email` (`202`), `/me/password`; profile photo `POST /me/photo` (upload link), `POST /me/photo/confirm`, `DELETE /me/photo`; `GET /health`.
   - **People** ([ADR-0025](adr/0025-public-profiles.md)): public `GET /users/:id` (Identity: name, photo, bio, member since), `GET /users/:id/items` (Catalog), `POST /people/suggest` (name search, text in the body, 300/min).
   - **Catalog:** public `POST /items/search|suggest|featured|category-counts` (the point travels in the body, never in URLs or logs), `GET /items/:id`, `/items/:id/similar`; lender's `/me/items` (list, create, get, `PATCH`, `DELETE`, `PUT /:id/location`, `POST /:id/publish|pause|unpause`, photos: `POST /:id/photos`, `POST …/:photoId/confirm`, `DELETE …/:photoId`, `PUT /:id/photos/order`).
-  - **Bookings:** public `GET /items/:id/quote?start=&end=`, `/items/:id/busy`; `POST /bookings` (client picks the id), `GET /bookings/:id`, `POST /bookings/:id/accept|decline|cancel`, `GET /me/bookings?role=&statuses=&cursor=`; handoff ([ADR-0026](adr/0026-handoff.md)): `GET /bookings/:id/handoff-token?phase=PICKUP|RETURN`, `POST /bookings/:id/handoff` (token, or phase + code), `POST /bookings/:id/handoff/answer`.
+  - **Bookings:** public `GET /items/:id/quote?start=&end=`, `/items/:id/busy`; `POST /bookings` (client picks the id), `GET /bookings/:id`, `POST /bookings/:id/accept|decline|cancel`, `GET /me/bookings?role=&statuses=&cursor=`; handoff ([ADR-0026](adr/0026-handoff.md)): `GET /bookings/:id/handoff-token?phase=PICKUP|RETURN`, `POST /bookings/:id/handoff` (token, or phase + code), `POST /bookings/:id/handoff/answer`; condition photos ([ADR-0027](adr/0027-condition-photos.md)): `GET|POST /bookings/:id/photos`, `POST /bookings/:id/photos/:photoId/confirm`, `DELETE /bookings/:id/photos/:photoId`.
   - **Chat/offers:** `POST /items/:id/conversations`, `GET /me/conversations`, `/me/unread`, `GET /conversations/:id`, `GET|POST /conversations/:id/messages`, `POST /conversations/:id/read`, `/messages/:id/report`, `/conversations/:id/offers`, `/offers/:id/withdraw`, `/offers/:id/book`.
   - **Payments:** `GET /me/payouts`, `POST /me/payouts/onboarding|dashboard` (single-use Stripe links); renter `POST|GET /bookings/:id/payment`; Stripe-only `POST /webhooks/stripe` and `/webhooks/stripe-connect` (raw body + `Stripe-Signature` to Payments, no rate limit, not in OpenAPI).
   - `GET /me/export` has one section per service (identity, catalog, bookings, messaging, notifications, payments); any missing → `503`, never partial.
@@ -198,7 +198,7 @@ Happy path: request → `booking.requested` (lender emailed) → accept → `boo
 2. The other party scans it (`BarcodeDetector`, fallback `@zxing/browser`) and sends `POST /bookings/:id/handoff { token }`, or types the code (`{ phase, code }`; ≤5 wrong per booking and phase in 10 min).
 3. Bookings checks signature, `exp`, phase vs state and window, that the scanner is the counterparty, and the nonce (`SET NX` in Redis with TTL; Redis down → refused, never skipped); then transitions and emits in one transaction.
 4. Nobody scanned: both are asked whether it happened, and the answers decide (ADR-0026).
-5. Both upload 1–3 condition photos (server timestamps, dispute evidence); with damage claims (Phase 5, next).
+5. Each may add up to 3 condition photos per handoff, from 2 h before the start until 2 h after that handoff (server timestamps, dispute evidence; [ADR-0027](adr/0027-condition-photos.md)). Damage claims use them (Phase 5, next).
 
 ## 6. Payments (Stripe Connect, EU)
 [ADR-0003](adr/0003-stripe-separate-charges-transfers.md), [ADR-0019](adr/0019-payments-fees-and-policies.md)–[0022](adr/0022-standard-service-agreement.md).
@@ -245,7 +245,8 @@ apps/     web, gateway, identity, catalog, bookings, payments, notifications (me
 libs/     contracts (events, DTOs, RPC), auth, outbox, messaging (RabbitMQ), media, service-kit,
           mailer, observability, testing (Testcontainers)
 infra/    docker-compose.yml (postgres+postgis, rabbitmq, redis, seaweedfs, mailpit),
-          docker-compose.observability.yml, postgres/init (schemas + roles), storage (buckets, CORS)
+          docker-compose.observability.yml, postgres/init (schemas + roles), storage (uploads, public and
+          evidence buckets, CORS)
 docs/     ARCHITECTURE.md, adr/
 ```
 

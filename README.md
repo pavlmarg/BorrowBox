@@ -102,6 +102,8 @@ npx nx affected -t lint test build
 Ports can be changed in `infra/.env` if they clash with something already running.
 
 > **Upgrading an existing `infra/.env`** (Phase 2): the single `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_BUCKET` were replaced by admin and catalog keys and two buckets. Copy the `S3_*` block from `infra/.env.example`, then run `docker compose -f infra/docker-compose.yml up -d --wait` again.
+>
+> **Phase 5 (condition photos):** add `S3_BOOKINGS_ACCESS_KEY_ID`, `S3_BOOKINGS_SECRET_ACCESS_KEY` and `S3_EVIDENCE_BUCKET` from `infra/.env.example` to `infra/.env`, rerun the same command (it creates the evidence bucket), and add the `S3_*` lines of `apps/bookings/.env.example` to `apps/bookings/.env`.
 
 > **Upgrading an existing Postgres volume** (Phase 3): Bookings needs the `btree_gist` extension, which the init script only creates on an empty volume. Add it once:
 > `docker compose -f infra/docker-compose.yml exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE EXTENSION IF NOT EXISTS btree_gist"'`
