@@ -18,6 +18,7 @@ import { addToOutbox } from '@borrowbox/outbox';
 import { DATA_SOURCE } from '@borrowbox/service-kit';
 import { ExpiryQueue } from '../expiry/expiry-queue';
 import { listHandoffsForExport } from '../handoff/handoff.repository';
+import { PhotosService } from '../photos/photos.service';
 import { ChatPublisher, ChatPushes } from '../messaging/chat-publisher';
 import { addBookingLine } from '../messaging/system-messages';
 import { findItem, type ItemRow } from '../read-models/items.repository';
@@ -83,6 +84,7 @@ export class BookingsService {
     @Inject(DATA_SOURCE) private readonly dataSource: DataSource,
     private readonly expiry: ExpiryQueue,
     private readonly chat: ChatPublisher,
+    private readonly photos: PhotosService,
   ) {}
 
   /** What the period would cost; public, so the item page can show it. */
@@ -388,15 +390,16 @@ export class BookingsService {
   /**
    * Everything Bookings holds about the caller (GDPR Art. 15/20): their
    * stored name, verification, their bookings on both sides and their
-   * handoffs.
+   * handoffs and the condition photos they took.
    */
   async exportMe(user: AuthUser): Promise<BookingsDataExport> {
     const tx = this.dataSource.manager;
     const me = await findUser(tx, user.userId);
-    const [asRenter, asLender, handoffs] = await Promise.all([
+    const [asRenter, asLender, handoffs, conditionPhotos] = await Promise.all([
       listAllBookings(tx, user.userId, 'RENTER'),
       listAllBookings(tx, user.userId, 'LENDER'),
       listHandoffsForExport(tx, user.userId),
+      this.photos.exportOf(tx, user.userId),
     ]);
     return {
       exportedAt: new Date().toISOString(),
@@ -412,6 +415,7 @@ export class BookingsService {
       asRenter: asRenter.map((row) => toView(row, user.userId)),
       asLender: asLender.map((row) => toView(row, user.userId)),
       handoffs,
+      conditionPhotos,
     };
   }
 

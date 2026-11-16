@@ -39,6 +39,39 @@ export class BookingsConfig extends BaseServiceConfig {
   @IsString()
   @IsNotEmpty()
   HANDOFF_PRIVATE_KEY!: string;
+
+  /**
+   * Object storage for condition photos (ADR-0027): SeaweedFS in dev, R2 in
+   * production. Presigned links point here, so browsers must reach it.
+   */
+  @Matches(/^https?:\/\/[^\s]+$/, {
+    message: 'S3_ENDPOINT must be an http(s):// URL',
+  })
+  S3_ENDPOINT!: string;
+
+  /** `us-east-1` for SeaweedFS, `auto` for R2. */
+  @IsString()
+  @IsNotEmpty()
+  S3_REGION = 'us-east-1';
+
+  /** Bookings' own key: the uploads and evidence buckets only, never the public one. */
+  @IsString()
+  @IsNotEmpty()
+  S3_ACCESS_KEY_ID!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  S3_SECRET_ACCESS_KEY!: string;
+
+  /** Private: raw uploads under incoming/. */
+  @IsString()
+  @IsNotEmpty()
+  S3_UPLOADS_BUCKET!: string;
+
+  /** Private: processed condition photos, read only through presigned links. */
+  @IsString()
+  @IsNotEmpty()
+  S3_EVIDENCE_BUCKET!: string;
 }
 
 /** For `ConfigModule.forRoot({ validate })`. Error messages name variables, never values. */

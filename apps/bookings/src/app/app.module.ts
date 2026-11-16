@@ -13,6 +13,7 @@ import { validateConfig, type BookingsConfig } from './config';
 import { BookingsDatabaseModule } from './database/database.module';
 import { ExpiryModule } from './expiry/expiry.module';
 import { HandoffModule } from './handoff/handoff.module';
+import { PhotosModule } from './photos/photos.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { ReadModelsModule } from './read-models/read-models.module';
 
@@ -38,6 +39,7 @@ export const configModule = serviceConfigModule('bookings', validateConfig);
     ReadModelsModule,
     BookingsModule,
     HandoffModule,
+    PhotosModule,
   ],
   providers: [
     { provide: APP_PIPE, useValue: rpcValidationPipe },

@@ -23,6 +23,7 @@ import {
 import { cancelBookings } from '../bookings/booking-transitions';
 import { lockBookingsToCancel } from '../bookings/bookings.repository';
 import { hasActiveRentals } from '../handoff/handoff.repository';
+import { removePhotosOf } from '../photos/photos.repository';
 import { ChatPublisher, ChatPushes } from '../messaging/chat-publisher';
 import {
   eraseMessagesOf,
@@ -129,6 +130,8 @@ export class UserEventsConsumer implements OnApplicationBootstrap {
             // The gateway refuses erasure while an item is out, but a scan
             // in the same second can slip through: a person sorts it out.
             itemsOut = await hasActiveRentals(tx, userId);
+            // Their condition photos go (ADR-0027); the sweeper deletes the files.
+            await removePhotosOf(tx, userId);
           },
         );
         if (ran) {

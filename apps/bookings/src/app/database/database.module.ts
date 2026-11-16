@@ -5,6 +5,7 @@ import { BookingsMessaging1761400000000 } from './migrations/1761400000000-booki
 import { BookingsPayments1762600000000 } from './migrations/1762600000000-bookings-payments';
 import { BookingsUserPhotos1763100000000 } from './migrations/1763100000000-bookings-user-photos';
 import { BookingsHandoff1763300000000 } from './migrations/1763300000000-bookings-handoff';
+import { BookingsConditionPhotos1763400000000 } from './migrations/1763400000000-bookings-condition-photos';
 
 export const MIGRATIONS = [
   CreateOutboxTables1759140000000,
@@ -13,6 +14,7 @@ export const MIGRATIONS = [
   BookingsPayments1762600000000,
   BookingsUserPhotos1763100000000,
   BookingsHandoff1763300000000,
+  BookingsConditionPhotos1763400000000,
 ];
 
 /** Bookings' DataSource as `DATA_SOURCE` (from `@borrowbox/service-kit`). */

@@ -60,10 +60,21 @@ export interface BookingsHarness extends ServiceHarness<BookingsServiceContract>
   deleteUser(userId: string): Promise<void>;
 }
 
+/** The storage settings Bookings needs (a `TestS3` from @borrowbox/testing fits). */
+export interface HarnessStorage {
+  endpoint: string;
+  region: string;
+  uploadsBucket: string;
+  evidenceBucket: string;
+  bookings: { accessKeyId: string; secretAccessKey: string };
+}
+
 export async function startBookings(urls: {
   databaseUrl: string;
   rabbitmqUrl: string;
   redisUrl: string;
+  /** Condition photos only work with storage; other tests leave it out. */
+  s3?: HarnessStorage;
 }): Promise<BookingsHarness> {
   const keys = generateTestKeys();
   const handoffKey = generateTestKeys();
@@ -82,6 +93,12 @@ export async function startBookings(urls: {
       JWT_PUBLIC_KEY: keys.publicKeyPem,
       JWT_KEY_ID: keys.keyId,
       HANDOFF_PRIVATE_KEY: handoffKey.privateKeyPem,
+      S3_ENDPOINT: urls.s3?.endpoint ?? 'http://127.0.0.1:9',
+      S3_REGION: urls.s3?.region ?? 'us-east-1',
+      S3_ACCESS_KEY_ID: urls.s3?.bookings.accessKeyId ?? 'unused',
+      S3_SECRET_ACCESS_KEY: urls.s3?.bookings.secretAccessKey ?? 'unused',
+      S3_UPLOADS_BUCKET: urls.s3?.uploadsBucket ?? 'unused-uploads',
+      S3_EVIDENCE_BUCKET: urls.s3?.evidenceBucket ?? 'unused-evidence',
     },
     loadAppModule: async () => (await import('../app/app.module')).AppModule,
   });

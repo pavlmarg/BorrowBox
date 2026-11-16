@@ -61,6 +61,7 @@ describe('Bookings AppModule (integration)', () => {
       expect(rows).toEqual(
         [
           'bookings',
+          'condition_photos',
           'conversations',
           'handoff_answers',
           'handoffs',
@@ -70,6 +71,7 @@ describe('Bookings AppModule (integration)', () => {
           'migrations',
           'offers',
           'outbox',
+          'photo_file_deletions',
           'processed_events',
           'users',
         ].map((table_name) => ({ table_schema: 'bookings', table_name })),
@@ -79,7 +81,7 @@ describe('Bookings AppModule (integration)', () => {
     }
     // Idempotent: nothing left to run.
     expect(await bookings.dataSource.showMigrations()).toBe(false);
-    expect(MIGRATIONS).toHaveLength(6);
+    expect(MIGRATIONS).toHaveLength(7);
   });
 
   describe('database guards', () => {
