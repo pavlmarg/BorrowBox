@@ -20,7 +20,10 @@ import { JwtAuthGuard } from '@borrowbox/auth';
 import { BookingsRpc } from '@borrowbox/contracts';
 import { UuidParam } from '../http/params';
 import { ApiErrorResponse } from '../api.dto';
-import { BookingRequestRateLimit } from '../http/rate-limits';
+import {
+  BookingRequestRateLimit,
+  HandoffScanRateLimit,
+} from '../http/rate-limits';
 import { AccessToken, CorrelationId } from '../http/request-context';
 import {
   BookingViewResponse,
@@ -32,6 +35,12 @@ import {
   RequestBookingBody,
 } from './bookings.api';
 import { BookingsClient } from './bookings.client';
+import {
+  HandoffAnswerBody,
+  HandoffScanBody,
+  HandoffTokenQuery,
+  HandoffTokenResponse,
+} from './handoff.api';
 
 const itemId = () => UuidParam('itemId');
 const bookingId = () => UuidParam('bookingId');
@@ -224,6 +233,105 @@ export class BookingsController {
     return this.bookings.call(
       BookingsRpc.cancel,
       { bookingId: id },
+      { accessToken, correlationId },
+    );
+  }
+
+  @Get(':bookingId/handoff-token')
+  @ApiOperation({
+    summary: 'A fresh QR code to show at pickup (lender) or return (renter)',
+    description:
+      'Valid 45 seconds and single use; fetch a new one every 30. The 6-digit code is the fallback for the same token (ARCHITECTURE.md §5).',
+  })
+  @ApiOkResponse({ type: HandoffTokenResponse })
+  @ApiResponse({
+    status: 409,
+    type: ApiErrorResponse,
+    description: 'INVALID_STATE (not your code to show, or not now)',
+  })
+  @ApiResponse({
+    status: 503,
+    type: ApiErrorResponse,
+    description: 'HANDOFF_UNAVAILABLE',
+  })
+  handoffToken(
+    @bookingId() id: string,
+    @Query() query: HandoffTokenQuery,
+    @AccessToken() accessToken: string,
+    @CorrelationId() correlationId: string,
+  ): Promise<HandoffTokenResponse> {
+    return this.bookings.call(
+      BookingsRpc.handoffToken,
+      { bookingId: id, phase: query.phase },
+      { accessToken, correlationId },
+    );
+  }
+
+  @Post(':bookingId/handoff')
+  @HttpCode(HttpStatus.OK)
+  @HandoffScanRateLimit()
+  @ApiOperation({
+    summary: 'Scan the other person’s QR code, or type its code',
+    description:
+      'Send `token`, or `phase` and `code`. PICKED_UP at pickup; RETURNED at return (COMPLETED straight away without a deposit).',
+  })
+  @ApiOkResponse({ type: BookingViewResponse })
+  @ApiResponse({
+    status: 400,
+    type: ApiErrorResponse,
+    description: 'VALIDATION_FAILED, TOKEN_INVALID, TOKEN_EXPIRED',
+  })
+  @ApiResponse({
+    status: 409,
+    type: ApiErrorResponse,
+    description: 'INVALID_STATE, NOT_COUNTERPARTY',
+  })
+  @ApiResponse({
+    status: 429,
+    type: ApiErrorResponse,
+    description:
+      'RATE_LIMITED (10 per minute; 5 wrong codes per booking in 10 minutes)',
+  })
+  @ApiResponse({
+    status: 503,
+    type: ApiErrorResponse,
+    description: 'HANDOFF_UNAVAILABLE',
+  })
+  handoff(
+    @bookingId() id: string,
+    @Body() body: HandoffScanBody,
+    @AccessToken() accessToken: string,
+    @CorrelationId() correlationId: string,
+  ): Promise<BookingViewResponse> {
+    return this.bookings.call(
+      BookingsRpc.handoffScan,
+      { ...body, bookingId: id },
+      { accessToken, correlationId },
+    );
+  }
+
+  @Post(':bookingId/handoff/answer')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Did an unscanned pickup or return happen? (ADR-0026)',
+    description:
+      'Only while asked (`handoff.question`); final once given. Both yes at pickup, or the lender’s yes at return, records it; disagreement goes to an admin.',
+  })
+  @ApiOkResponse({ type: BookingViewResponse })
+  @ApiResponse({
+    status: 409,
+    type: ApiErrorResponse,
+    description: 'INVALID_STATE (nothing to confirm, or already answered)',
+  })
+  handoffAnswer(
+    @bookingId() id: string,
+    @Body() body: HandoffAnswerBody,
+    @AccessToken() accessToken: string,
+    @CorrelationId() correlationId: string,
+  ): Promise<BookingViewResponse> {
+    return this.bookings.call(
+      BookingsRpc.handoffAnswer,
+      { ...body, bookingId: id },
       { accessToken, correlationId },
     );
   }

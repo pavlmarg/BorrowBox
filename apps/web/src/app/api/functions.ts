@@ -93,6 +93,12 @@ export type { BookingsControllerDecline$Params as BookingsControllerDecline$Para
 export { bookingsControllerDecline as bookingsControllerDecline } from './fn/bookings/bookings-controller-decline';
 export type { BookingsControllerCancel$Params as BookingsControllerCancel$Params } from './fn/bookings/bookings-controller-cancel';
 export { bookingsControllerCancel as bookingsControllerCancel } from './fn/bookings/bookings-controller-cancel';
+export type { BookingsControllerHandoffToken$Params as BookingsControllerHandoffToken$Params } from './fn/bookings/bookings-controller-handoff-token';
+export { bookingsControllerHandoffToken as bookingsControllerHandoffToken } from './fn/bookings/bookings-controller-handoff-token';
+export type { BookingsControllerHandoff$Params as BookingsControllerHandoff$Params } from './fn/bookings/bookings-controller-handoff';
+export { bookingsControllerHandoff as bookingsControllerHandoff } from './fn/bookings/bookings-controller-handoff';
+export type { BookingsControllerHandoffAnswer$Params as BookingsControllerHandoffAnswer$Params } from './fn/bookings/bookings-controller-handoff-answer';
+export { bookingsControllerHandoffAnswer as bookingsControllerHandoffAnswer } from './fn/bookings/bookings-controller-handoff-answer';
 export type { MyBookingsControllerList$Params as MyBookingsControllerList$Params } from './fn/bookings/my-bookings-controller-list';
 export { myBookingsControllerList as myBookingsControllerList } from './fn/bookings/my-bookings-controller-list';
 export type { ConversationsControllerStart$Params as ConversationsControllerStart$Params } from './fn/messages/conversations-controller-start';

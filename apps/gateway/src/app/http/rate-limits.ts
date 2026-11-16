@@ -35,6 +35,13 @@ const DAY = 24 * HOUR;
 export const BookingRequestRateLimit = () =>
   UserRateLimit('booking-requests', 30, HOUR);
 
+/**
+ * Handoff scans and typed codes: per user per minute (ADR-0026); Bookings
+ * also limits wrong codes per booking.
+ */
+export const HandoffScanRateLimit = () =>
+  UserRateLimit('handoff-scans', 10, MINUTE);
+
 /** Chat messages and offers: per user per minute (ADR-0017). */
 export const MessageRateLimit = () =>
   UserRateLimit('messages', MESSAGES_PER_MINUTE, MINUTE);

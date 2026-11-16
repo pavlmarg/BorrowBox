@@ -43,6 +43,7 @@ import { BookingsClient, MessagingClient } from '../bookings/bookings.client';
 import { CatalogClient } from '../catalog/catalog.client';
 import { NotificationsClient } from '../notifications/notifications.client';
 import { PaymentsClient } from '../payments/payments.client';
+import { apiError } from '../http/api-error';
 import { clearRefreshCookie } from '../http/cookies';
 import { AuthRateLimit } from '../http/rate-limits';
 import { AccessToken, CorrelationId } from '../http/request-context';
@@ -268,7 +269,7 @@ export class MeController {
   @ApiOperation({
     summary: 'Delete my account (GDPR Art. 17)',
     description:
-      'Accounts with a password must send it. Accounts without one must have signed in within the last 5 minutes.',
+      'Accounts with a password must send it. Accounts without one must have signed in within the last 5 minutes. Refused while an item is out on one of my bookings (picked up, returned within its claim window, or disputed; ADR-0026).',
   })
   @ApiNoContentResponse()
   @ApiResponse({
@@ -282,6 +283,11 @@ export class MeController {
     description: 'REAUTHENTICATION_REQUIRED',
   })
   @ApiResponse({
+    status: 409,
+    type: ApiErrorResponse,
+    description: 'ACTIVE_RENTALS (finish them first)',
+  })
+  @ApiResponse({
     status: 429,
     type: ApiErrorResponse,
     description: 'RATE_LIMITED (10 per minute)',
@@ -292,6 +298,20 @@ export class MeController {
     @CorrelationId() correlationId: string,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
+    // A check before erasing, not a lock: a scan in the same second can
+    // still slip through, and Bookings logs it for a person (ADR-0026).
+    const { active } = await this.bookings.call(
+      BookingsRpc.activeRentals,
+      {},
+      { accessToken, correlationId },
+    );
+    if (active) {
+      throw apiError(
+        HttpStatus.CONFLICT,
+        'ACTIVE_RENTALS',
+        'Finish your rentals before deleting your account',
+      );
+    }
     await this.identity.call(IdentityRpc.deleteMe, body, {
       accessToken,
       correlationId,

@@ -29,6 +29,12 @@ const BOOKINGS_STATUS: Record<BookingsErrorCode, HttpStatus> = {
   PAYOUTS_NOT_SET_UP: HttpStatus.CONFLICT,
   DUPLICATE_REQUEST: HttpStatus.CONFLICT,
   REQUEST_LIMIT_REACHED: HttpStatus.CONFLICT,
+  // Handoffs (ADR-0026): a bad or stale code is the scanner's to fix.
+  TOKEN_INVALID: HttpStatus.BAD_REQUEST,
+  TOKEN_EXPIRED: HttpStatus.BAD_REQUEST,
+  NOT_COUNTERPARTY: HttpStatus.CONFLICT,
+  RATE_LIMITED: HttpStatus.TOO_MANY_REQUESTS,
+  HANDOFF_UNAVAILABLE: HttpStatus.SERVICE_UNAVAILABLE,
   INTERNAL: HttpStatus.INTERNAL_SERVER_ERROR,
 };
 
