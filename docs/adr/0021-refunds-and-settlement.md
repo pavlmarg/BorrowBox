@@ -1,6 +1,6 @@
 # ADR-0021: Refunds and settlement
 
-**Status:** Accepted. Amends [ADR-0019](0019-payments-fees-and-policies.md)'s cancellation rules, which refunded the service fee on early cancellations, and settles what [ADR-0020](0020-booking-fees.md) left to it. Builds on [ADR-0003](0003-stripe-separate-charges-transfers.md).
+**Status:** Accepted. Amends [ADR-0019](0019-payments-fees-and-policies.md)'s cancellation rules, which refunded the service fee on early cancellations, and settles what [ADR-0020](0020-booking-fees.md) left to it. Builds on [ADR-0003](0003-stripe-separate-charges-transfers.md). Disputes are settled by [ADR-0028](0028-damage-claims.md): `booking.completed` carries the damage award.
 
 ## Context
 A paid booking holds the renter's whole payment (rent, deposit and service fee) on the platform's Stripe account (ADR-0003). It leaves that account in one of two ways: back to the renter's card when the booking is cancelled, or split when it completes, the rent to the lender and the deposit back. Stripe keeps its processing fee on refunds, so ADR-0019's "everything refunded, the fee included" lost BorrowBox Stripe's cost on every early cancellation, against ADR-0020's rule that every charged booking earns at least what Stripe takes. Money movement is also where retries, late events and Stripe's own delays can do the most harm.
