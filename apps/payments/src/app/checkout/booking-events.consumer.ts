@@ -61,6 +61,8 @@ class BookingPayload implements BookingSnapshotV1 {
   // booking.expired / .cancelled
   @IsOptional() @IsString() @MaxLength(40) reason?: string;
   @IsOptional() @IsUUID() erasedUserId?: string;
+  // booking.completed after a damage claim (ADR-0028)
+  @IsOptional() @IsInt() @Min(0) damageAwardCents?: number;
 }
 
 const STATE_BY_ROUTING_KEY: Record<string, BookingPaymentState> = {
@@ -80,7 +82,8 @@ const STATE_BY_ROUTING_KEY: Record<string, BookingPaymentState> = {
  *   worker), so the renter can't pay a booking that no longer exists;
  * - closed after the payment succeeded: its refund (and any share for the
  *   lender) by the refund rules;
- * - completed: the lender's transfer and the deposit's refund;
+ * - completed: the lender's transfer and the deposit's refund, with any
+ *   damage award moved from the refund to the transfer (ADR-0028);
  * - disputed: nothing until the dispute is resolved (the admin area).
  * Database only: Stripe is called by the worker.
  */
@@ -129,7 +132,12 @@ export class BookingEventsConsumer implements OnApplicationBootstrap {
         )) as PaymentBookingRow;
         if (state === 'COMPLETED') {
           if (payment.status === 'SUCCEEDED') {
-            await planSettlement(tx, payment, saved);
+            await planSettlement(
+              tx,
+              payment,
+              saved,
+              booking.damageAwardCents ?? 0,
+            );
           }
           return;
         }

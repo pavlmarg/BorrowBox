@@ -344,12 +344,47 @@ describe('Refunds and settlement (integration)', () => {
       await service.runDue();
       expect(refundsOf(intent)).toEqual([]);
       expect(transfersOf(b)).toEqual([]);
-      // Resolved (dispute.resolved → COMPLETED, Phase 5 and the admin area):
+      // Resolved without an award (withdrawn): booking.completed (ADR-0028).
       await service.receive(createEnvelope(BookingCompletedV1, b));
       await service.runDue();
       expect(transfersOf(b)).toHaveLength(1);
       expect((await payment(b)).status).toBe('SETTLED');
     });
+
+    it.each([
+      // award, to the lender, back to the renter
+      [3000, 4850, [2000]],
+      [5000, 6850, []],
+    ])(
+      'settles a €%i damage award: €%i to the lender, the rest of the deposit back',
+      async (award, lenderCents, refunds) => {
+        const lender = await payableLender();
+        const { b, intent } = await paidBooking(30, lender.userId);
+        await service.receive(createEnvelope(BookingDisputedV1, b));
+        const completed = createEnvelope(BookingCompletedV1, {
+          ...b,
+          damageAwardCents: award,
+        });
+        await service.receive(completed);
+        await service.receive(completed); // the same event again: no second plan
+        await service.runDue();
+        expect(transfersOf(b)).toEqual([
+          expect.objectContaining({
+            amountCents: lenderCents,
+            destinationAccountId: lender.accountId,
+            sourceChargeId: `ch_for_${intent}`,
+          }),
+        ]);
+        expect(refundsOf(intent)).toEqual(refunds);
+        expect(await payment(b)).toMatchObject({ status: 'SETTLED' });
+        expect((await events(b.bookingId)).map((e) => e.payload)).toEqual([
+          expect.objectContaining({
+            payoutCents: lenderCents,
+            depositRefundCents: 5000 - award,
+          }),
+        ]);
+      },
+    );
   });
 
   describe('carrying it out', () => {

@@ -135,8 +135,11 @@ export async function planSettlement(
   tx: EntityManager,
   payment: PaymentRow,
   booking: PaymentBookingRow,
+  /** From `booking.completed` after a damage claim (ADR-0028). */
+  damageAwardCents = 0,
 ): Promise<void> {
-  const plan = settlementPlan(amountsOf(payment));
+  // The RENT transfer carries the award too: one transfer to the lender.
+  const plan = settlementPlan(amountsOf(payment), damageAwardCents);
   await planMovement(tx, payment, {
     kind: 'TRANSFER',
     purpose: 'RENT',
