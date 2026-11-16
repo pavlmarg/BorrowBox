@@ -6,6 +6,7 @@ import {
   deleteObjects,
   ObjectTooLargeError,
   objectSize,
+  presignDownload,
   presignUpload,
   readObject,
   writeObject,
@@ -135,6 +136,69 @@ describe('storage (integration)', () => {
       });
       const hidden = await fetch(`${s3.endpoint}/${s3.uploadsBucket}/${raw}`);
       expect(hidden.status).toBe(403);
+    });
+
+    it('keeps evidence private: only presigned links, only for Bookings’ key', async () => {
+      const bookings = createStorageClient({
+        endpoint: s3.endpoint,
+        region: s3.region,
+        ...s3.bookings,
+      });
+      try {
+        const key = `conditions/${randomUUID()}/1600.webp`;
+        await writeObject(bookings, {
+          bucket: s3.evidenceBucket,
+          key,
+          body: Buffer.from('webp'),
+          contentType: 'image/webp',
+        });
+
+        const link = await presignDownload(bookings, {
+          bucket: s3.evidenceBucket,
+          key,
+          expiresInSeconds: 300,
+        });
+        expect(link.expiresAt.getTime()).toBeGreaterThan(Date.now() + 290_000);
+        const shown = await fetch(link.url);
+        expect(shown.status).toBe(200);
+        expect(Buffer.from(await shown.arrayBuffer()).toString()).toBe('webp');
+
+        // Not without the signature, and not with another service's key.
+        const anonymous = await fetch(
+          `${s3.endpoint}/${s3.evidenceBucket}/${key}`,
+        );
+        expect(anonymous.status).toBe(403);
+        await expect(
+          readObject(client, s3.evidenceBucket, key, 1_000),
+        ).rejects.toThrow();
+        // Bookings can't write photos anyone could read.
+        await expect(
+          writeObject(bookings, {
+            bucket: s3.publicBucket,
+            key: `items/${randomUUID()}/320.webp`,
+            body: Buffer.from('webp'),
+            contentType: 'image/webp',
+          }),
+        ).rejects.toThrow();
+      } finally {
+        bookings.destroy();
+      }
+    });
+
+    it('expires presigned links', async () => {
+      const key = incoming();
+      await writeObject(client, {
+        bucket: s3.uploadsBucket,
+        key,
+        body: Buffer.from('raw'),
+        contentType: 'image/jpeg',
+      });
+      const link = await presignDownload(
+        client,
+        { bucket: s3.uploadsBucket, key, expiresInSeconds: 1 },
+        new Date(Date.now() - 60_000),
+      );
+      expect((await fetch(link.url)).status).toBe(403);
     });
 
     it('deletes, treating missing objects as deleted', async () => {

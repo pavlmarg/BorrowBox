@@ -81,6 +81,27 @@ export async function presignUpload(
   };
 }
 
+/**
+ * A presigned `GET` for one object in a private bucket (condition photos,
+ * ADR-0027): whoever holds the URL can read that object until it expires,
+ * so keep it short and give it only to those allowed to see the object.
+ */
+export async function presignDownload(
+  client: S3Client,
+  target: { bucket: string; key: string; expiresInSeconds: number },
+  now: Date = new Date(),
+): Promise<{ url: string; expiresAt: Date }> {
+  const url = await getSignedUrl(
+    client,
+    new GetObjectCommand({ Bucket: target.bucket, Key: target.key }),
+    { expiresIn: target.expiresInSeconds, signingDate: now },
+  );
+  return {
+    url,
+    expiresAt: new Date(now.getTime() + target.expiresInSeconds * 1000),
+  };
+}
+
 function isNotFound(err: unknown): boolean {
   return (
     err instanceof S3ServiceException &&

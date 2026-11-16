@@ -3,6 +3,8 @@
 # - admin:     full rights; used only by storage-init (never by services)
 # - catalog:   read/write on the uploads and public buckets, nothing else
 # - identity:  the same, for profile photos (ADR-0024)
+# - bookings:  read/write on the uploads and the private evidence bucket
+#              (condition photos, ADR-0027); never the public bucket
 # - anonymous: read-only on the public bucket (no listing, no writing)
 # Used by infra/docker-compose.yml and by @borrowbox/testing's startS3().
 set -eu
@@ -10,7 +12,8 @@ set -eu
 : "${S3_ADMIN_ACCESS_KEY_ID:?}" "${S3_ADMIN_SECRET_ACCESS_KEY:?}"
 : "${S3_CATALOG_ACCESS_KEY_ID:?}" "${S3_CATALOG_SECRET_ACCESS_KEY:?}"
 : "${S3_IDENTITY_ACCESS_KEY_ID:?}" "${S3_IDENTITY_SECRET_ACCESS_KEY:?}"
-: "${S3_UPLOADS_BUCKET:?}" "${S3_PUBLIC_BUCKET:?}"
+: "${S3_BOOKINGS_ACCESS_KEY_ID:?}" "${S3_BOOKINGS_SECRET_ACCESS_KEY:?}"
+: "${S3_UPLOADS_BUCKET:?}" "${S3_PUBLIC_BUCKET:?}" "${S3_EVIDENCE_BUCKET:?}"
 
 cat > /tmp/s3.json <<EOF
 {
@@ -34,6 +37,14 @@ cat > /tmp/s3.json <<EOF
       "actions": [
         "Read:${S3_UPLOADS_BUCKET}", "Write:${S3_UPLOADS_BUCKET}",
         "Read:${S3_PUBLIC_BUCKET}", "Write:${S3_PUBLIC_BUCKET}"
+      ]
+    },
+    {
+      "name": "bookings",
+      "credentials": [{ "accessKey": "${S3_BOOKINGS_ACCESS_KEY_ID}", "secretKey": "${S3_BOOKINGS_SECRET_ACCESS_KEY}" }],
+      "actions": [
+        "Read:${S3_UPLOADS_BUCKET}", "Write:${S3_UPLOADS_BUCKET}",
+        "Read:${S3_EVIDENCE_BUCKET}", "Write:${S3_EVIDENCE_BUCKET}"
       ]
     },
     {

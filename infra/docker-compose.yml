@@ -69,7 +69,8 @@ services:
 
   # S3-compatible object storage (Cloudflare R2 in production), ADR-0009:
   # a private uploads bucket and a public-read bucket for processed photos.
-  # Identities (admin / catalog / identity / anonymous) come from infra/storage/seaweedfs.sh.
+  # A private evidence bucket for condition photos (ADR-0027).
+  # Identities (admin / catalog / identity / bookings / anonymous) come from infra/storage/seaweedfs.sh.
   seaweedfs:
     image: chrislusf/seaweedfs:4.48
     environment:
@@ -79,8 +80,11 @@ services:
       S3_CATALOG_SECRET_ACCESS_KEY: ${S3_CATALOG_SECRET_ACCESS_KEY:?set in infra/.env}
       S3_IDENTITY_ACCESS_KEY_ID: ${S3_IDENTITY_ACCESS_KEY_ID:?set in infra/.env}
       S3_IDENTITY_SECRET_ACCESS_KEY: ${S3_IDENTITY_SECRET_ACCESS_KEY:?set in infra/.env}
+      S3_BOOKINGS_ACCESS_KEY_ID: ${S3_BOOKINGS_ACCESS_KEY_ID:?set in infra/.env}
+      S3_BOOKINGS_SECRET_ACCESS_KEY: ${S3_BOOKINGS_SECRET_ACCESS_KEY:?set in infra/.env}
       S3_UPLOADS_BUCKET: ${S3_UPLOADS_BUCKET:-borrowbox-uploads}
       S3_PUBLIC_BUCKET: ${S3_PUBLIC_BUCKET:-borrowbox-public}
+      S3_EVIDENCE_BUCKET: ${S3_EVIDENCE_BUCKET:-borrowbox-evidence}
     entrypoint: ['/bin/sh', '/storage/seaweedfs.sh']
     ports:
       - '127.0.0.1:${S3_PORT:-8333}:8333' # S3 API
@@ -108,6 +112,7 @@ services:
       AWS_DEFAULT_REGION: us-east-1
       S3_UPLOADS_BUCKET: ${S3_UPLOADS_BUCKET:-borrowbox-uploads}
       S3_PUBLIC_BUCKET: ${S3_PUBLIC_BUCKET:-borrowbox-public}
+      S3_EVIDENCE_BUCKET: ${S3_EVIDENCE_BUCKET:-borrowbox-evidence}
       S3_CORS_ORIGINS: ${S3_CORS_ORIGINS:-http://localhost:4200}
     entrypoint: ['/bin/sh', '/storage/init.sh']
     volumes:

@@ -22,6 +22,8 @@ export interface TestS3 {
   region: string;
   uploadsBucket: string;
   publicBucket: string;
+  /** Private: processed condition photos (ADR-0027). */
+  evidenceBucket: string;
   /** The only browser origin the uploads bucket's CORS rule allows. */
   corsOrigin: string;
   /** Full rights — only for test setup/assertions, never for code under test. */
@@ -30,6 +32,8 @@ export interface TestS3 {
   catalog: S3Credentials;
   /** The same rights as Catalog's, for Identity's profile photos. */
   identity: S3Credentials;
+  /** Uploads and the evidence bucket only, for Bookings' condition photos. */
+  bookings: S3Credentials;
   /** Public URL of an object in the public bucket. */
   publicUrl(key: string): string;
   stop(): Promise<void>;
@@ -48,8 +52,11 @@ export async function startS3(): Promise<TestS3> {
     S3_CATALOG_SECRET_ACCESS_KEY: 'test-catalog-secret',
     S3_IDENTITY_ACCESS_KEY_ID: 'test-identity',
     S3_IDENTITY_SECRET_ACCESS_KEY: 'test-identity-secret',
+    S3_BOOKINGS_ACCESS_KEY_ID: 'test-bookings',
+    S3_BOOKINGS_SECRET_ACCESS_KEY: 'test-bookings-secret',
     S3_UPLOADS_BUCKET: 'borrowbox-uploads',
     S3_PUBLIC_BUCKET: 'borrowbox-public',
+    S3_EVIDENCE_BUCKET: 'borrowbox-evidence',
   };
   const corsOrigin = 'http://localhost:4200';
   const region = 'us-east-1';
@@ -89,6 +96,7 @@ export async function startS3(): Promise<TestS3> {
         AWS_DEFAULT_REGION: region,
         S3_UPLOADS_BUCKET: env.S3_UPLOADS_BUCKET,
         S3_PUBLIC_BUCKET: env.S3_PUBLIC_BUCKET,
+        S3_EVIDENCE_BUCKET: env.S3_EVIDENCE_BUCKET,
         S3_CORS_ORIGINS: corsOrigin,
       })
       .withCopyFilesToContainer([
@@ -129,6 +137,7 @@ export async function startS3(): Promise<TestS3> {
     region,
     uploadsBucket: env.S3_UPLOADS_BUCKET,
     publicBucket: env.S3_PUBLIC_BUCKET,
+    evidenceBucket: env.S3_EVIDENCE_BUCKET,
     corsOrigin,
     admin: {
       accessKeyId: env.S3_ADMIN_ACCESS_KEY_ID,
@@ -141,6 +150,10 @@ export async function startS3(): Promise<TestS3> {
     identity: {
       accessKeyId: env.S3_IDENTITY_ACCESS_KEY_ID,
       secretAccessKey: env.S3_IDENTITY_SECRET_ACCESS_KEY,
+    },
+    bookings: {
+      accessKeyId: env.S3_BOOKINGS_ACCESS_KEY_ID,
+      secretAccessKey: env.S3_BOOKINGS_SECRET_ACCESS_KEY,
     },
     publicUrl: (key) => `${endpoint}/${env.S3_PUBLIC_BUCKET}/${key}`,
     stop: async () => {

@@ -11,13 +11,16 @@
 #   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY   admin credentials
 #   AWS_DEFAULT_REGION                  us-east-1 (SeaweedFS) or auto (R2)
 #   S3_UPLOADS_BUCKET, S3_PUBLIC_BUCKET
+#   S3_EVIDENCE_BUCKET                  private: condition photos (ADR-0027)
 #   S3_CORS_ORIGINS                     comma-separated browser origins allowed to upload
 set -eu
 
-: "${S3_ENDPOINT:?}" "${S3_UPLOADS_BUCKET:?}" "${S3_PUBLIC_BUCKET:?}" "${S3_CORS_ORIGINS:?}"
+: "${S3_ENDPOINT:?}" "${S3_UPLOADS_BUCKET:?}" "${S3_PUBLIC_BUCKET:?}" "${S3_EVIDENCE_BUCKET:?}" "${S3_CORS_ORIGINS:?}"
 s3api() { aws --endpoint-url "$S3_ENDPOINT" s3api "$@"; }
 
-for bucket in "$S3_UPLOADS_BUCKET" "$S3_PUBLIC_BUCKET"; do
+# The evidence bucket gets no CORS and no public access: photos are only
+# read through short-lived presigned links given to the two people.
+for bucket in "$S3_UPLOADS_BUCKET" "$S3_PUBLIC_BUCKET" "$S3_EVIDENCE_BUCKET"; do
   if s3api head-bucket --bucket "$bucket" >/dev/null 2>&1; then
     echo "bucket $bucket exists"
   else
