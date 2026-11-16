@@ -3227,6 +3227,320 @@
         ]
       }
     },
+    "/api/bookings/{bookingId}/claim": {
+      "get": {
+        "operationId": "BookingsController_claim",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaybeClaimResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED, INVALID_PERIOD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The booking’s damage claim, if any (ADR-0028)",
+        "tags": [
+          "bookings"
+        ]
+      },
+      "post": {
+        "description": "While RETURNED and within the 48-hour claim window; one claim per booking, up to the deposit. The booking becomes DISPUTED.",
+        "operationId": "BookingsController_fileClaim",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileClaimBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED, INVALID_PERIOD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE (not the lender, or the window closed), CLAIM_EXISTS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Report damage: claim part of the deposit (lender)",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/bookings/{bookingId}/claim/answer": {
+      "post": {
+        "description": "AGREE completes the booking: the claimed amount goes to the lender, the rest of the deposit back. DISAGREE leaves it for an admin.",
+        "operationId": "BookingsController_answerClaim",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerClaimBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED, INVALID_PERIOD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE (not the renter, or already answered)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Agree to or disagree with the claim (renter)",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/bookings/{bookingId}/claim/withdraw": {
+      "post": {
+        "operationId": "BookingsController_withdrawClaim",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED, INVALID_PERIOD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE (already resolved)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Withdraw the claim (lender): the booking completes as usual",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
     "/api/bookings/{bookingId}/handoff/answer": {
       "post": {
         "description": "Only while asked (`handoff.question`); final once given. Both yes at pickup, or the lender’s yes at return, records it; disagreement goes to an admin.",
@@ -5919,6 +6233,70 @@
           "urls"
         ]
       },
+      "ClaimStatus": {
+        "type": "string",
+        "enum": [
+          "OPEN",
+          "DISAGREED",
+          "AGREED",
+          "WITHDRAWN",
+          "DECIDED"
+        ]
+      },
+      "ClaimExportResponse": {
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "RENTER",
+              "LENDER"
+            ]
+          },
+          "amountCents": {
+            "type": "number"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClaimStatus"
+              }
+            ]
+          },
+          "awardCents": {
+            "type": "number",
+            "nullable": true
+          },
+          "filedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "myText": {
+            "type": "string",
+            "nullable": true,
+            "description": "My description (lender) or reply (renter)"
+          }
+        },
+        "required": [
+          "bookingId",
+          "role",
+          "amountCents",
+          "status",
+          "awardCents",
+          "filedAt",
+          "resolvedAt",
+          "myText"
+        ]
+      },
       "BookingsDataExportResponse": {
         "type": "object",
         "properties": {
@@ -5963,6 +6341,12 @@
             "items": {
               "$ref": "#/components/schemas/ConditionPhotoExportResponse"
             }
+          },
+          "claims": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClaimExportResponse"
+            }
           }
         },
         "required": [
@@ -5972,7 +6356,8 @@
           "asRenter",
           "asLender",
           "handoffs",
-          "conditionPhotos"
+          "conditionPhotos",
+          "claims"
         ]
       },
       "ExportedMessage": {
@@ -6241,7 +6626,12 @@
           "MESSAGES_UNREAD",
           "HANDOFF_QUESTION",
           "BOOKING_RETURNED",
-          "BOOKING_IN_REVIEW"
+          "BOOKING_IN_REVIEW",
+          "CLAIM_FILED",
+          "CLAIM_AGREED",
+          "CLAIM_DISAGREED",
+          "CLAIM_WITHDRAWN",
+          "CLAIM_DECIDED"
         ]
       },
       "ExportedEmail": {
@@ -7741,6 +8131,142 @@
           "expiresAt"
         ]
       },
+      "ClaimResponse": {
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amountCents": {
+            "type": "number"
+          },
+          "description": {
+            "type": "string"
+          },
+          "photoIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClaimStatus"
+              }
+            ]
+          },
+          "reply": {
+            "type": "string",
+            "nullable": true
+          },
+          "filedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "answeredAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "resolvedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "awardCents": {
+            "type": "number",
+            "nullable": true,
+            "description": "Once resolved: cents of the deposit that go to the lender"
+          }
+        },
+        "required": [
+          "bookingId",
+          "amountCents",
+          "description",
+          "photoIds",
+          "status",
+          "reply",
+          "filedAt",
+          "answeredAt",
+          "resolvedAt",
+          "awardCents"
+        ]
+      },
+      "MaybeClaimResponse": {
+        "type": "object",
+        "properties": {
+          "claim": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClaimResponse"
+              }
+            ]
+          }
+        },
+        "required": [
+          "claim"
+        ]
+      },
+      "FileClaimBody": {
+        "type": "object",
+        "properties": {
+          "amountCents": {
+            "type": "number",
+            "minimum": 100,
+            "description": "Cents, at most the booking’s deposit"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 1000,
+            "description": "What is damaged; no phone numbers, emails or links"
+          },
+          "photoIds": {
+            "maxItems": 6,
+            "description": "Ready condition photos of this booking (ADR-0027)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "amountCents",
+          "description"
+        ]
+      },
+      "ClaimAnswer": {
+        "type": "string",
+        "enum": [
+          "AGREE",
+          "DISAGREE"
+        ],
+        "description": "AGREE is final and settles at once; DISAGREE waits for an admin"
+      },
+      "AnswerClaimBody": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "description": "AGREE is final and settles at once; DISAGREE waits for an admin",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClaimAnswer"
+              }
+            ]
+          },
+          "reply": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "answer"
+        ]
+      },
       "HandoffAnswerBody": {
         "type": "object",
         "properties": {
@@ -7806,6 +8332,9 @@
           "BOOKING_RETURNED",
           "BOOKING_COMPLETED",
           "BOOKING_IN_REVIEW",
+          "CLAIM_FILED",
+          "CLAIM_DISAGREED",
+          "CLAIM_RESOLVED",
           "OFFER_WITHDRAWN"
         ]
       },

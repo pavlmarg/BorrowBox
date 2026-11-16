@@ -303,6 +303,67 @@ describe('Booking and chat routes (integration)', () => {
         .expect(400);
     });
 
+    it('forwards claim routes, and maps CLAIM_EXISTS to 409 (ADR-0028)', async () => {
+      const auth = await gw.bearer();
+      bookings.on(BookingsRpc.claimGet, echo);
+      await gw
+        .http()
+        .get(`/api/bookings/${BOOKING}/claim`)
+        .set('Authorization', auth)
+        .expect(200);
+
+      bookings.on(BookingsRpc.claimFile, echo);
+      const body = { amountCents: 3000, description: 'The chuck is cracked.' };
+      const filed = await gw
+        .http()
+        .post(`/api/bookings/${BOOKING}/claim`)
+        .set('Authorization', auth)
+        .send(body)
+        .expect(201);
+      expect(filed.body).toEqual({ echoed: { ...body, bookingId: BOOKING } });
+
+      bookings.on(BookingsRpc.claimAnswer, echo);
+      const answered = await gw
+        .http()
+        .post(`/api/bookings/${BOOKING}/claim/answer`)
+        .set('Authorization', auth)
+        .send({ answer: 'DISAGREE', reply: 'It was cracked before.' })
+        .expect(200);
+      expect(answered.body.echoed).toEqual({
+        bookingId: BOOKING,
+        answer: 'DISAGREE',
+        reply: 'It was cracked before.',
+      });
+
+      bookings.on(BookingsRpc.claimWithdraw, echo);
+      await gw
+        .http()
+        .post(`/api/bookings/${BOOKING}/claim/withdraw`)
+        .set('Authorization', auth)
+        .expect(200);
+
+      bookings.fail(BookingsRpc.claimFile, {
+        code: 'CLAIM_EXISTS',
+        message: 'This booking already has a damage claim',
+      });
+      const again = await gw
+        .http()
+        .post(`/api/bookings/${BOOKING}/claim`)
+        .set('Authorization', auth)
+        .send(body)
+        .expect(409);
+      expect(again.body.code).toBe('CLAIM_EXISTS');
+      // Shape errors never reach Bookings.
+      const calls = bookings.callsTo(BookingsRpc.claimAnswer).length;
+      await gw
+        .http()
+        .post(`/api/bookings/${BOOKING}/claim/answer`)
+        .set('Authorization', auth)
+        .send({ answer: 'MAYBE' })
+        .expect(400);
+      expect(bookings.callsTo(BookingsRpc.claimAnswer)).toHaveLength(calls);
+    });
+
     it('validates handoff input before calling Bookings', async () => {
       for (const [method, path, body] of [
         [

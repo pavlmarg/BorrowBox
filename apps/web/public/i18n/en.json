@@ -863,6 +863,9 @@
       "BOOKING_RETURNED": "The item was returned.",
       "BOOKING_COMPLETED": "The booking is complete.",
       "BOOKING_IN_REVIEW": "The handoff wasn’t confirmed by both. Our team will look into it.",
+      "CLAIM_FILED": "The lender reported damage and claims part of the deposit.",
+      "CLAIM_DISAGREED": "The renter disagrees with the damage claim. Our team will decide.",
+      "CLAIM_RESOLVED": "The damage claim is settled.",
       "OFFER_WITHDRAWN": "The lender withdrew the price offer."
     },
     "report": {

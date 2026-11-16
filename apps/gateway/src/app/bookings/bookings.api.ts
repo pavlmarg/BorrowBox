@@ -34,6 +34,7 @@ import {
   BookingHandoffResponse,
   ConditionPhotoExportResponse,
 } from './handoff.api';
+import { ClaimExportResponse } from './claims.api';
 
 // HTTP DTOs for Bookings: validated here, validated again by Bookings, and
 // the source of the OpenAPI spec the PWA client is generated from.
@@ -285,4 +286,6 @@ export class BookingsDataExportResponse {
   handoffs!: BookingHandoffExportResponse[];
   @ApiProperty({ type: [ConditionPhotoExportResponse] })
   conditionPhotos!: ConditionPhotoExportResponse[];
+  @ApiProperty({ type: [ClaimExportResponse] })
+  claims!: ClaimExportResponse[];
 }

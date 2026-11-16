@@ -105,6 +105,14 @@ export type { BookingsControllerConfirmPhoto$Params as BookingsControllerConfirm
 export { bookingsControllerConfirmPhoto as bookingsControllerConfirmPhoto } from './fn/bookings/bookings-controller-confirm-photo';
 export type { BookingsControllerRemovePhoto$Params as BookingsControllerRemovePhoto$Params } from './fn/bookings/bookings-controller-remove-photo';
 export { bookingsControllerRemovePhoto as bookingsControllerRemovePhoto } from './fn/bookings/bookings-controller-remove-photo';
+export type { BookingsControllerClaim$Params as BookingsControllerClaim$Params } from './fn/bookings/bookings-controller-claim';
+export { bookingsControllerClaim as bookingsControllerClaim } from './fn/bookings/bookings-controller-claim';
+export type { BookingsControllerFileClaim$Params as BookingsControllerFileClaim$Params } from './fn/bookings/bookings-controller-file-claim';
+export { bookingsControllerFileClaim as bookingsControllerFileClaim } from './fn/bookings/bookings-controller-file-claim';
+export type { BookingsControllerAnswerClaim$Params as BookingsControllerAnswerClaim$Params } from './fn/bookings/bookings-controller-answer-claim';
+export { bookingsControllerAnswerClaim as bookingsControllerAnswerClaim } from './fn/bookings/bookings-controller-answer-claim';
+export type { BookingsControllerWithdrawClaim$Params as BookingsControllerWithdrawClaim$Params } from './fn/bookings/bookings-controller-withdraw-claim';
+export { bookingsControllerWithdrawClaim as bookingsControllerWithdrawClaim } from './fn/bookings/bookings-controller-withdraw-claim';
 export type { BookingsControllerHandoffAnswer$Params as BookingsControllerHandoffAnswer$Params } from './fn/bookings/bookings-controller-handoff-answer';
 export { bookingsControllerHandoffAnswer as bookingsControllerHandoffAnswer } from './fn/bookings/bookings-controller-handoff-answer';
 export type { MyBookingsControllerList$Params as MyBookingsControllerList$Params } from './fn/bookings/my-bookings-controller-list';

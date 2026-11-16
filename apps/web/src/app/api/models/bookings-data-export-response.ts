@@ -4,10 +4,12 @@
 import { BookingHandoffExportResponse } from '../models/booking-handoff-export-response';
 import { BookingsProfileResponse } from '../models/bookings-profile-response';
 import { BookingViewResponse } from '../models/booking-view-response';
+import { ClaimExportResponse } from '../models/claim-export-response';
 import { ConditionPhotoExportResponse } from '../models/condition-photo-export-response';
 export interface BookingsDataExportResponse {
   asLender: Array<BookingViewResponse>;
   asRenter: Array<BookingViewResponse>;
+  claims: Array<ClaimExportResponse>;
   conditionPhotos: Array<ConditionPhotoExportResponse>;
   emailVerifiedAt: string | null;
   exportedAt: string;

@@ -38,6 +38,12 @@ import {
 } from './bookings.api';
 import { BookingsClient } from './bookings.client';
 import {
+  AnswerClaimBody,
+  ClaimResponse,
+  FileClaimBody,
+  MaybeClaimResponse,
+} from './claims.api';
+import {
   HandoffAnswerBody,
   HandoffScanBody,
   HandoffTokenQuery,
@@ -406,6 +412,96 @@ export class BookingsController {
     await this.bookings.call(
       BookingsRpc.photoRemove,
       { bookingId: id, photoId: photo },
+      { accessToken, correlationId },
+    );
+  }
+
+  @Get(':bookingId/claim')
+  @ApiOperation({ summary: 'The booking’s damage claim, if any (ADR-0028)' })
+  @ApiOkResponse({ type: MaybeClaimResponse })
+  claim(
+    @bookingId() id: string,
+    @AccessToken() accessToken: string,
+    @CorrelationId() correlationId: string,
+  ): Promise<MaybeClaimResponse> {
+    return this.bookings.call(
+      BookingsRpc.claimGet,
+      { bookingId: id },
+      { accessToken, correlationId },
+    );
+  }
+
+  @Post(':bookingId/claim')
+  @ApiOperation({
+    summary: 'Report damage: claim part of the deposit (lender)',
+    description:
+      'While RETURNED and within the 48-hour claim window; one claim per booking, up to the deposit. The booking becomes DISPUTED.',
+  })
+  @ApiCreatedResponse({ type: ClaimResponse })
+  @ApiResponse({
+    status: 409,
+    type: ApiErrorResponse,
+    description:
+      'INVALID_STATE (not the lender, or the window closed), CLAIM_EXISTS',
+  })
+  fileClaim(
+    @bookingId() id: string,
+    @Body() body: FileClaimBody,
+    @AccessToken() accessToken: string,
+    @CorrelationId() correlationId: string,
+  ): Promise<ClaimResponse> {
+    return this.bookings.call(
+      BookingsRpc.claimFile,
+      { ...body, bookingId: id },
+      { accessToken, correlationId },
+    );
+  }
+
+  @Post(':bookingId/claim/answer')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Agree to or disagree with the claim (renter)',
+    description:
+      'AGREE completes the booking: the claimed amount goes to the lender, the rest of the deposit back. DISAGREE leaves it for an admin.',
+  })
+  @ApiOkResponse({ type: ClaimResponse })
+  @ApiResponse({
+    status: 409,
+    type: ApiErrorResponse,
+    description: 'INVALID_STATE (not the renter, or already answered)',
+  })
+  answerClaim(
+    @bookingId() id: string,
+    @Body() body: AnswerClaimBody,
+    @AccessToken() accessToken: string,
+    @CorrelationId() correlationId: string,
+  ): Promise<ClaimResponse> {
+    return this.bookings.call(
+      BookingsRpc.claimAnswer,
+      { ...body, bookingId: id },
+      { accessToken, correlationId },
+    );
+  }
+
+  @Post(':bookingId/claim/withdraw')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Withdraw the claim (lender): the booking completes as usual',
+  })
+  @ApiOkResponse({ type: ClaimResponse })
+  @ApiResponse({
+    status: 409,
+    type: ApiErrorResponse,
+    description: 'INVALID_STATE (already resolved)',
+  })
+  withdrawClaim(
+    @bookingId() id: string,
+    @AccessToken() accessToken: string,
+    @CorrelationId() correlationId: string,
+  ): Promise<ClaimResponse> {
+    return this.bookings.call(
+      BookingsRpc.claimWithdraw,
+      { bookingId: id },
       { accessToken, correlationId },
     );
   }
