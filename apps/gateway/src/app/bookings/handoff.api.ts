@@ -1,17 +1,30 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
+  Max,
   MaxLength,
+  Min,
 } from 'class-validator';
 import {
   BOOKING_REVIEW_REASONS,
+  CONDITION_PHOTO_STATUSES,
   HANDOFF_ANSWERS,
   HANDOFF_CODE_LENGTH,
   HANDOFF_PHASES,
+  PHOTO_CONTENT_TYPES,
+  PHOTO_MAX_BYTES,
   type BookingReviewReason,
+  type ConditionPhotoStatus,
+  type ConditionPhotoUpload,
+  type ConditionPhotoUrls,
+  type ConditionPhotoView,
+  type ConditionPhotosView,
+  type PhotoContentType,
   type HandoffAnswer,
   type HandoffMethod,
   type HandoffPhase,
@@ -165,4 +178,108 @@ export class BookingHandoffExportResponse {
   answer!: HandoffAnswer | null;
   @ApiProperty({ format: 'date-time', nullable: true, type: String })
   answeredAt!: string | null;
+}
+
+// --- condition photos (ADR-0027) -------------------------------------------
+
+export class ConditionPhotoUrlsResponse implements ConditionPhotoUrls {
+  @ApiProperty({ description: 'WebP, 320 px wide' }) thumb!: string;
+  @ApiProperty({ description: 'WebP, up to 1600 px wide' }) large!: string;
+}
+
+export class ConditionPhotoResponse implements ConditionPhotoView {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ enum: HANDOFF_PHASES, enumName: 'HandoffPhase' })
+  phase!: HandoffPhase;
+  @ApiProperty({ enum: ['RENTER', 'LENDER'] }) takenBy!: 'RENTER' | 'LENDER';
+  @ApiProperty({
+    description:
+      'Taken by the caller (who may remove it while the window is open)',
+  })
+  mine!: boolean;
+  @ApiProperty({
+    enum: CONDITION_PHOTO_STATUSES,
+    enumName: 'ConditionPhotoStatus',
+  })
+  status!: ConditionPhotoStatus;
+  @ApiProperty({
+    format: 'date-time',
+    nullable: true,
+    type: String,
+    description: "When the upload was confirmed: the server's time",
+  })
+  takenAt!: string | null;
+  @ApiProperty({
+    type: ConditionPhotoUrlsResponse,
+    nullable: true,
+    description: 'While READY: private links, valid until urlsExpireAt',
+  })
+  urls!: ConditionPhotoUrlsResponse | null;
+  @ApiProperty({ format: 'date-time', nullable: true, type: String })
+  urlsExpireAt!: string | null;
+}
+
+export class CanAddConditionPhotosResponse {
+  @ApiProperty() PICKUP!: boolean;
+  @ApiProperty() RETURN!: boolean;
+}
+
+export class ConditionPhotosResponse implements ConditionPhotosView {
+  @ApiProperty({ type: [ConditionPhotoResponse] })
+  photos!: ConditionPhotoResponse[];
+  @ApiProperty({
+    type: CanAddConditionPhotosResponse,
+    description: 'Whether the caller can add (or remove) photos now',
+  })
+  canAdd!: CanAddConditionPhotosResponse;
+}
+
+export class ConditionPhotoUploadBody {
+  @ApiProperty({
+    format: 'uuid',
+    description: 'Chosen by the client; repeating returns the same upload',
+  })
+  @IsUUID()
+  photoId!: string;
+
+  @ApiProperty({ enum: HANDOFF_PHASES, enumName: 'HandoffPhase' })
+  @IsIn(HANDOFF_PHASES)
+  phase!: HandoffPhase;
+
+  @ApiProperty({ enum: PHOTO_CONTENT_TYPES, enumName: 'PhotoContentType' })
+  @IsIn(PHOTO_CONTENT_TYPES)
+  contentType!: PhotoContentType;
+
+  @ApiProperty({ minimum: 1, maximum: PHOTO_MAX_BYTES })
+  @IsInt()
+  @Min(1)
+  @Max(PHOTO_MAX_BYTES)
+  sizeBytes!: number;
+}
+
+export class ConditionPhotoUploadResponse implements ConditionPhotoUpload {
+  @ApiProperty({ type: ConditionPhotoResponse }) photo!: ConditionPhotoResponse;
+  @ApiProperty({ description: 'PUT the file here, before expiresAt' })
+  uploadUrl!: string;
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: { type: 'string' },
+    description: 'Headers the PUT must send exactly',
+  })
+  uploadHeaders!: Record<string, string>;
+  @ApiProperty({ format: 'date-time' }) expiresAt!: string;
+}
+
+export class ConditionPhotoExportResponse {
+  @ApiProperty({ format: 'uuid' }) bookingId!: string;
+  @ApiProperty({ enum: HANDOFF_PHASES, enumName: 'HandoffPhase' })
+  phase!: HandoffPhase;
+  @ApiProperty({ format: 'date-time', nullable: true, type: String })
+  takenAt!: string | null;
+  @ApiProperty({
+    type: ConditionPhotoUrlsResponse,
+    nullable: true,
+    description: 'Links valid 5 minutes',
+  })
+  urls!: ConditionPhotoUrlsResponse | null;
 }

@@ -242,6 +242,67 @@ describe('Booking and chat routes (integration)', () => {
       });
     });
 
+    it('forwards condition photo routes, and maps PHOTO_LIMIT_REACHED to 409', async () => {
+      const PHOTO = '9b2f8e5c-3c1d-4a7e-8f6a-2d4c5b6a7e8f';
+      bookings.on(BookingsRpc.photoList, echo);
+      const listed = await gw
+        .http()
+        .get(`/api/bookings/${BOOKING}/photos`)
+        .set('Authorization', await gw.bearer())
+        .expect(200);
+      expect(listed.body).toEqual({ echoed: { bookingId: BOOKING } });
+
+      bookings.on(BookingsRpc.photoUpload, echo);
+      const body = {
+        photoId: PHOTO,
+        phase: 'RETURN',
+        contentType: 'image/jpeg',
+        sizeBytes: 123_456,
+      };
+      const added = await gw
+        .http()
+        .post(`/api/bookings/${BOOKING}/photos`)
+        .set('Authorization', await gw.bearer())
+        .send(body)
+        .expect(201);
+      expect(added.body).toEqual({ echoed: { ...body, bookingId: BOOKING } });
+
+      bookings.on(BookingsRpc.photoConfirm, echo);
+      await gw
+        .http()
+        .post(`/api/bookings/${BOOKING}/photos/${PHOTO}/confirm`)
+        .set('Authorization', await gw.bearer())
+        .expect(200);
+      bookings.on(BookingsRpc.photoRemove, () => undefined);
+      await gw
+        .http()
+        .delete(`/api/bookings/${BOOKING}/photos/${PHOTO}`)
+        .set('Authorization', await gw.bearer())
+        .expect(204);
+      expect(bookings.callsTo(BookingsRpc.photoRemove)[0].message.data).toEqual(
+        { bookingId: BOOKING, photoId: PHOTO },
+      );
+
+      bookings.fail(BookingsRpc.photoUpload, {
+        code: 'PHOTO_LIMIT_REACHED',
+        message: 'Up to 3 photos per handoff',
+      });
+      const full = await gw
+        .http()
+        .post(`/api/bookings/${BOOKING}/photos`)
+        .set('Authorization', await gw.bearer())
+        .send(body)
+        .expect(409);
+      expect(full.body.code).toBe('PHOTO_LIMIT_REACHED');
+      // SVG is never a photo.
+      await gw
+        .http()
+        .post(`/api/bookings/${BOOKING}/photos`)
+        .set('Authorization', await gw.bearer())
+        .send({ ...body, contentType: 'image/svg+xml' })
+        .expect(400);
+    });
+
     it('validates handoff input before calling Bookings', async () => {
       for (const [method, path, body] of [
         [

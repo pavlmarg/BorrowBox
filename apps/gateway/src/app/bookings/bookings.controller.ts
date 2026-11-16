@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -11,6 +12,7 @@ import {
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiResponse,
@@ -40,10 +42,15 @@ import {
   HandoffScanBody,
   HandoffTokenQuery,
   HandoffTokenResponse,
+  ConditionPhotoResponse,
+  ConditionPhotoUploadBody,
+  ConditionPhotoUploadResponse,
+  ConditionPhotosResponse,
 } from './handoff.api';
 
 const itemId = () => UuidParam('itemId');
 const bookingId = () => UuidParam('bookingId');
+const photoId = () => UuidParam('photoId');
 
 /** Public booking queries on an item page: no sign-in, nothing about people. */
 @ApiTags('bookings')
@@ -306,6 +313,99 @@ export class BookingsController {
     return this.bookings.call(
       BookingsRpc.handoffScan,
       { ...body, bookingId: id },
+      { accessToken, correlationId },
+    );
+  }
+
+  @Get(':bookingId/photos')
+  @ApiOperation({
+    summary: 'Condition photos of the pickup and return (ADR-0027)',
+    description:
+      'Both people’s photos, with private links valid 5 minutes, and whether I can add more now.',
+  })
+  @ApiOkResponse({ type: ConditionPhotosResponse })
+  photos(
+    @bookingId() id: string,
+    @AccessToken() accessToken: string,
+    @CorrelationId() correlationId: string,
+  ): Promise<ConditionPhotosResponse> {
+    return this.bookings.call(
+      BookingsRpc.photoList,
+      { bookingId: id },
+      { accessToken, correlationId },
+    );
+  }
+
+  @Post(':bookingId/photos')
+  @ApiOperation({
+    summary: 'Add a condition photo: get a link to upload it to',
+    description:
+      'Up to 3 per person and handoff, while its window is open (from 2 hours before the start until 2 hours after the handoff). Then PUT the file and confirm.',
+  })
+  @ApiCreatedResponse({ type: ConditionPhotoUploadResponse })
+  @ApiResponse({
+    status: 409,
+    type: ApiErrorResponse,
+    description: 'INVALID_STATE (window closed), PHOTO_LIMIT_REACHED',
+  })
+  addPhoto(
+    @bookingId() id: string,
+    @Body() body: ConditionPhotoUploadBody,
+    @AccessToken() accessToken: string,
+    @CorrelationId() correlationId: string,
+  ): Promise<ConditionPhotoUploadResponse> {
+    return this.bookings.call(
+      BookingsRpc.photoUpload,
+      { ...body, bookingId: id },
+      { accessToken, correlationId },
+    );
+  }
+
+  @Post(':bookingId/photos/:photoId/confirm')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'The upload finished: process the photo',
+    description: 'Its time becomes the photo’s. Repeating is safe.',
+  })
+  @ApiOkResponse({ type: ConditionPhotoResponse })
+  @ApiResponse({
+    status: 409,
+    type: ApiErrorResponse,
+    description: 'INVALID_STATE (not uploaded yet)',
+  })
+  confirmPhoto(
+    @bookingId() id: string,
+    @photoId() photo: string,
+    @AccessToken() accessToken: string,
+    @CorrelationId() correlationId: string,
+  ): Promise<ConditionPhotoResponse> {
+    return this.bookings.call(
+      BookingsRpc.photoConfirm,
+      { bookingId: id, photoId: photo },
+      { accessToken, correlationId },
+    );
+  }
+
+  @Delete(':bookingId/photos/:photoId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Remove my own condition photo, while its window is open',
+  })
+  @ApiNoContentResponse()
+  @ApiResponse({
+    status: 409,
+    type: ApiErrorResponse,
+    description: 'INVALID_STATE (window closed)',
+  })
+  async removePhoto(
+    @bookingId() id: string,
+    @photoId() photo: string,
+    @AccessToken() accessToken: string,
+    @CorrelationId() correlationId: string,
+  ): Promise<void> {
+    await this.bookings.call(
+      BookingsRpc.photoRemove,
+      { bookingId: id, photoId: photo },
       { accessToken, correlationId },
     );
   }

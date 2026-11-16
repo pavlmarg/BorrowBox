@@ -4,9 +4,11 @@
 import { BookingHandoffExportResponse } from '../models/booking-handoff-export-response';
 import { BookingsProfileResponse } from '../models/bookings-profile-response';
 import { BookingViewResponse } from '../models/booking-view-response';
+import { ConditionPhotoExportResponse } from '../models/condition-photo-export-response';
 export interface BookingsDataExportResponse {
   asLender: Array<BookingViewResponse>;
   asRenter: Array<BookingViewResponse>;
+  conditionPhotos: Array<ConditionPhotoExportResponse>;
   emailVerifiedAt: string | null;
   exportedAt: string;
   handoffs: Array<BookingHandoffExportResponse>;

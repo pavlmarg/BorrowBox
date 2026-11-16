@@ -2913,6 +2913,320 @@
         ]
       }
     },
+    "/api/bookings/{bookingId}/photos": {
+      "get": {
+        "description": "Both people’s photos, with private links valid 5 minutes, and whether I can add more now.",
+        "operationId": "BookingsController_photos",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConditionPhotosResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED, INVALID_PERIOD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Condition photos of the pickup and return (ADR-0027)",
+        "tags": [
+          "bookings"
+        ]
+      },
+      "post": {
+        "description": "Up to 3 per person and handoff, while its window is open (from 2 hours before the start until 2 hours after the handoff). Then PUT the file and confirm.",
+        "operationId": "BookingsController_addPhoto",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConditionPhotoUploadBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConditionPhotoUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED, INVALID_PERIOD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE (window closed), PHOTO_LIMIT_REACHED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add a condition photo: get a link to upload it to",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/bookings/{bookingId}/photos/{photoId}/confirm": {
+      "post": {
+        "description": "Its time becomes the photo’s. Repeating is safe.",
+        "operationId": "BookingsController_confirmPhoto",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "photoId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConditionPhotoResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED, INVALID_PERIOD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE (not uploaded yet)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The upload finished: process the photo",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/bookings/{bookingId}/photos/{photoId}": {
+      "delete": {
+        "operationId": "BookingsController_removePhoto",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "photoId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "VALIDATION_FAILED, INVALID_PERIOD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE (window closed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove my own condition photo, while its window is open",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
     "/api/bookings/{bookingId}/handoff/answer": {
       "post": {
         "description": "Only while asked (`handoff.question`); final once given. Both yes at pickup, or the lender’s yes at return, records it; disagreement goes to an admin.",
@@ -5551,6 +5865,60 @@
           "answeredAt"
         ]
       },
+      "ConditionPhotoUrlsResponse": {
+        "type": "object",
+        "properties": {
+          "thumb": {
+            "type": "string",
+            "description": "WebP, 320 px wide"
+          },
+          "large": {
+            "type": "string",
+            "description": "WebP, up to 1600 px wide"
+          }
+        },
+        "required": [
+          "thumb",
+          "large"
+        ]
+      },
+      "ConditionPhotoExportResponse": {
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "phase": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HandoffPhase"
+              }
+            ]
+          },
+          "takenAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "urls": {
+            "nullable": true,
+            "description": "Links valid 5 minutes",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConditionPhotoUrlsResponse"
+              }
+            ]
+          }
+        },
+        "required": [
+          "bookingId",
+          "phase",
+          "takenAt",
+          "urls"
+        ]
+      },
       "BookingsDataExportResponse": {
         "type": "object",
         "properties": {
@@ -5589,6 +5957,12 @@
             "items": {
               "$ref": "#/components/schemas/BookingHandoffExportResponse"
             }
+          },
+          "conditionPhotos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConditionPhotoExportResponse"
+            }
           }
         },
         "required": [
@@ -5597,7 +5971,8 @@
           "emailVerifiedAt",
           "asRenter",
           "asLender",
-          "handoffs"
+          "handoffs",
+          "conditionPhotos"
         ]
       },
       "ExportedMessage": {
@@ -7190,6 +7565,181 @@
             "description": "The 6-digit code under the QR code, with `phase`"
           }
         }
+      },
+      "ConditionPhotoStatus": {
+        "type": "string",
+        "enum": [
+          "PENDING",
+          "READY",
+          "FAILED"
+        ]
+      },
+      "ConditionPhotoResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "phase": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HandoffPhase"
+              }
+            ]
+          },
+          "takenBy": {
+            "type": "string",
+            "enum": [
+              "RENTER",
+              "LENDER"
+            ]
+          },
+          "mine": {
+            "type": "boolean",
+            "description": "Taken by the caller (who may remove it while the window is open)"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConditionPhotoStatus"
+              }
+            ]
+          },
+          "takenAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "When the upload was confirmed: the server's time"
+          },
+          "urls": {
+            "nullable": true,
+            "description": "While READY: private links, valid until urlsExpireAt",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConditionPhotoUrlsResponse"
+              }
+            ]
+          },
+          "urlsExpireAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "phase",
+          "takenBy",
+          "mine",
+          "status",
+          "takenAt",
+          "urls",
+          "urlsExpireAt"
+        ]
+      },
+      "CanAddConditionPhotosResponse": {
+        "type": "object",
+        "properties": {
+          "PICKUP": {
+            "type": "boolean"
+          },
+          "RETURN": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "PICKUP",
+          "RETURN"
+        ]
+      },
+      "ConditionPhotosResponse": {
+        "type": "object",
+        "properties": {
+          "photos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConditionPhotoResponse"
+            }
+          },
+          "canAdd": {
+            "description": "Whether the caller can add (or remove) photos now",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CanAddConditionPhotosResponse"
+              }
+            ]
+          }
+        },
+        "required": [
+          "photos",
+          "canAdd"
+        ]
+      },
+      "ConditionPhotoUploadBody": {
+        "type": "object",
+        "properties": {
+          "photoId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Chosen by the client; repeating returns the same upload"
+          },
+          "phase": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HandoffPhase"
+              }
+            ]
+          },
+          "contentType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PhotoContentType"
+              }
+            ]
+          },
+          "sizeBytes": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 10485760
+          }
+        },
+        "required": [
+          "photoId",
+          "phase",
+          "contentType",
+          "sizeBytes"
+        ]
+      },
+      "ConditionPhotoUploadResponse": {
+        "type": "object",
+        "properties": {
+          "photo": {
+            "$ref": "#/components/schemas/ConditionPhotoResponse"
+          },
+          "uploadUrl": {
+            "type": "string",
+            "description": "PUT the file here, before expiresAt"
+          },
+          "uploadHeaders": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Headers the PUT must send exactly"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "photo",
+          "uploadUrl",
+          "uploadHeaders",
+          "expiresAt"
+        ]
       },
       "HandoffAnswerBody": {
         "type": "object",

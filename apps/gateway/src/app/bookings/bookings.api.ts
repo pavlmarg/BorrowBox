@@ -32,6 +32,7 @@ import { ItemPricingBody } from '../items/items.api';
 import {
   BookingHandoffExportResponse,
   BookingHandoffResponse,
+  ConditionPhotoExportResponse,
 } from './handoff.api';
 
 // HTTP DTOs for Bookings: validated here, validated again by Bookings, and
@@ -282,4 +283,6 @@ export class BookingsDataExportResponse {
   asLender!: BookingViewResponse[];
   @ApiProperty({ type: [BookingHandoffExportResponse] })
   handoffs!: BookingHandoffExportResponse[];
+  @ApiProperty({ type: [ConditionPhotoExportResponse] })
+  conditionPhotos!: ConditionPhotoExportResponse[];
 }

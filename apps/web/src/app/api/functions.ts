@@ -97,6 +97,14 @@ export type { BookingsControllerHandoffToken$Params as BookingsControllerHandoff
 export { bookingsControllerHandoffToken as bookingsControllerHandoffToken } from './fn/bookings/bookings-controller-handoff-token';
 export type { BookingsControllerHandoff$Params as BookingsControllerHandoff$Params } from './fn/bookings/bookings-controller-handoff';
 export { bookingsControllerHandoff as bookingsControllerHandoff } from './fn/bookings/bookings-controller-handoff';
+export type { BookingsControllerPhotos$Params as BookingsControllerPhotos$Params } from './fn/bookings/bookings-controller-photos';
+export { bookingsControllerPhotos as bookingsControllerPhotos } from './fn/bookings/bookings-controller-photos';
+export type { BookingsControllerAddPhoto$Params as BookingsControllerAddPhoto$Params } from './fn/bookings/bookings-controller-add-photo';
+export { bookingsControllerAddPhoto as bookingsControllerAddPhoto } from './fn/bookings/bookings-controller-add-photo';
+export type { BookingsControllerConfirmPhoto$Params as BookingsControllerConfirmPhoto$Params } from './fn/bookings/bookings-controller-confirm-photo';
+export { bookingsControllerConfirmPhoto as bookingsControllerConfirmPhoto } from './fn/bookings/bookings-controller-confirm-photo';
+export type { BookingsControllerRemovePhoto$Params as BookingsControllerRemovePhoto$Params } from './fn/bookings/bookings-controller-remove-photo';
+export { bookingsControllerRemovePhoto as bookingsControllerRemovePhoto } from './fn/bookings/bookings-controller-remove-photo';
 export type { BookingsControllerHandoffAnswer$Params as BookingsControllerHandoffAnswer$Params } from './fn/bookings/bookings-controller-handoff-answer';
 export { bookingsControllerHandoffAnswer as bookingsControllerHandoffAnswer } from './fn/bookings/bookings-controller-handoff-answer';
 export type { MyBookingsControllerList$Params as MyBookingsControllerList$Params } from './fn/bookings/my-bookings-controller-list';
