@@ -34,7 +34,7 @@ import type {
   UpdateItemBody,
 } from '../../api/models';
 import { errorCode, type KnownErrorCode } from '../../core/api-errors';
-import { preparePhoto, type PhotoProblem } from './photo-prep';
+import { preparePhoto, type PhotoProblem } from '../../shared/photo/photo-prep';
 
 /** A photo on its way: chosen, uploading, or waiting for processing. */
 export interface PhotoUpload {

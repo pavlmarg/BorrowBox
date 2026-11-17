@@ -21,7 +21,7 @@ import {
 import type { UpdateProfileBody } from '../../api/models';
 import { errorCode, type KnownErrorCode } from '../../core/api-errors';
 import { AuthStore } from '../../core/auth/auth.store';
-import type { PhotoProblem } from '../listing/photo-prep';
+import type { PhotoProblem } from '../../shared/photo/photo-prep';
 import { prepareProfilePhoto } from './profile-photo-prep';
 
 type Busy = 'saving' | 'exporting' | 'deleting' | null;

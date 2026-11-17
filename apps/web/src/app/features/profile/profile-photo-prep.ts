@@ -7,7 +7,7 @@ import {
   planUndecodable,
   type PhotoProblem,
   type PreparedPhoto,
-} from '../listing/photo-prep';
+} from '../../shared/photo/photo-prep';
 
 /** Profile photos are sent at most this big; the largest size shown is 512 px. */
 export const PROFILE_PHOTO_CLIENT_EDGE_PX = 1024;
