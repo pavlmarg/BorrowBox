@@ -21,6 +21,10 @@ export const BOOKING_ERROR_CODES = [
   'ITEM_UNAVAILABLE',
   'INVALID_PERIOD',
   'PAYOUTS_NOT_SET_UP',
+  // Handoff and claims (ADR-0026, ADR-0028).
+  'NOT_COUNTERPARTY',
+  'HANDOFF_UNAVAILABLE',
+  'CLAIM_EXISTS',
   // Generic codes that need booking words here.
   'NOT_FOUND',
   'INVALID_STATE',

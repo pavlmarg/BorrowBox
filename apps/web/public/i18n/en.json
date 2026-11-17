@@ -647,7 +647,10 @@
       "PAYOUTS_NOT_SET_UP": "Set up payouts first, so you can be paid for this booking.",
       "NOT_FOUND": "This booking doesn’t exist, or it isn’t yours.",
       "INVALID_STATE": "This booking changed meanwhile.",
-      "EMAIL_NOT_VERIFIED": "Confirm your email address first, with the link we sent you. You can send a new link from Settings."
+      "EMAIL_NOT_VERIFIED": "Confirm your email address first, with the link we sent you. You can send a new link from Settings.",
+      "NOT_COUNTERPARTY": "Only the other person on this booking can scan this code.",
+      "HANDOFF_UNAVAILABLE": "Handoffs can’t be checked right now. Try again in a moment.",
+      "CLAIM_EXISTS": "A damage report already exists for this booking."
     },
     "list": {
       "title": "Bookings",
