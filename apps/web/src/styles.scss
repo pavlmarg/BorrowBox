@@ -48,6 +48,10 @@ $font:
   --bb-avatar-fg: #6c7a8c;
   --bb-camera-bg: #eef3f8;
   --bb-camera-fg: #111;
+  // The handoff QR stays black on white in dark mode too (brightest screen,
+  // best contrast for the other phone's camera).
+  --bb-handoff-paper: #fff;
+  --bb-handoff-ink: #000;
   --bb-aqua-700: #5fd4c8;
   --bb-auth-tone: 14 27 46;
   --bb-auth-tone-soft: 10 18 31;
@@ -185,6 +189,9 @@ html {
   // The phones' round camera button (listing wizard).
   --bb-camera-bg: #111;
   --bb-camera-fg: #fff;
+  // The handoff screen showing a QR (features/handoff): black on white.
+  --bb-handoff-paper: #fff;
+  --bb-handoff-ink: #000;
   // Login's aqua accent (register uses the brand blue).
   --bb-aqua-700: #137a74;
   // Login and register's background (features/auth/auth-scene), as R G B:

@@ -12,6 +12,13 @@ export const appRoutes: Route[] = [
   },
   { path: '', pathMatch: 'full', redirectTo: startPage },
   {
+    // The handoff screen (ADR-0026) fills the screen, without the app's bars.
+    path: 'bookings/:id/handoff',
+    canMatch: [authGuard],
+    loadComponent: () =>
+      import('./features/handoff/handoff.page').then((m) => m.HandoffPage),
+  },
+  {
     // The app's pages share the sidebar layout. Explore is public; the
     // others carry the auth guard themselves, so unknown URLs fall through
     // to the start page below.
