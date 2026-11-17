@@ -698,7 +698,10 @@
       "cancel": "Cancel booking",
       "changed": "This booking changed meanwhile. Here is how it stands now.",
       "setUpPayouts": "Set up payouts",
-      "openMessages": "Open your messages"
+      "openMessages": "Open your messages",
+      "pickedUp": "Picked up",
+      "returned": "Returned",
+      "claimUntil": "Damage can be reported until"
     },
     "state": {
       "REQUESTED": {
@@ -722,16 +725,16 @@
         "LENDER": "{{name}} picked the item up."
       },
       "RETURNED": {
-        "RENTER": "You returned the item. The booking completes in 48 hours.",
-        "LENDER": "{{name}} returned the item. The booking completes in 48 hours."
+        "RENTER": "You returned the item. If {{name}} reports no damage by {{time}}, the booking completes and any deposit comes back.",
+        "LENDER": "{{name}} returned the item. You can report damage until {{time}}; then the booking completes."
       },
       "COMPLETED": {
         "RENTER": "Completed. Any deposit goes back to your card.",
         "LENDER": "Completed. The rent goes to your payout account."
       },
       "DISPUTED": {
-        "RENTER": "The lender reported a problem. BorrowBox will look into it and contact you both.",
-        "LENDER": "You reported a problem. BorrowBox will look into it and contact you both."
+        "RENTER": "{{name}} reported damage. See the report below.",
+        "LENDER": "You reported damage. See the report below."
       },
       "DECLINED": {
         "RENTER": "The request was declined.",
@@ -975,6 +978,224 @@
       "infoNone": "You sign in with Google, so you have no password yet. You can set one with a link to your email.",
       "change": "Change password",
       "set": "Set a password"
+    }
+  },
+  "handoff": {
+    "close": "Close",
+    "notOpen": "This handoff isn’t open right now. Go back to the booking to see where it stands.",
+    "backToBooking": "Back to the booking",
+    "opensAt": "Opens at {{time}} (2 hours before the start).",
+    "done": {
+      "PICKUP": "Pickup confirmed",
+      "RETURN": "Return confirmed",
+      "photos": "You can add condition photos on the booking page."
+    },
+    "title": {
+      "PICKUP": {
+        "SHOW": "Show this to the renter",
+        "SCAN": "Scan the lender’s code"
+      },
+      "RETURN": {
+        "SHOW": "Show this to the lender",
+        "SCAN": "Scan the renter’s code"
+      }
+    },
+    "show": {
+      "qrLabel": "QR code to confirm the handoff",
+      "codeLabel": "The 6-digit code",
+      "renews": "New code in {{s}} s",
+      "tell": {
+        "PICKUP": "Hand over the item when the renter has scanned this, or let them type the code.",
+        "RETURN": "Give the item back when the lender has scanned this, or let them type the code."
+      },
+      "hint": "Having trouble? Turn your screen brightness up, or read the code out loud."
+    },
+    "scan": {
+      "point": "Point your camera at the code on their screen.",
+      "typeInstead": "Type the code instead",
+      "useCamera": "Use the camera",
+      "codeLabel": "The 6-digit code under their QR code",
+      "codeHelp": "Ask them to read out the code on their screen. It changes every 30 seconds.",
+      "sending": "Checking…",
+      "camera": {
+        "denied": "The camera isn’t allowed for BorrowBox. Type the code instead, or allow the camera in your browser’s settings.",
+        "unavailable": "The camera can’t be used here. Type the code instead."
+      }
+    },
+    "errors": {
+      "TOKEN_EXPIRED": "That code has just expired. Scan the new one on their screen.",
+      "TOKEN_INVALID_QR": "This code isn’t for this booking.",
+      "TOKEN_INVALID_CODE": "That code isn’t right. Check the one on their screen and try again.",
+      "RATE_LIMITED": "Too many wrong codes. Wait a few minutes, or scan the QR code.",
+      "NOT_COUNTERPARTY": "Only the other person on this booking can confirm it.",
+      "HANDOFF_UNAVAILABLE": "Handoffs can’t be checked right now. Try again in a moment.",
+      "INVALID_STATE": "This handoff isn’t open any more. Go back to the booking."
+    },
+    "card": {
+      "title": "Handoff",
+      "PICKUP": {
+        "SHOW": "When you meet, show your code. The renter scans it and the pickup is confirmed.",
+        "SCAN": "When you meet, scan the lender’s code to confirm you got the item."
+      },
+      "RETURN": {
+        "SHOW": "When you give the item back, show your code. The lender scans it and the return is confirmed.",
+        "SCAN": "When you get the item back, scan the renter’s code to confirm the return."
+      },
+      "button": {
+        "PICKUP": {
+          "SHOW": "Show pickup code",
+          "SCAN": "Scan to confirm pickup"
+        },
+        "RETURN": {
+          "SHOW": "Show return code",
+          "SCAN": "Scan to confirm return"
+        }
+      }
+    },
+    "review": {
+      "PICKUP_UNCONFIRMED": "We’re checking what happened at the pickup. BorrowBox will contact you both.",
+      "RETURN_UNCONFIRMED": "We’re checking what happened at the return. BorrowBox will contact you both."
+    },
+    "question": {
+      "title": {
+        "PICKUP": "Did the pickup happen?",
+        "RETURN": "Did the return happen?"
+      },
+      "explain": {
+        "PICKUP": "Nobody scanned a code. Tell us whether the item was handed over. If neither of you confirms by {{time}}, the booking ends and the renter is refunded.",
+        "RETURN": "Nobody scanned a code. Tell us whether the item was given back by {{time}}."
+      },
+      "yes": {
+        "PICKUP": "Yes, it was handed over",
+        "RETURN": "Yes, it was given back"
+      },
+      "no": {
+        "PICKUP": "No",
+        "RETURN": "No"
+      },
+      "answered": {
+        "YES": "You answered yes.",
+        "NO": "You answered no."
+      },
+      "otherAnswered": "The other person has answered too.",
+      "otherWaiting": "Waiting for the other person.",
+      "decideAt": "Decided by {{time}} at the latest."
+    },
+    "confirm": {
+      "PICKUP_YES": {
+        "title": "The item was handed over?",
+        "message": "Confirm only if the item changed hands. You can’t change this answer.",
+        "confirm": "Yes, handed over"
+      },
+      "PICKUP_NO": {
+        "title": "The item wasn’t handed over?",
+        "message": "You can’t change this answer. If {{name}} says it was, BorrowBox looks into it.",
+        "confirm": "No, it wasn’t"
+      },
+      "RETURN_YES": {
+        "title": "The item was given back?",
+        "message": "Confirm only if the item is back with the lender. You can’t change this answer.",
+        "confirm": "Yes, given back"
+      },
+      "RETURN_NO": {
+        "title": "The item wasn’t given back?",
+        "message": "You can’t change this answer. BorrowBox will look into it and contact you both.",
+        "confirm": "No, it wasn’t"
+      }
+    },
+    "photos": {
+      "title": "Condition photos",
+      "explain": "Photos of the item at the handoffs, up to 3 each per handoff. Only the two of you can see them; they’re deleted 30 days after the booking ends.",
+      "phase": {
+        "PICKUP": "At pickup",
+        "RETURN": "At return"
+      },
+      "none": "No photos yet.",
+      "alt": {
+        "PICKUP": "The item at pickup",
+        "RETURN": "The item at return"
+      },
+      "failed": "This photo couldn’t be used",
+      "processing": "Processing…",
+      "byYou": "You",
+      "by": {
+        "RENTER": "Renter",
+        "LENDER": "Lender"
+      },
+      "remove": "Remove",
+      "adding": "Uploading…",
+      "add": "Add photo ({{left}} left)",
+      "rejected": "This photo couldn’t be used. Try another one.",
+      "limit": "You’ve added the 3 photos allowed for this handoff.",
+      "closed": "Photos can’t be added or removed for this handoff any more."
+    }
+  },
+  "claims": {
+    "title": "Damage report",
+    "claimed": "Claimed",
+    "ofDeposit": "{{amount}} of the {{deposit}} deposit",
+    "filed": "Reported",
+    "photoAlt": "Photo in the damage report",
+    "reply": "The renter’s reply",
+    "status": {
+      "OPEN": {
+        "RENTER": "{{name}} reported damage. Do you agree?",
+        "LENDER": "Waiting for {{name}} to answer."
+      },
+      "DISAGREED": {
+        "RENTER": "You disagreed. BorrowBox will look at the report and the photos and decide. The deposit waits until then.",
+        "LENDER": "{{name}} disagreed. BorrowBox will look at the report and the photos and decide. The deposit waits until then."
+      },
+      "AGREED": "The renter agreed.",
+      "WITHDRAWN": "The lender withdrew the report.",
+      "DECIDED": "BorrowBox decided."
+    },
+    "outcome": "{{award}} of the deposit goes to the lender, {{back}} goes back to the renter.",
+    "replyLabel": "Your reply (optional)",
+    "text": {
+      "TOO_SHORT": "Describe the damage in at least 10 characters.",
+      "TOO_LONG": "This is too long.",
+      "CONTACT_DETAILS": "Please leave out phone numbers, emails and links."
+    },
+    "agree": "Agree",
+    "disagree": "Disagree",
+    "withdraw": "Withdraw the report",
+    "canFile": "Something damaged? You can report it until {{time}}, for up to the {{deposit}} deposit. Otherwise the booking completes then.",
+    "report": "Report damage",
+    "amountLabel": "Amount (€)",
+    "amountHint": "From €1 up to the {{deposit}} deposit.",
+    "amount": {
+      "invalid": "Enter an amount, like 30 or 30,50.",
+      "tooLow": "At least €1.",
+      "tooHigh": "At most the {{deposit}} deposit."
+    },
+    "descriptionLabel": "What is damaged?",
+    "photosLabel": "Photos to include (up to {{max}})",
+    "noPhotos": "No condition photos to include. You can add return photos above first.",
+    "submit": "Send report",
+    "cancelForm": "Cancel",
+    "confirm": {
+      "keep": "Go back",
+      "file": {
+        "title": "Send this damage report?",
+        "message": "{{name}} will be asked to agree to {{amount}} from the deposit. You can’t edit the report afterwards, only withdraw it.",
+        "confirm": "Send report"
+      },
+      "agree": {
+        "title": "Agree to the report?",
+        "message": "{{amount}} of your deposit goes to {{name}} and {{back}} comes back to you. This is final.",
+        "confirm": "Agree"
+      },
+      "disagree": {
+        "title": "Disagree with the report?",
+        "message": "BorrowBox will look at the report and the photos and decide. Your deposit waits until then.",
+        "confirm": "Disagree"
+      },
+      "withdraw": {
+        "title": "Withdraw the report?",
+        "message": "The whole deposit goes back to {{name}} and the booking completes. You can’t report damage again.",
+        "confirm": "Withdraw"
+      }
     }
   }
 }

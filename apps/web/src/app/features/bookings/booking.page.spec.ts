@@ -223,4 +223,127 @@ describe('BookingPage', () => {
     const { el } = await render('missing');
     expect(el.textContent).toContain('bookings.errors.NOT_FOUND');
   });
+
+  describe('handoff (Phase 5)', () => {
+    const handoff = (over: Partial<BookingViewResponse['handoff']> = {}) => ({
+      ...booking().handoff,
+      ...over,
+    });
+
+    it('links the person who shows to the full-screen handoff once open', async () => {
+      const { el, http, settle } = await render(
+        booking({
+          role: 'LENDER',
+          status: 'PAID',
+          start: inHours(1),
+          end: inHours(25),
+          expiresAt: null,
+          handoff: handoff({ pickupOpensAt: inHours(-1) }),
+        }),
+      );
+      http.expectOne('/api/bookings/b-1/photos').flush({
+        photos: [],
+        canAdd: { PICKUP: true, RETURN: false },
+      });
+      await settle();
+      const go = el.querySelector<HTMLAnchorElement>('bb-handoff-card a.go');
+      expect(go?.getAttribute('href')).toBe(
+        '/bookings/b-1/handoff?phase=PICKUP',
+      );
+      expect(go?.textContent).toContain('handoff.card.button.PICKUP.SHOW');
+      expect(el.textContent).toContain('handoff.photos.phase.PICKUP');
+    });
+
+    it('says when the pickup opens instead of a button before then', async () => {
+      const { el } = await render(
+        booking({
+          status: 'PAID',
+          start: inHours(30),
+          end: inHours(50),
+          expiresAt: null,
+          handoff: handoff({ pickupOpensAt: inHours(28) }),
+        }),
+      );
+      expect(el.querySelector('bb-handoff-card a.go')).toBeNull();
+      expect(el.textContent).toContain('handoff.opensAt');
+    });
+
+    it('asks "did it happen?" and saves the answer only after confirming', async () => {
+      const { el, http, settle, button, opened } = await render(
+        booking({
+          status: 'PAID',
+          start: inHours(-3),
+          end: inHours(21),
+          expiresAt: null,
+          handoff: handoff({
+            pickupOpensAt: inHours(-5),
+            question: {
+              phase: 'PICKUP',
+              myAnswer: null,
+              otherAnswered: false,
+              decideAt: inHours(69),
+            },
+          }),
+        }),
+      );
+      expect(el.textContent).toContain('handoff.question.title.PICKUP');
+
+      button('handoff.question.yes.PICKUP')?.click();
+      await settle();
+      expect(opened[0].title).toBe('handoff.confirm.PICKUP_YES.title');
+      const req = http.expectOne('/api/bookings/b-1/handoff/answer');
+      expect(req.request.body).toEqual({ phase: 'PICKUP', answer: 'YES' });
+      req.flush(
+        booking({
+          status: 'PAID',
+          start: inHours(-3),
+          end: inHours(21),
+          expiresAt: null,
+          handoff: handoff({
+            question: {
+              phase: 'PICKUP',
+              myAnswer: 'YES',
+              otherAnswered: false,
+              decideAt: inHours(69),
+            },
+          }),
+        }),
+      );
+      await settle();
+      expect(el.textContent).toContain('handoff.question.answered.YES');
+      expect(button('handoff.question.yes.PICKUP')).toBeUndefined();
+    });
+
+    it('shows a neutral note while an admin looks into it', async () => {
+      const { el } = await render(
+        booking({
+          status: 'PICKED_UP',
+          role: 'LENDER',
+          expiresAt: null,
+          handoff: handoff({ review: 'RETURN_UNCONFIRMED' }),
+        }),
+      );
+      expect(el.textContent).toContain('handoff.review.RETURN_UNCONFIRMED');
+    });
+
+    it('offers the lender a damage report inside the claim window', async () => {
+      const { el, http, settle } = await render(
+        booking({
+          status: 'RETURNED',
+          role: 'LENDER',
+          expiresAt: null,
+          handoff: handoff({
+            pickedUpAt: inHours(-30),
+            returnedAt: inHours(-2),
+            claimUntil: inHours(46),
+          }),
+        }),
+      );
+      http.expectOne('/api/bookings/b-1/claim').flush({ claim: null });
+      await settle();
+      expect(el.textContent).toContain('bookings.state.RETURNED.LENDER');
+      expect(el.textContent).toContain('bookings.detail.claimUntil');
+      expect(el.textContent).toContain('claims.report');
+    });
+  });
 });

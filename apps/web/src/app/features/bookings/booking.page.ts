@@ -14,7 +14,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { RouterLink } from '@angular/router';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { RENTER_FULL_REFUND_HOURS } from '@borrowbox/contracts';
-import type { BookingViewResponse } from '../../api/models';
+import type { BookingViewResponse, HandoffAnswer } from '../../api/models';
 import { LanguageService } from '../../core/i18n/language';
 import { openConfirm } from '../../shared/confirm-dialog';
 import {
@@ -33,6 +33,12 @@ import {
   type AnyBookingError,
 } from './booking-text';
 import { BookingStore, type BookingAction } from './booking.store';
+import { ClaimCard } from '../handoff/claim-card';
+import { ClaimStore } from '../handoff/claim.store';
+import { ConditionPhotosCard } from '../handoff/condition-photos-card';
+import { ConditionPhotosStore } from '../handoff/condition-photos.store';
+import { HandoffCard } from '../handoff/handoff-card';
+import { hasClaim, hasPhotos } from '../handoff/handoff-rules';
 import { StatusChip } from './status-chip';
 
 const HOUR_MS = 3_600_000;
@@ -66,8 +72,11 @@ export function cancelPolicy(
     AthensPeriodPipe,
     AthensTimePipe,
     StatusChip,
+    HandoffCard,
+    ClaimCard,
+    ConditionPhotosCard,
   ],
-  providers: [BookingStore],
+  providers: [BookingStore, ConditionPhotosStore, ClaimStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page" *transloco="let t">
@@ -147,7 +156,7 @@ export function cancelPolicy(
                   {{
                     t('bookings.state.' + b.status + '.' + b.role, {
                       name: otherName(b, t('bookings.deletedAccount')),
-                      time: (b.expiresAt ?? b.payBy | athensTime),
+                      time: (stateTime(b) | athensTime),
                     })
                   }}
                 }
@@ -183,6 +192,15 @@ export function cancelPolicy(
                 </p>
               }
             </section>
+
+            <bb-handoff-card
+              [booking]="b"
+              [now]="now()"
+              [busy]="store.acting() !== null"
+              (answer)="answerHandoff($event)"
+            />
+            <bb-claim-card [booking]="b" [now]="now()" (changed)="refresh()" />
+            <bb-condition-photos-card [booking]="b" />
 
             <section class="section">
               <h2>{{ t('bookings.detail.money') }}</h2>
@@ -303,6 +321,24 @@ export function cancelPolicy(
                   <span>{{ t('bookings.detail.ends') }}</span>
                   <span>{{ b.end | athensTime }}</span>
                 </li>
+                @if (b.handoff.pickedUpAt) {
+                  <li>
+                    <span>{{ t('bookings.detail.pickedUp') }}</span>
+                    <span>{{ b.handoff.pickedUpAt | athensTime }}</span>
+                  </li>
+                }
+                @if (b.handoff.returnedAt) {
+                  <li>
+                    <span>{{ t('bookings.detail.returned') }}</span>
+                    <span>{{ b.handoff.returnedAt | athensTime }}</span>
+                  </li>
+                }
+                @if (b.status === 'RETURNED' && b.handoff.claimUntil) {
+                  <li>
+                    <span>{{ t('bookings.detail.claimUntil') }}</span>
+                    <span>{{ b.handoff.claimUntil | athensTime }}</span>
+                  </li>
+                }
               </ol>
             </section>
 
@@ -576,12 +612,14 @@ export class BookingPage {
   readonly id = input.required<string>();
 
   protected readonly store = inject(BookingStore);
+  private readonly photos = inject(ConditionPhotosStore);
+  private readonly claims = inject(ClaimStore);
   private readonly dialog = inject(MatDialog);
   private readonly transloco = inject(TranslocoService);
   private readonly language = inject(LanguageService);
 
   /** Ticks every second while a countdown is shown. */
-  private readonly now = signal(Date.now());
+  protected readonly now = signal(Date.now());
   protected readonly failure = signal<AnyBookingError | null>(null);
 
   protected readonly errorKey = bookingErrorKey;
@@ -645,6 +683,22 @@ export class BookingPage {
       if (timer) clearInterval(timer);
     });
 
+    // Photos and the claim follow the booking: fetched once it's in a state
+    // where they can exist, and again whenever it changes.
+    let loadedFor = '';
+    effect(() => {
+      const b = this.store.booking();
+      if (!b) return;
+      const key = b.id + b.status + b.updatedAt;
+      if (key === loadedFor) return;
+      const first = !loadedFor.startsWith(b.id);
+      loadedFor = key;
+      untracked(() => {
+        if (hasPhotos(b)) void this.photos.load(b.id, !first);
+        if (hasClaim(b)) void this.claims.load(b.id, !first);
+      });
+    });
+
     // When the pay-by time passes, Bookings expires the booking: fetch it.
     let refreshedFor: string | null = null;
     effect(() => {
@@ -659,6 +713,41 @@ export class BookingPage {
 
   protected reload(): void {
     void this.store.load(this.id());
+  }
+
+  /** The time a status line mentions: answer-by, pay-by or claim window. */
+  protected stateTime(b: BookingViewResponse): string | null {
+    return b.expiresAt ?? b.payBy ?? b.handoff.claimUntil;
+  }
+
+  /** After a claim moved the booking. */
+  protected refresh(): void {
+    void this.store.load(this.id(), true);
+  }
+
+  /** "Did the handoff happen?" is final, so it's confirmed first. */
+  protected async answerHandoff(answer: HandoffAnswer): Promise<void> {
+    const b = this.store.booking();
+    const phase = b?.handoff.question?.phase;
+    if (!b || !phase) return;
+    const t = (key: string) =>
+      this.transloco.translate(key, {
+        name: this.otherName(
+          b,
+          this.transloco.translate('bookings.deletedAccount'),
+        ),
+      });
+    const kind = `handoff.confirm.${phase}_${answer}`;
+    const ok = await openConfirm(this.dialog, {
+      title: t(kind + '.title'),
+      message: t(kind + '.message'),
+      confirm: t(kind + '.confirm'),
+      cancel: t('bookings.confirm.keep'),
+      danger: answer === 'NO',
+    });
+    if (!ok) return;
+    this.failure.set(null);
+    this.failure.set(await this.store.answerHandoff(answer));
   }
 
   protected otherName(b: BookingViewResponse, deleted: string): string {
