@@ -113,15 +113,22 @@ export class PaymentsWorker
     this.reconcileTimer.unref();
   }
 
-  /** Does everything due now. One run at a time. */
-  async runDue(now = new Date()): Promise<void> {
-    if (this.running) return this.running;
-    this.running = this.run(now).finally(() => (this.running = undefined));
+  /**
+   * Does everything due now. One run at a time: a run already under way may
+   * have read its work before the caller's was written, so it's awaited and
+   * then a fresh run starts (`now` defaults to that run's start).
+   */
+  async runDue(now?: Date): Promise<void> {
+    while (this.running) await this.running.catch(() => undefined);
+    this.running = this.run(now ?? new Date()).finally(
+      () => (this.running = undefined),
+    );
     return this.running;
   }
 
+  /** The poller skips a beat while a run is going, so runs never pile up. */
   private async tick(): Promise<void> {
-    if (this.stopped) return;
+    if (this.stopped || this.running) return;
     try {
       await this.runDue();
     } catch (err) {
