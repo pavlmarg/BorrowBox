@@ -33,7 +33,12 @@ describe('booking period rules', () => {
   it('rounds a daily item’s limits to whole days (ADR-0029)', () => {
     expect(
       limitsFor({ pricing: DAILY, minRentalHours: 4, maxRentalHours: 60 }),
-    ).toMatchObject({ unit: 'DAY', minHours: 24, maxHours: 48, bookable: true });
+    ).toMatchObject({
+      unit: 'DAY',
+      minHours: 24,
+      maxHours: 48,
+      bookable: true,
+    });
     expect(
       limitsFor({ pricing: DAILY, minRentalHours: null, maxRentalHours: 12 })
         .bookable,

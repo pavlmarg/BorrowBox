@@ -142,7 +142,9 @@ const PREFERRED_START_HOUR = 10;
         @if (limits().unit !== 'HOUR') {
           {{ t('bookings.book.unit.' + limits().unit) }}
         }
-        @if (limits().bookable && (item().minRentalHours || item().maxRentalHours)) {
+        @if (
+          limits().bookable && (item().minRentalHours || item().maxRentalHours)
+        ) {
           <span class="limits">
             @if (item().minRentalHours) {
               {{ t('bookings.book.shortest') }}

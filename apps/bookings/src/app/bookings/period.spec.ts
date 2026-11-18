@@ -7,7 +7,10 @@ const NO_LIMITS: RentalLimits = {
   minRentalHours: null,
   maxRentalHours: null,
 };
-const DAILY: RentalLimits = { ...NO_LIMITS, pricing: { free: false, dailyCents: 500 } };
+const DAILY: RentalLimits = {
+  ...NO_LIMITS,
+  pricing: { free: false, dailyCents: 500 },
+};
 
 function codeOf(fn: () => unknown): string | undefined {
   try {
@@ -89,8 +92,10 @@ describe('checkPeriod', () => {
   });
 
   it('takes whole units of the smallest rate (ADR-0029)', () => {
-    const at = (end: string, limits = DAILY) => () =>
-      checkPeriod('2026-11-02T10:00:00Z', end, NOW, limits);
+    const at =
+      (end: string, limits = DAILY) =>
+      () =>
+        checkPeriod('2026-11-02T10:00:00Z', end, NOW, limits);
     expect(codeOf(at('2026-11-03T10:00:00Z'))).toBeUndefined();
     expect(codeOf(at('2026-11-05T10:00:00Z'))).toBeUndefined();
     expect(codeOf(at('2026-11-02T15:00:00Z'))).toBe('INVALID_PERIOD');

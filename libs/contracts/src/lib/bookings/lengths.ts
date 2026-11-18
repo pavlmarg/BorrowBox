@@ -58,7 +58,13 @@ export function bookingLengths(
   );
   const minHours = Math.ceil(lowest / stepHours) * stepHours;
   const maxHours = Math.floor(highest / stepHours) * stepHours;
-  return { unit, stepHours, minHours, maxHours, bookable: minHours <= maxHours };
+  return {
+    unit,
+    stepHours,
+    minHours,
+    maxHours,
+    bookable: minHours <= maxHours,
+  };
 }
 
 /** Why `hours` isn't an allowed length, or null if it is. */

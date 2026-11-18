@@ -4,10 +4,7 @@ import {
   lengthProblem,
   type BookingLengths,
 } from '@borrowbox/contracts';
-import type {
-  BookingPeriodResponse,
-  ItemPricingBody,
-} from '../../api/models';
+import type { BookingPeriodResponse, ItemPricingBody } from '../../api/models';
 import {
   athensDay,
   athensInstant,
