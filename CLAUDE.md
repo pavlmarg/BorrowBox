@@ -26,7 +26,7 @@ ADRs — read the relevant one before touching that area:
 
 ## Current phase
 
-**Phase 5 – Handoff** (update this line as phases complete; see roadmap in `README.md`): QR pickup/return (ARCHITECTURE §5), condition photos, the 48 h claim window. Phases 3 and 4 are done, backend and PWA. Earlier phases' follow-ups are listed in the roadmap.
+**Phase 6 – Trust & Social** (update this line as phases complete; see roadmap in `README.md`): reviews, trust score, ID verification, and the admin area (deciding damage claims, reported messages and listings, suspensions). Phases 3–5 are done, backend and PWA. Earlier phases' follow-ups are listed in the roadmap.
 
 - Only build what the current phase needs. If a task seems to require a later-phase feature, stop and ask.
 - Messaging and Reviews start as modules inside `apps/bookings` until their event contracts settle.

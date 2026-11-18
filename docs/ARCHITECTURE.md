@@ -198,7 +198,7 @@ Happy path: request → `booking.requested` (lender emailed) → accept → `boo
 2. The other party scans it (`BarcodeDetector`, fallback `@zxing/browser`) and sends `POST /bookings/:id/handoff { token }`, or types the code (`{ phase, code }`; ≤5 wrong per booking and phase in 10 min).
 3. Bookings checks signature, `exp`, phase vs state and window, that the scanner is the counterparty, and the nonce (`SET NX` in Redis with TTL; Redis down → refused, never skipped); then transitions and emits in one transaction.
 4. Nobody scanned: both are asked whether it happened, and the answers decide (ADR-0026).
-5. Each may add up to 3 condition photos per handoff, from 2 h before the start until 2 h after that handoff (server timestamps, dispute evidence; [ADR-0027](adr/0027-condition-photos.md)). Damage claims use them (Phase 5, next).
+5. Each may add up to 3 condition photos per handoff, from 2 h before the start until 2 h after that handoff (server timestamps, dispute evidence; [ADR-0027](adr/0027-condition-photos.md)). Damage claims use them ([ADR-0028](adr/0028-damage-claims.md)).
 
 ## 6. Payments (Stripe Connect, EU)
 [ADR-0003](adr/0003-stripe-separate-charges-transfers.md), [ADR-0019](adr/0019-payments-fees-and-policies.md)–[0022](adr/0022-standard-service-agreement.md).

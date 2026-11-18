@@ -72,7 +72,10 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
 *   [x] **Phase 4 – Payments:** Stripe Connect onboarding, checkout, webhooks, transfers & refunds (test mode) ([ADR-0019](docs/adr/0019-payments-fees-and-policies.md)–[0022](docs/adr/0022-standard-service-agreement.md)), and the PWA's payment and payouts pages
     *   Built alongside the web pass: dark mode, profile photos ([ADR-0024](docs/adr/0024-profile-photos.md)), public profiles and bios ([ADR-0025](docs/adr/0025-public-profiles.md)), a sectioned Settings page.
     *   ~~Until Phase 5, nothing emits `booking.completed`, so settlement only runs when that event is published by hand.~~ Phase 5's handoff emits it after the return and the 48 h claim window (ADR-0026).
-*   [ ] **Phase 5 – Handoff:** QR pickup/return protocol, condition photos, claim window
+*   [x] **Phase 5 – Handoff:** QR pickup/return protocol, unconfirmed handoffs, condition photos, the 48 h claim window and damage claims ([ADR-0026](docs/adr/0026-handoff.md)–[0028](docs/adr/0028-damage-claims.md)), and the PWA's handoff screen and the photo and claim parts of the booking page
+    *   Built alongside: bookings from the next whole hour and in whole units of the smallest rate ([ADR-0029](docs/adr/0029-booking-start-and-units.md)), "Book again", an early-return hint.
+    *   Until Phase 6's admin area, contested claims are decided with `npx nx run bookings:resolve-dispute -- --booking <id> --award-cents <n>` (development only), and handoffs under review wait for a return scan.
+    *   The `messaging` test "rejects publish after publishTimeoutMs" can fail under a full parallel run and passes alone; make it less timing-sensitive (Phase 7).
 *   [ ] **Phase 6 – Trust & Social:** chat, reviews, trust score, ID verification, and the admin area (resolving damage claims, reported messages and listings, suspensions)
 *   [ ] **Phase 7 – Hardening:** observability stack, e2e tests, VPS deployment
 
