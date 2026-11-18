@@ -41,6 +41,18 @@ describe('HandoffCard', () => {
     expect(go?.getAttribute('href')).toBe('/bookings/b-1/handoff?phase=RETURN');
   });
 
+  it('says the item can come back early, until the end', async () => {
+    const early = await render(
+      booking({ status: 'PICKED_UP', role: 'LENDER', end: inHours(5) }),
+    );
+    expect(early.el.textContent).toContain('handoff.card.early');
+    TestBed.resetTestingModule();
+    const late = await render(
+      booking({ status: 'PICKED_UP', role: 'LENDER', end: inHours(-1) }),
+    );
+    expect(late.el.textContent).not.toContain('handoff.card.early');
+  });
+
   it('emits the answer to "did it happen?" (the page confirms it)', async () => {
     const { el, answers } = await render(
       booking({

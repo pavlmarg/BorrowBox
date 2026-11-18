@@ -1043,6 +1043,7 @@
     },
     "card": {
       "title": "Handoff",
+      "early": "The item can come back early, any time before the end. The rent stays as booked.",
       "PICKUP": {
         "SHOW": "When you meet, show your code. The renter scans it and the pickup is confirmed.",
         "SCAN": "When you meet, scan the lender’s code to confirm you got the item."

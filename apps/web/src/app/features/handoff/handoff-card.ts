@@ -36,6 +36,9 @@ import { enterFullscreen } from './screen-awake';
         @for (a of actions(); track a.phase) {
           <div class="action">
             <p>{{ t('handoff.card.' + a.phase + '.' + a.part) }}</p>
+            @if (a.phase === 'RETURN' && beforeEnd()) {
+              <p class="hint">{{ t('handoff.card.early') }}</p>
+            }
             @if (a.opensAt) {
               <p class="hint">
                 {{ t('handoff.opensAt', { time: (a.opensAt | athensTime) }) }}
@@ -161,6 +164,10 @@ export class HandoffCard {
 
   protected readonly actions = computed(() =>
     handoffActions(this.booking(), new Date(this.now())),
+  );
+  /** The item can come back before the end (ADR-0026), so the card says so. */
+  protected readonly beforeEnd = computed(
+    () => this.now() < Date.parse(this.booking().end),
   );
   protected readonly visible = computed(
     () =>
