@@ -629,7 +629,7 @@
       "toSettings": "Go to Settings",
       "toBookings": "See your bookings",
       "problem": {
-        "startTooSoon": "A booking starts at least an hour from now.",
+        "startTooSoon": "A booking starts at the next full hour or later.",
         "startTooFar": "A booking starts at most 180 days ahead.",
         "endBeforeStart": "The end must come after the start.",
         "tooShort": "That is shorter than this item’s shortest booking.",

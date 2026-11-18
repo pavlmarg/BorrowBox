@@ -4,10 +4,10 @@ import type { DataSource, EntityManager } from 'typeorm';
 import type { AuthUser } from '@borrowbox/auth';
 import {
   BOOKING_ANSWER_HOURS,
-  BOOKING_MIN_LEAD_HOURS,
   BookingRequestedV1,
   bookingFees,
   createEnvelope,
+  OFFER_MIN_LEAD_HOURS,
   OFFER_VALID_HOURS,
   OfferSentV1,
   type BookingView,
@@ -114,10 +114,16 @@ export class OffersService {
       }
 
       const now = new Date();
-      const period = checkPeriod(dto.start, dto.end, now, {
-        minRentalHours: item.min_rental_hours,
-        maxRentalHours: item.max_rental_hours,
-      });
+      const period = checkPeriod(
+        dto.start,
+        dto.end,
+        now,
+        {
+          minRentalHours: item.min_rental_hours,
+          maxRentalHours: item.max_rental_hours,
+        },
+        OFFER_MIN_LEAD_HOURS,
+      );
       const list = rentFor(item.pricing, period.hours).rentCents;
       if (dto.rentCents > list) {
         throw new MessagingError(
@@ -143,7 +149,7 @@ export class OffersService {
       const expiresAt = new Date(
         Math.min(
           now.getTime() + OFFER_VALID_HOURS * HOUR_MS,
-          period.start.getTime() - BOOKING_MIN_LEAD_HOURS * HOUR_MS,
+          period.start.getTime() - OFFER_MIN_LEAD_HOURS * HOUR_MS,
         ),
       );
       await insertOffer(tx, {

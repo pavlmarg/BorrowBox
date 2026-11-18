@@ -2,7 +2,6 @@ import {
   BOOKING_MAX_AHEAD_DAYS,
   BOOKING_MAX_HOURS,
   BOOKING_MIN_HOURS,
-  BOOKING_MIN_LEAD_HOURS,
 } from '@borrowbox/contracts';
 import type { BookingPeriodResponse } from '../../api/models';
 import {
@@ -59,8 +58,9 @@ export type PeriodProblem =
   | 'tooLong'
   | 'taken';
 
+/** The next whole hour after `now` (ADR-0029): at 13:10, 14:00. */
 export function earliestStart(now: Date): number {
-  return now.getTime() + BOOKING_MIN_LEAD_HOURS * HOUR_MS;
+  return Math.floor(now.getTime() / HOUR_MS) * HOUR_MS + HOUR_MS;
 }
 
 export function latestStart(now: Date): number {

@@ -17,7 +17,7 @@ import { TranslocoDirective } from '@jsverse/transloco';
 import {
   BOOKING_MAX_AHEAD_DAYS,
   BOOKING_MAX_HOURS,
-  BOOKING_MIN_LEAD_HOURS,
+  OFFER_MIN_LEAD_HOURS,
 } from '@borrowbox/contracts';
 import { LanguageService } from '../../core/i18n/language';
 import { athensParts, athensToUtc } from './athens-time';
@@ -39,7 +39,7 @@ export function periodProblem(
   now = Date.now(),
 ): PeriodProblem | null {
   if (end.getTime() <= start.getTime()) return 'order';
-  if (start.getTime() < now + BOOKING_MIN_LEAD_HOURS * HOUR_MS) {
+  if (start.getTime() < now + OFFER_MIN_LEAD_HOURS * HOUR_MS) {
     return 'tooSoon';
   }
   if (start.getTime() > now + BOOKING_MAX_AHEAD_DAYS * 24 * HOUR_MS) {

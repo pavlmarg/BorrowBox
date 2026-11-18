@@ -14,7 +14,25 @@ function codeOf(fn: () => unknown): string | undefined {
 }
 
 describe('checkPeriod', () => {
-  it('accepts whole hours starting at least an hour from now', () => {
+  it('accepts the next whole hour, even under an hour away (ADR-0029)', () => {
+    expect(
+      checkPeriod(
+        '2026-11-01T11:00:00Z',
+        '2026-11-01T12:00:00Z',
+        NOW,
+        NO_LIMITS,
+      ).hours,
+    ).toBe(1);
+  });
+
+  it('asks for more notice when given one (offers, ADR-0018)', () => {
+    const at = (start: string) => () =>
+      checkPeriod(start, '2026-11-01T15:00:00Z', NOW, NO_LIMITS, 1);
+    expect(codeOf(at('2026-11-01T11:00:00Z'))).toBe('INVALID_PERIOD');
+    expect(codeOf(at('2026-11-01T12:00:00Z'))).toBeUndefined();
+  });
+
+  it('accepts whole hours starting later', () => {
     expect(
       checkPeriod(
         '2026-11-01T12:00:00Z',
@@ -33,7 +51,7 @@ describe('checkPeriod', () => {
     ['not on the hour', '2026-11-01T12:30:00Z', '2026-11-01T15:00:00Z'],
     ['ending before it starts', '2026-11-01T15:00:00Z', '2026-11-01T12:00:00Z'],
     ['empty', '2026-11-01T12:00:00Z', '2026-11-01T12:00:00Z'],
-    ['less than an hour ahead', '2026-11-01T11:00:00Z', '2026-11-01T13:00:00Z'],
+    ['starting in the past', '2026-11-01T10:00:00Z', '2026-11-01T13:00:00Z'],
     [
       'more than 180 days ahead',
       '2027-05-01T12:00:00Z',

@@ -12,8 +12,14 @@ export const MESSAGES_PAGE_MAX = 100;
 export const CONVERSATIONS_PAGE_DEFAULT = 20;
 export const CONVERSATIONS_PAGE_MAX = 50;
 
-/** An offer is valid this long, or until `BOOKING_MIN_LEAD_HOURS` before its start if sooner. */
+/** An offer is valid this long, or until `OFFER_MIN_LEAD_HOURS` before its start if sooner. */
 export const OFFER_VALID_HOURS = 48;
+/**
+ * An offer's period starts at least this many hours from now, and the offer
+ * closes this long before its start (ADR-0018; bookings themselves may start
+ * sooner, ADR-0029).
+ */
+export const OFFER_MIN_LEAD_HOURS = 1;
 
 /** Per-user limits, counted in the gateway. */
 export const MESSAGES_PER_MINUTE = 30;

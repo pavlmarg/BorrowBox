@@ -37,8 +37,20 @@ describe('booking period rules', () => {
     ).toBeNull();
   });
 
+  it('starts from the next whole hour, under an hour away (ADR-0029)', () => {
+    expect(
+      periodProblem(
+        at('2026-11-09T11:00:00Z'),
+        at('2026-11-09T12:00:00Z'),
+        now,
+        limits,
+        [],
+      ),
+    ).toBeNull();
+  });
+
   it.each([
-    ['2026-11-09T11:00:00Z', '2026-11-09T12:00:00Z', 'startTooSoon'],
+    ['2026-11-09T10:00:00Z', '2026-11-09T12:00:00Z', 'startTooSoon'],
     ['2027-06-01T10:00:00Z', '2027-06-01T12:00:00Z', 'startTooFar'],
     ['2026-11-10T10:00:00Z', '2026-11-10T10:00:00Z', 'endBeforeStart'],
     ['2026-11-10T10:00:00Z', '2027-03-10T10:00:00Z', 'tooLong'],
@@ -93,15 +105,15 @@ describe('booking period rules', () => {
     ).toBeNull();
   });
 
-  it('offers today’s start hours from an hour ahead, in Athens time', () => {
+  it('offers today’s start hours from the next whole hour, in Athens time', () => {
     const today = { year: 2026, month: 11, day: 9 };
     const options = startHourOptions(today, now, []);
     expect(options).toHaveLength(24);
-    // 12:20 now: 13:00 is less than an hour away, 14:00 is fine.
-    expect(options.find((o) => o.hour === 13)?.disabled).toBe(true);
-    expect(options.find((o) => o.hour === 14)?.disabled).toBe(false);
-    expect(options.find((o) => o.hour === 14)?.instant.toISOString()).toBe(
-      '2026-11-09T12:00:00.000Z',
+    // 12:20 now: 12:00 has passed, 13:00 is the next whole hour (ADR-0029).
+    expect(options.find((o) => o.hour === 12)?.disabled).toBe(true);
+    expect(options.find((o) => o.hour === 13)?.disabled).toBe(false);
+    expect(options.find((o) => o.hour === 13)?.instant.toISOString()).toBe(
+      '2026-11-09T11:00:00.000Z',
     );
   });
 

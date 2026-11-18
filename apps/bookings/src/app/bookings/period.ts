@@ -2,7 +2,6 @@ import {
   BOOKING_MAX_AHEAD_DAYS,
   BOOKING_MAX_HOURS,
   BOOKING_MIN_HOURS,
-  BOOKING_MIN_LEAD_HOURS,
   hoursBetween,
   isWholeHour,
 } from '@borrowbox/contracts';
@@ -27,15 +26,17 @@ const invalid = (message: string) =>
 
 /**
  * Checks a requested period against ADR-0015 and the item's limits:
- * whole hours, starting 1 hour to 180 days from `now`, lasting 1 hour to
- * 90 days and within the item's own limits. The DTO has already checked
- * that both are ISO-8601 instants.
+ * whole hours, starting after `now` (on a whole hour still to come,
+ * ADR-0029) and at most 180 days ahead, lasting 1 hour to 90 days and within
+ * the item's own limits. Offers ask for more notice (`minLeadHours`,
+ * ADR-0018). The DTO has already checked that both are ISO-8601 instants.
  */
 export function checkPeriod(
   startIso: string,
   endIso: string,
   now: Date,
   limits: RentalLimits,
+  minLeadHours = 0,
 ): Period {
   const start = new Date(startIso);
   const end = new Date(endIso);
@@ -43,10 +44,11 @@ export function checkPeriod(
     throw invalid('Bookings start and end on the hour');
   }
   if (end <= start) throw invalid('A booking must end after it starts');
-  if (start.getTime() < now.getTime() + BOOKING_MIN_LEAD_HOURS * HOUR_MS) {
-    throw invalid(
-      `A booking must start at least ${BOOKING_MIN_LEAD_HOURS} hour from now`,
-    );
+  if (start.getTime() <= now.getTime()) {
+    throw invalid('A booking must start in the future');
+  }
+  if (start.getTime() < now.getTime() + minLeadHours * HOUR_MS) {
+    throw invalid(`This must start at least ${minLeadHours} hour from now`);
   }
   if (start.getTime() > now.getTime() + BOOKING_MAX_AHEAD_DAYS * 24 * HOUR_MS) {
     throw invalid(

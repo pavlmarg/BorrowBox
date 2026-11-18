@@ -7,9 +7,11 @@
 export const BOOKING_MIN_HOURS = 1;
 /** The longest booking: 90 days. */
 export const BOOKING_MAX_HOURS = 90 * 24;
-/** A booking starts at least this many hours from now. */
-export const BOOKING_MIN_LEAD_HOURS = 1;
-/** …and at most this many days ahead. */
+/**
+ * A booking starts on a whole hour still to come (at 13:10 the earliest is
+ * 14:00; ADR-0029, amending ADR-0015's one hour ahead), and at most this many
+ * days ahead.
+ */
 export const BOOKING_MAX_AHEAD_DAYS = 180;
 /** A request with no answer expires after this, or at its start if sooner. */
 export const BOOKING_ANSWER_HOURS = 24;

@@ -101,7 +101,7 @@ flowchart TB
 - Limits: 10 items per lender incl. drafts; creates and erasure share a per-lender lock. Lenders' names, profile photos and bios kept from `user.*` (newest wins), verified lenders from `user.email_verified`; after `user.deletion_requested` that account's writes are refused (tokens live ≤15 min).
 
 ### Bookings
-- Periods and prices ([ADR-0015](adr/0015-booking-model.md), [ADR-0020](adr/0020-booking-fees.md)): whole hours `[start, end)` as `tstzrange`, shown in Europe/Athens; 1 h–90 days (and the item's limits), starting 1 h–180 days ahead. Rent = cheapest combination of rates (day 24 h, week 7 d, month 30 d); rent, deposit, rate card and fees fixed at request.
+- Periods and prices ([ADR-0015](adr/0015-booking-model.md), [ADR-0020](adr/0020-booking-fees.md)): whole hours `[start, end)` as `tstzrange`, shown in Europe/Athens; 1 h–90 days (and the item's limits), starting from the next whole hour to 180 days ahead ([ADR-0029](adr/0029-booking-start-and-units.md); offers 1 h ahead). Rent = cheapest combination of rates (day 24 h, week 7 d, month 30 d); rent, deposit, rate card and fees fixed at request.
 - Double-booking is impossible at DB level (`btree_gist`, created by the infra init script):
   ```sql
   EXCLUDE USING gist (item_id WITH =, period WITH &&)

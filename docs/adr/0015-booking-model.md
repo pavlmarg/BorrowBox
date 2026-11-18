@@ -1,6 +1,6 @@
 # ADR-0015: Booking model: periods, prices, states, and arranging the meeting
 
-**Status:** Accepted. Supersedes the exact-location reveal of [ADR-0004](0004-location-fuzzing.md) and [ADR-0007](0007-location-privacy-search.md). Settles the Phase 3 consequences of [ADR-0010](0010-flexible-pricing.md) and amends the state machine in ARCHITECTURE.md §4. Its pickup, return and later states are filled in by [ADR-0026](0026-handoff.md), which also lets a booking that goes ahead expire when nobody confirms the pickup.
+**Status:** Accepted. Supersedes the exact-location reveal of [ADR-0004](0004-location-fuzzing.md) and [ADR-0007](0007-location-privacy-search.md). Settles the Phase 3 consequences of [ADR-0010](0010-flexible-pricing.md) and amends the state machine in ARCHITECTURE.md §4. Its pickup, return and later states are filled in by [ADR-0026](0026-handoff.md), which also lets a booking that goes ahead expire when nobody confirms the pickup. [ADR-0029](0029-booking-start-and-units.md) lets a booking start on the next whole hour instead of 1 hour ahead.
 
 ## Context
 Phase 3 builds Bookings. Several things were open before any code could be written:
