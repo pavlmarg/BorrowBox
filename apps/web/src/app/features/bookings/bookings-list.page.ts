@@ -12,7 +12,7 @@ import { RouterLink } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
 import { EurPipe } from '../../shared/format/eur.pipe';
 import { AthensPeriodPipe } from './athens.pipes';
-import { otherParty } from './booking-text';
+import { canBookAgain, otherParty } from './booking-text';
 import {
   BookingsListStore,
   parseRole,
@@ -144,6 +144,14 @@ import { StatusChip } from './status-chip';
                       </span>
                     </span>
                   </a>
+                  @if (bookAgain(b)) {
+                    <a
+                      mat-stroked-button
+                      class="again"
+                      [routerLink]="['/items', b.itemId]"
+                      >{{ t('bookings.bookAgain') }}</a
+                    >
+                  }
                 </li>
               }
             </ul>
@@ -250,6 +258,9 @@ import { StatusChip } from './status-chip';
       padding: 18px 0;
       text-decoration: none;
     }
+    .again {
+      margin: -6px 0 18px;
+    }
     .row:hover .title {
       color: var(--bb-sky-700);
     }
@@ -319,6 +330,7 @@ export class BookingsListPage {
   protected readonly side = computed(() => parseRole(this.role()));
   protected readonly filter = computed(() => parseShow(this.show()));
   protected readonly other = otherParty;
+  protected readonly bookAgain = canBookAgain;
 
   constructor() {
     effect(() => {

@@ -214,6 +214,11 @@ export class BookingViewResponse {
   role!: 'RENTER' | 'LENDER';
   @ApiProperty({ format: 'uuid' }) itemId!: string;
   @ApiProperty() itemTitle!: string;
+  @ApiProperty({
+    description:
+      'Whether the item can be booked now (published, lender still here, some length fits); the PWA offers "Book again"',
+  })
+  itemBookable!: boolean;
   @ApiProperty({ type: BookingPartyResponse }) renter!: BookingPartyResponse;
   @ApiProperty({ type: BookingPartyResponse }) lender!: BookingPartyResponse;
   @ApiProperty({ format: 'date-time' }) start!: string;

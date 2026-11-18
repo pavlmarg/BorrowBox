@@ -6030,6 +6030,10 @@
           "itemTitle": {
             "type": "string"
           },
+          "itemBookable": {
+            "type": "boolean",
+            "description": "Whether the item can be booked now (published, lender still here, some length fits); the PWA offers \"Book again\""
+          },
           "renter": {
             "$ref": "#/components/schemas/BookingPartyResponse"
           },
@@ -6104,6 +6108,7 @@
           "role",
           "itemId",
           "itemTitle",
+          "itemBookable",
           "renter",
           "lender",
           "start",

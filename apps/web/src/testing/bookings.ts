@@ -10,6 +10,7 @@ export function booking(
     role: 'RENTER',
     itemId: 'i-1',
     itemTitle: 'Bosch drill',
+    itemBookable: true,
     renter: { userId: 'u-1', displayName: 'Ana' },
     lender: { userId: 'lender-1', displayName: 'Eleni' },
     start: '2026-11-20T08:00:00.000Z',

@@ -1,6 +1,7 @@
 import type { EntityManager } from 'typeorm';
 import {
   BOOKING_HOLDING_STATUSES,
+  bookingLengths,
   handoffBase,
   handoffDecideAt,
   pickupOpensAt,
@@ -55,6 +56,12 @@ export interface BookingRow {
   lender_name: string | null;
   renter_photo: ProfilePhotoUrls | null;
   lender_photo: ProfilePhotoUrls | null;
+  /** The item as Catalog last described it (read model); null if never heard of. */
+  item_status: string | null;
+  item_pricing: ItemPricing | null;
+  item_min_rental_hours: number | null;
+  item_max_rental_hours: number | null;
+  lender_deleted: boolean;
 }
 
 export interface NewBooking {
@@ -89,10 +96,15 @@ const SELECT_BOOKINGS = `
              AND a.phase = CASE WHEN b.status = 'PICKED_UP'
                                 THEN 'RETURN' ELSE 'PICKUP' END) AS answers,
          r.display_name AS renter_name, l.display_name AS lender_name,
-         r.photo AS renter_photo, l.photo AS lender_photo
+         r.photo AS renter_photo, l.photo AS lender_photo,
+         i.status AS item_status, i.pricing AS item_pricing,
+         i.min_rental_hours AS item_min_rental_hours,
+         i.max_rental_hours AS item_max_rental_hours,
+         (l.deleted_at IS NOT NULL) AS lender_deleted
     FROM bookings b
     LEFT JOIN users r ON r.user_id = b.renter_id
-    LEFT JOIN users l ON l.user_id = b.lender_id`;
+    LEFT JOIN users l ON l.user_id = b.lender_id
+    LEFT JOIN items i ON i.item_id = b.item_id`;
 
 /** Statuses that hold the item's period, as a Postgres array literal parameter. */
 const HOLDING: string[] = [...BOOKING_HOLDING_STATUSES];
@@ -370,6 +382,20 @@ export function toSnapshot(row: BookingRow): BookingSnapshotV1 {
   };
 }
 
+/** Whether the item can be booked now ("Book again", ADR-0029). */
+function itemBookable(row: BookingRow): boolean {
+  return (
+    row.item_status === 'ACTIVE' &&
+    row.item_pricing !== null &&
+    !row.lender_deleted &&
+    bookingLengths(
+      row.item_pricing,
+      row.item_min_rental_hours,
+      row.item_max_rental_hours,
+    ).bookable
+  );
+}
+
 /** The booking as `userId` (one of its two people) sees it. */
 export function toView(row: BookingRow, userId: string): BookingView {
   return {
@@ -377,6 +403,7 @@ export function toView(row: BookingRow, userId: string): BookingView {
     role: row.renter_id === userId ? 'RENTER' : 'LENDER',
     itemId: row.item_id,
     itemTitle: row.item_title,
+    itemBookable: itemBookable(row),
     renter: {
       userId: row.renter_id,
       displayName: row.renter_name,

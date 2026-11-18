@@ -161,6 +161,20 @@ describe('Bookings commands and queries (integration)', () => {
   });
 
   describe('request', () => {
+    it('says whether the item can be booked again (ADR-0029)', async () => {
+      const { lender, renter } = await people();
+      const item = await bookings.addItem(lender);
+      const booking = await request(renter, item, at(2), at(5));
+      expect(booking.itemBookable).toBe(true);
+
+      await bookings.updateItem({ ...item, status: 'PAUSED' });
+      expect((await act('get', renter, booking.id)).itemBookable).toBe(false);
+      await bookings.updateItem({ ...item, status: 'ACTIVE' });
+      expect((await act('get', renter, booking.id)).itemBookable).toBe(true);
+      await bookings.deleteItem(item);
+      expect((await act('get', renter, booking.id)).itemBookable).toBe(false);
+    });
+
     it('creates a REQUESTED booking with a fixed price and writes booking.requested', async () => {
       const { lender, renter } = await people();
       const item = await bookings.addItem(lender);

@@ -108,6 +108,11 @@ export interface BookingView {
   itemId: string;
   /** The title when the booking was requested. */
   itemTitle: string;
+  /**
+   * Whether the item can be booked now: published, its lender still here, and
+   * some length fits its limits (ADR-0029). The PWA offers "Book again".
+   */
+  itemBookable: boolean;
   renter: BookingParty;
   lender: BookingParty;
   start: string;

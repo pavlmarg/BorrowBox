@@ -25,6 +25,7 @@ import { EurPipe } from '../../shared/format/eur.pipe';
 import { AthensPeriodPipe, AthensTimePipe } from './athens.pipes';
 import {
   bookingErrorKey,
+  canBookAgain,
   canCancel,
   durationParts,
   otherParty,
@@ -342,6 +343,14 @@ export function cancelPolicy(
               </ol>
             </section>
 
+            @if (bookAgain()) {
+              <section class="section">
+                <a mat-flat-button [routerLink]="['/items', b.itemId]">{{
+                  t('bookings.bookAgain')
+                }}</a>
+              </section>
+            }
+
             @if (canAnswer() || canWithdraw() || cancellable()) {
               <section class="section">
                 <h2>{{ t('bookings.detail.actions') }}</h2>
@@ -641,6 +650,10 @@ export class BookingPage {
   protected readonly canWithdraw = computed(() => {
     const b = this.store.booking();
     return b?.role === 'RENTER' && b.status === 'REQUESTED';
+  });
+  protected readonly bookAgain = computed(() => {
+    const b = this.store.booking();
+    return b !== null && canBookAgain(b);
   });
   protected readonly cancellable = computed(() => {
     const b = this.store.booking();

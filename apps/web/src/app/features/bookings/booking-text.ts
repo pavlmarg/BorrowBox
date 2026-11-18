@@ -161,3 +161,15 @@ export function canCancel(booking: BookingViewResponse, now: number): boolean {
     now < Date.parse(booking.start)
   );
 }
+
+/**
+ * The renter can book the item again from a booking that's over, whatever its
+ * ending, while the item can still be booked (Bookings says so).
+ */
+export function canBookAgain(booking: BookingViewResponse): boolean {
+  return (
+    booking.role === 'RENTER' &&
+    PAST_STATUSES.includes(booking.status) &&
+    booking.itemBookable
+  );
+}

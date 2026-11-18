@@ -21,6 +21,11 @@ export interface BookingViewResponse {
    */
   handoff: BookingHandoffResponse;
   id: string;
+
+  /**
+   * Whether the item can be booked now (published, lender still here, some length fits); the PWA offers "Book again"
+   */
+  itemBookable: boolean;
   itemId: string;
   itemTitle: string;
   lender: BookingPartyResponse;

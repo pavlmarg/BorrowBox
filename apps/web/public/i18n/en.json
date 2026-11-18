@@ -662,6 +662,7 @@
       "HANDOFF_UNAVAILABLE": "Handoffs can’t be checked right now. Try again in a moment.",
       "CLAIM_EXISTS": "A damage report already exists for this booking."
     },
+    "bookAgain": "Book again",
     "list": {
       "title": "Bookings",
       "sides": "Renting or lending",

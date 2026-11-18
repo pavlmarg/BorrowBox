@@ -14,6 +14,7 @@ import {
   PAST_STATUSES,
   bookingErrorCode,
   bookingErrorKey,
+  canBookAgain,
   canCancel,
   durationParts,
   timeLeft,
@@ -71,6 +72,24 @@ describe('booking texts', () => {
     expect(canCancel(booking({ status: 'PAID' }), before)).toBe(true);
     expect(canCancel(booking({ status: 'PAID' }), after)).toBe(false);
     expect(canCancel(booking({ status: 'REQUESTED' }), before)).toBe(false);
+  });
+
+  it('offers the renter Book again on any past booking of a bookable item', () => {
+    for (const status of [
+      'COMPLETED',
+      'CANCELLED',
+      'DECLINED',
+      'EXPIRED',
+    ] as const) {
+      expect(canBookAgain(booking({ status }))).toBe(true);
+    }
+    expect(canBookAgain(booking({ status: 'PAID' }))).toBe(false);
+    expect(canBookAgain(booking({ status: 'COMPLETED', role: 'LENDER' }))).toBe(
+      false,
+    );
+    expect(
+      canBookAgain(booking({ status: 'COMPLETED', itemBookable: false })),
+    ).toBe(false);
   });
 
   describe.each(['el', 'en'])('%s translations', (lang) => {
