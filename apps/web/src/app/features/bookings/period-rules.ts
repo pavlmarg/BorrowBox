@@ -1,9 +1,13 @@
 import {
   BOOKING_MAX_AHEAD_DAYS,
-  BOOKING_MAX_HOURS,
-  BOOKING_MIN_HOURS,
+  bookingLengths,
+  lengthProblem,
+  type BookingLengths,
 } from '@borrowbox/contracts';
-import type { BookingPeriodResponse } from '../../api/models';
+import type {
+  BookingPeriodResponse,
+  ItemPricingBody,
+} from '../../api/models';
 import {
   athensDay,
   athensInstant,
@@ -25,22 +29,22 @@ export interface Interval {
   readonly end: number;
 }
 
-export interface PeriodLimits {
-  readonly minHours: number;
-  readonly maxHours: number;
-}
+/**
+ * The lengths an item may be booked for: the platform's limits narrowed by
+ * the item's own (Catalog), in whole units of its smallest rate (ADR-0029).
+ */
+export type PeriodLimits = BookingLengths;
 
-/** The platform's limits, narrowed by the item's own (Catalog). */
 export function limitsFor(item: {
-  minRentalHours: number | null;
-  maxRentalHours: number | null;
+  pricing: ItemPricingBody;
+  minRentalHours?: number | null;
+  maxRentalHours?: number | null;
 }): PeriodLimits {
-  const minHours = Math.max(BOOKING_MIN_HOURS, item.minRentalHours ?? 0);
-  const maxHours = Math.min(
-    BOOKING_MAX_HOURS,
-    item.maxRentalHours ?? BOOKING_MAX_HOURS,
+  return bookingLengths(
+    item.pricing,
+    item.minRentalHours ?? null,
+    item.maxRentalHours ?? null,
   );
-  return { minHours, maxHours: Math.max(minHours, maxHours) };
 }
 
 export function toIntervals(periods: BookingPeriodResponse[]): Interval[] {
@@ -54,6 +58,10 @@ export type PeriodProblem =
   | 'startTooSoon'
   | 'startTooFar'
   | 'endBeforeStart'
+  | 'notBookable'
+  | 'wholeDays'
+  | 'wholeWeeks'
+  | 'wholeMonths'
   | 'tooShort'
   | 'tooLong'
   | 'taken';
@@ -66,6 +74,14 @@ export function earliestStart(now: Date): number {
 export function latestStart(now: Date): number {
   return now.getTime() + BOOKING_MAX_AHEAD_DAYS * 24 * HOUR_MS;
 }
+
+/** The problem naming the unit a booking must come in whole ones of. */
+const WHOLE = {
+  HOUR: 'tooShort',
+  DAY: 'wholeDays',
+  WEEK: 'wholeWeeks',
+  MONTH: 'wholeMonths',
+} as const satisfies Record<PeriodLimits['unit'], PeriodProblem>;
 
 function overlaps(start: number, end: number, busy: Interval[]): boolean {
   return busy.some((b) => start < b.end && b.start < end);
@@ -96,8 +112,9 @@ export function periodProblem(
   if (fromStart) return fromStart;
   if (e <= s) return 'endBeforeStart';
   const hours = Math.round((e - s) / HOUR_MS);
-  if (hours < limits.minHours) return 'tooShort';
-  if (hours > limits.maxHours) return 'tooLong';
+  const length = lengthProblem(hours, limits);
+  if (length === 'notWholeUnits') return WHOLE[limits.unit];
+  if (length) return length;
   if (overlaps(s, e, busy)) return 'taken';
   return null;
 }

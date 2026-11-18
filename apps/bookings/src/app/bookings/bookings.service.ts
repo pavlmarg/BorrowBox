@@ -497,6 +497,7 @@ function isParty(row: BookingRow, user: AuthUser): boolean {
 
 function limitsOf(item: ItemRow) {
   return {
+    pricing: item.pricing,
     minRentalHours: item.min_rental_hours,
     maxRentalHours: item.max_rental_hours,
   };

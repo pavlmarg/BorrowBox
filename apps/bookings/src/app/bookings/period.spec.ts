@@ -2,7 +2,12 @@ import { BookingsError } from '../rpc/rpc-errors';
 import { checkPeriod, type RentalLimits } from './period';
 
 const NOW = new Date('2026-11-01T10:20:00Z');
-const NO_LIMITS: RentalLimits = { minRentalHours: null, maxRentalHours: null };
+const NO_LIMITS: RentalLimits = {
+  pricing: { free: false, hourlyCents: 100 },
+  minRentalHours: null,
+  maxRentalHours: null,
+};
+const DAILY: RentalLimits = { ...NO_LIMITS, pricing: { free: false, dailyCents: 500 } };
 
 function codeOf(fn: () => unknown): string | undefined {
   try {
@@ -74,12 +79,32 @@ describe('checkPeriod', () => {
   });
 
   it("applies the item's own limits", () => {
-    const limits = { minRentalHours: 24, maxRentalHours: 48 };
+    const limits = { ...NO_LIMITS, minRentalHours: 24, maxRentalHours: 48 };
     const at = (end: string) => () =>
       checkPeriod('2026-11-02T00:00:00Z', end, NOW, limits);
     expect(codeOf(at('2026-11-02T23:00:00Z'))).toBe('INVALID_PERIOD');
     expect(codeOf(at('2026-11-03T00:00:00Z'))).toBeUndefined();
     expect(codeOf(at('2026-11-04T00:00:00Z'))).toBeUndefined();
     expect(codeOf(at('2026-11-04T01:00:00Z'))).toBe('INVALID_PERIOD');
+  });
+
+  it('takes whole units of the smallest rate (ADR-0029)', () => {
+    const at = (end: string, limits = DAILY) => () =>
+      checkPeriod('2026-11-02T10:00:00Z', end, NOW, limits);
+    expect(codeOf(at('2026-11-03T10:00:00Z'))).toBeUndefined();
+    expect(codeOf(at('2026-11-05T10:00:00Z'))).toBeUndefined();
+    expect(codeOf(at('2026-11-02T15:00:00Z'))).toBe('INVALID_PERIOD');
+    expect(codeOf(at('2026-11-03T12:00:00Z'))).toBe('INVALID_PERIOD');
+    const free = { ...NO_LIMITS, pricing: { free: true } };
+    expect(codeOf(at('2026-11-02T15:00:00Z', free))).toBeUndefined();
+  });
+
+  it('refuses everything when no whole unit fits the item’s limits', () => {
+    const none = { ...DAILY, maxRentalHours: 12 };
+    expect(
+      codeOf(() =>
+        checkPeriod('2026-11-02T10:00:00Z', '2026-11-02T20:00:00Z', NOW, none),
+      ),
+    ).toBe('INVALID_PERIOD');
   });
 });

@@ -1,9 +1,11 @@
 import {
   BOOKING_MAX_AHEAD_DAYS,
-  BOOKING_MAX_HOURS,
-  BOOKING_MIN_HOURS,
+  bookingLengths,
   hoursBetween,
   isWholeHour,
+  lengthProblem,
+  type ItemPricing,
+  type PriceUnit,
 } from '@borrowbox/contracts';
 import { BookingsError } from '../rpc/rpc-errors';
 
@@ -15,11 +17,22 @@ export interface Period {
   hours: number;
 }
 
-/** The item's own shortest and longest booking, in hours (null = no limit). */
+/**
+ * The item's rate card, whose smallest unit bookings come in (ADR-0029), and
+ * its own shortest and longest booking, in hours (null = no limit).
+ */
 export interface RentalLimits {
+  pricing: ItemPricing;
   minRentalHours: number | null;
   maxRentalHours: number | null;
 }
+
+const UNIT_NAMES: Record<PriceUnit, string> = {
+  HOUR: 'hours',
+  DAY: 'days',
+  WEEK: 'weeks',
+  MONTH: 'months (30 days)',
+};
 
 const invalid = (message: string) =>
   new BookingsError('INVALID_PERIOD', message);
@@ -28,7 +41,7 @@ const invalid = (message: string) =>
  * Checks a requested period against ADR-0015 and the item's limits:
  * whole hours, starting after `now` (on a whole hour still to come,
  * ADR-0029) and at most 180 days ahead, lasting 1 hour to 90 days and within
- * the item's own limits. Offers ask for more notice (`minLeadHours`,
+ * the item's own limits, in whole units of its smallest rate. Offers ask for more notice (`minLeadHours`,
  * ADR-0018). The DTO has already checked that both are ISO-8601 instants.
  */
 export function checkPeriod(
@@ -57,13 +70,21 @@ export function checkPeriod(
   }
 
   const hours = hoursBetween(start, end);
-  const min = Math.max(BOOKING_MIN_HOURS, limits.minRentalHours ?? 0);
-  const max = Math.min(
-    BOOKING_MAX_HOURS,
-    limits.maxRentalHours ?? BOOKING_MAX_HOURS,
+  const lengths = bookingLengths(
+    limits.pricing,
+    limits.minRentalHours,
+    limits.maxRentalHours,
   );
-  if (hours < min || hours > max) {
-    throw invalid(`This item can be booked for ${min} to ${max} hours`);
+  switch (lengthProblem(hours, lengths)) {
+    case 'notBookable':
+      throw invalid('No booking length fits this item right now');
+    case 'notWholeUnits':
+      throw invalid(`This item is booked in whole ${UNIT_NAMES[lengths.unit]}`);
+    case 'tooShort':
+    case 'tooLong':
+      throw invalid(
+        `This item can be booked for ${lengths.minHours} to ${lengths.maxHours} hours`,
+      );
   }
   return { start, end, hours };
 }

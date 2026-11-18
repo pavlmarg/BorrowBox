@@ -616,6 +616,12 @@
       "athensTime": "Times are in Greek time (Athens).",
       "shortest": "Shortest booking:",
       "longest": "Longest booking:",
+      "unit": {
+        "DAY": "This item is rented by the day: pick whole days.",
+        "WEEK": "This item is rented by the week: pick whole weeks.",
+        "MONTH": "This item is rented by the month (30 days): pick whole months."
+      },
+      "notBookable": "This item can’t be booked right now: its shortest and longest booking don’t fit its rates.",
       "taken": "Already booked",
       "takenMore": "and {{count}} more",
       "pick": "Pick a start and an end to see the price.",
@@ -632,6 +638,10 @@
         "startTooSoon": "A booking starts at the next full hour or later.",
         "startTooFar": "A booking starts at most 180 days ahead.",
         "endBeforeStart": "The end must come after the start.",
+        "notBookable": "This item can’t be booked right now.",
+        "wholeDays": "Pick whole days: this item is rented by the day.",
+        "wholeWeeks": "Pick whole weeks: this item is rented by the week.",
+        "wholeMonths": "Pick whole months (30 days): this item is rented by the month.",
         "tooShort": "That is shorter than this item’s shortest booking.",
         "tooLong": "That is longer than this item’s longest booking.",
         "taken": "Someone has already booked part of that time."
@@ -897,7 +907,7 @@
       "OWN_ITEM": "This is your own item.",
       "ITEM_UNAVAILABLE": "This item isn’t available right now.",
       "SLOT_TAKEN": "Someone has already booked that time.",
-      "INVALID_PERIOD": "This period doesn’t fit the item’s rental limits.",
+      "INVALID_PERIOD": "This period doesn’t fit the item’s rental limits or rates (an item rented by the day takes whole days).",
       "RATE_LIMITED": "You’re sending too fast. Please wait a minute and try again."
     }
   },

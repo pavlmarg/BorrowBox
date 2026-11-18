@@ -119,6 +119,7 @@ export class OffersService {
         dto.end,
         now,
         {
+          pricing: item.pricing,
           minRentalHours: item.min_rental_hours,
           maxRentalHours: item.max_rental_hours,
         },
@@ -290,6 +291,7 @@ export class OffersService {
           offer.end.toISOString(),
           now,
           {
+            pricing: item.pricing,
             minRentalHours: item.min_rental_hours,
             maxRentalHours: item.max_rental_hours,
           },

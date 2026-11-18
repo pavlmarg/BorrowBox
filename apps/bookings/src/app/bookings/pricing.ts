@@ -1,18 +1,11 @@
 import {
   PRICE_FIELD,
   PRICE_UNITS,
+  UNIT_HOURS,
   type ItemPricing,
   type PriceUnit,
   type PriceUnits,
 } from '@borrowbox/contracts';
-
-/** A day is 24 hours, a week 7 days, a month 30 days (ADR-0015). */
-export const UNIT_HOURS: Record<PriceUnit, number> = {
-  HOUR: 1,
-  DAY: 24,
-  WEEK: 7 * 24,
-  MONTH: 30 * 24,
-};
 
 export interface Rent {
   rentCents: number;

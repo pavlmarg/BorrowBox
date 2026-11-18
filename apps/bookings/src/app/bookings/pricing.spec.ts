@@ -1,5 +1,6 @@
 import type { ItemPricing, PriceUnits } from '@borrowbox/contracts';
-import { rentFor, UNIT_HOURS } from './pricing';
+import { UNIT_HOURS } from '@borrowbox/contracts';
+import { rentFor } from './pricing';
 
 const units = (partial: Partial<PriceUnits>): PriceUnits => ({
   HOUR: 0,

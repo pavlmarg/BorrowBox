@@ -14,15 +14,50 @@ const H = 3_600_000;
 // Monday 9 November 2026, 12:20 in Athens (UTC+2).
 const now = new Date('2026-11-09T10:20:00Z');
 const at = (iso: string) => new Date(iso);
-const limits = limitsFor({ minRentalHours: null, maxRentalHours: null });
+const HOURLY = { free: false, hourlyCents: 100 };
+const DAILY = { free: false, dailyCents: 500 };
+const limits = limitsFor({
+  pricing: HOURLY,
+  minRentalHours: null,
+  maxRentalHours: null,
+});
 
 describe('booking period rules', () => {
   it('narrows the platform limits with the item’s own', () => {
-    expect(limits).toEqual({ minHours: 1, maxHours: 2160 });
-    expect(limitsFor({ minRentalHours: 4, maxRentalHours: 48 })).toEqual({
-      minHours: 4,
-      maxHours: 48,
-    });
+    expect(limits).toMatchObject({ unit: 'HOUR', minHours: 1, maxHours: 2160 });
+    expect(
+      limitsFor({ pricing: HOURLY, minRentalHours: 4, maxRentalHours: 48 }),
+    ).toMatchObject({ minHours: 4, maxHours: 48, bookable: true });
+  });
+
+  it('rounds a daily item’s limits to whole days (ADR-0029)', () => {
+    expect(
+      limitsFor({ pricing: DAILY, minRentalHours: 4, maxRentalHours: 60 }),
+    ).toMatchObject({ unit: 'DAY', minHours: 24, maxHours: 48, bookable: true });
+    expect(
+      limitsFor({ pricing: DAILY, minRentalHours: null, maxRentalHours: 12 })
+        .bookable,
+    ).toBe(false);
+  });
+
+  it('asks for whole days on a daily item', () => {
+    const daily = limitsFor({ pricing: DAILY });
+    const start = at('2026-11-10T08:00:00Z');
+    expect(
+      periodProblem(start, at('2026-11-10T13:00:00Z'), now, daily, []),
+    ).toBe('wholeDays');
+    expect(
+      periodProblem(start, at('2026-11-12T08:00:00Z'), now, daily, []),
+    ).toBeNull();
+    // Tomorrow, only the start's own hour can end it.
+    const ends = endHourOptions(
+      { year: 2026, month: 11, day: 11 },
+      start,
+      now,
+      daily,
+      [],
+    ).filter((o) => !o.disabled);
+    expect(ends.map((o) => o.hour)).toEqual([10]);
   });
 
   it('accepts a whole-hour period that starts an hour or more ahead', () => {
@@ -59,7 +94,11 @@ describe('booking period rules', () => {
   });
 
   it('applies the item’s shortest and longest booking', () => {
-    const item = limitsFor({ minRentalHours: 4, maxRentalHours: 24 });
+    const item = limitsFor({
+      pricing: HOURLY,
+      minRentalHours: 4,
+      maxRentalHours: 24,
+    });
     const start = at('2026-11-10T08:00:00Z');
     expect(
       periodProblem(start, new Date(start.getTime() + 2 * H), now, item, []),
@@ -141,7 +180,11 @@ describe('booking period rules', () => {
       min: { year: 2026, month: 11, day: 9 },
       max: { year: 2027, month: 5, day: 8 },
     });
-    const item = limitsFor({ minRentalHours: 24, maxRentalHours: 72 });
+    const item = limitsFor({
+      pricing: HOURLY,
+      minRentalHours: 24,
+      maxRentalHours: 72,
+    });
     expect(endDayRange(at('2026-11-10T08:00:00Z'), item)).toEqual({
       min: { year: 2026, month: 11, day: 11 },
       max: { year: 2026, month: 11, day: 13 },

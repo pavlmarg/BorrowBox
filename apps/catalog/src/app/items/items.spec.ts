@@ -852,10 +852,30 @@ describe('Item commands (integration)', () => {
       ['zero hours', { minRentalHours: 0 }],
       ['more than 90 days', { maxRentalHours: BOOKING_MAX_HOURS + 1 }],
       ['part of an hour', { minRentalHours: 1.5 }],
+      [
+        'no whole day within a daily item’s limits (ADR-0029)',
+        { minRentalHours: 25, maxRentalHours: 47 },
+      ],
+      ['a daily item’s maximum under a day', { maxRentalHours: 12 }],
     ])('refuse %s', async (_, limits) => {
       expect((await failure(create(randomUUID(), limits))).code).toBe(
         'VALIDATION_FAILED',
       );
+    });
+
+    it('are checked again when the rates change (ADR-0029)', async () => {
+      const userId = randomUUID();
+      const item = await create(userId, {
+        pricing: { free: false, hourlyCents: 100 },
+        maxRentalHours: 12,
+      });
+      const err = await failure(
+        as(userId, CatalogRpc.update, {
+          itemId: item.id,
+          pricing: { free: false, dailyCents: 500 },
+        }),
+      );
+      expect(err.code).toBe('VALIDATION_FAILED');
     });
 
     it('are checked against the stored one when only one is sent', async () => {

@@ -11,6 +11,7 @@ import {
   ItemUpdatedV1,
   PRICE_FIELD,
   PRICE_UNITS,
+  bookingLengths,
   isValidRentalLimits,
   type GeoPoint,
   type ItemPricing,
@@ -441,9 +442,20 @@ function normalisePricing(input: ItemPricing): ItemPricing {
   return pricing;
 }
 
-/** Each limit within booking lengths, and the shortest not above the longest. */
+/**
+ * Each limit within booking lengths, the shortest not above the longest, and
+ * at least one length in whole units of the smallest rate (ADR-0029): a
+ * daily-only item can't have a 12-hour maximum.
+ */
 function assertRentalLimits(fields: ItemFields): void {
-  if (!isValidRentalLimits(fields.minRentalHours, fields.maxRentalHours)) {
+  if (
+    !isValidRentalLimits(fields.minRentalHours, fields.maxRentalHours) ||
+    !bookingLengths(
+      fields.pricing,
+      fields.minRentalHours,
+      fields.maxRentalHours,
+    ).bookable
+  ) {
     throw BAD_RENTAL_LIMITS();
   }
 }

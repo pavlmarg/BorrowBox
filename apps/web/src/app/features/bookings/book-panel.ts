@@ -139,18 +139,21 @@ const PREFERRED_START_HOUR = 10;
 
       <p class="hint">
         {{ t('bookings.book.athensTime') }}
-        @if (item().minRentalHours || item().maxRentalHours) {
+        @if (limits().unit !== 'HOUR') {
+          {{ t('bookings.book.unit.' + limits().unit) }}
+        }
+        @if (limits().bookable && (item().minRentalHours || item().maxRentalHours)) {
           <span class="limits">
-            @if (item().minRentalHours; as min) {
+            @if (item().minRentalHours) {
               {{ t('bookings.book.shortest') }}
-              @for (p of duration(min); track p.key) {
+              @for (p of duration(limits().minHours); track p.key) {
                 {{ t(p.key, { n: p.n }) }}
               }
               .
             }
-            @if (item().maxRentalHours; as max) {
+            @if (item().maxRentalHours) {
               {{ t('bookings.book.longest') }}
-              @for (p of duration(max); track p.key) {
+              @for (p of duration(limits().maxHours); track p.key) {
                 {{ t(p.key, { n: p.n }) }}
               }
               .
@@ -158,6 +161,11 @@ const PREFERRED_START_HOUR = 10;
           </span>
         }
       </p>
+      @if (!limits().bookable) {
+        <p class="problem" role="alert">
+          {{ t('bookings.book.notBookable') }}
+        </p>
+      }
 
       @if (busyShown().length > 0) {
         <div class="busy">

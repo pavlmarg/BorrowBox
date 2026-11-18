@@ -18,7 +18,7 @@ ADRs — read the relevant one before touching that area:
 - Item pricing (rate card, free items) and its effects on Bookings/Payments → `docs/adr/0010-flexible-pricing.md`, then `0012-free-items-match-price-limits.md` (search price filter)
 - Gateway → service calls (NestJS TCP) → `docs/adr/0005-gateway-service-transport-tcp.md`
 - UI kit (Angular Material) → `docs/adr/0006-ui-kit-angular-material.md`
-- Booking periods, prices, states, where to meet → `docs/adr/0015-booking-model.md`, then `0029-booking-start-and-units.md` (start time)
+- Booking periods, prices, states, where to meet → `docs/adr/0015-booking-model.md`, then `0029-booking-start-and-units.md` (start time, lengths in whole units)
 - Notifications, email, account-security emails and tokens → `docs/adr/0016-notifications-and-email.md`
 - Chat (conversations, masking, live delivery) → `docs/adr/0017-in-app-chat.md`; price offers in chat → `docs/adr/0018-price-offers.md`
 
