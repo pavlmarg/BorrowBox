@@ -182,9 +182,11 @@ function english(input: TemplateInput): EmailContent {
         paragraphs: [
           data.reason === 'PAYMENT_TIMEOUT'
             ? `The booking of ${item} for ${period} wasn't paid in time, so it expired.`
-            : data.reason === 'STARTED'
-              ? `The booking of ${item} for ${period} wasn't completed before it started.`
-              : `The request for ${item} (${period}) wasn't answered in time.`,
+            : data.reason === 'NO_HANDOFF'
+              ? `Nobody confirmed that ${item} was picked up for ${period}, so the booking ended. If it was paid, the renter gets everything back.`
+              : data.reason === 'STARTED'
+                ? `The booking of ${item} for ${period} wasn't completed before it started.`
+                : `The request for ${item} (${period}) wasn't answered in time.`,
         ],
         action: booking,
       };
@@ -216,6 +218,48 @@ function english(input: TemplateInput): EmailContent {
         ...base,
         subject: `${other} booked your offer for ${item}`,
         paragraphs: [`${period}, rent ${rent}.`],
+        action: booking,
+      };
+    case 'HANDOFF_QUESTION': {
+      const pickup = data.phase === 'PICKUP';
+      const question = pickup
+        ? `Was ${item} picked up?`
+        : `Was ${item} returned?`;
+      return {
+        ...base,
+        subject: data.round === 3 ? `Last reminder: ${question}` : question,
+        paragraphs: [
+          pickup
+            ? `The pickup of ${item} (${period}) wasn't scanned in BorrowBox. Did it happen? Answer on the booking page, or scan the pickup code if you're meeting now.`
+            : `The return of ${item} (${period}) wasn't scanned in BorrowBox. Did it happen? Answer on the booking page, or scan the return code if you're meeting now.`,
+          pickup
+            ? `If nobody confirms it by ${when(data.decideAt, 'en')}, the booking ends and the renter gets everything back.`
+            : `If the lender hasn't confirmed it by ${when(data.decideAt, 'en')}, our team will look into it.`,
+        ],
+        action: { ...booking, label: 'Answer' },
+      };
+    }
+    case 'BOOKING_RETURNED':
+      return {
+        ...base,
+        subject: `${item} was returned`,
+        paragraphs: [
+          data.claimUntil
+            ? `The lender can report damage until ${when(data.claimUntil, 'en')}. After that, the booking completes and the deposit goes back.`
+            : 'The booking is complete. Thanks for using BorrowBox.',
+        ],
+        action: booking,
+      };
+    case 'BOOKING_IN_REVIEW':
+      return {
+        ...base,
+        subject: `We're looking into the booking of ${item}`,
+        paragraphs: [
+          data.reason === 'RETURN_UNCONFIRMED'
+            ? `The return of ${item} (${period}) wasn't confirmed by both of you.`
+            : `The pickup of ${item} (${period}) wasn't confirmed by both of you.`,
+          'Our team will be in touch. Until then, no money moves. If you meet to hand the item back, scanning the return code settles it.',
+        ],
         action: booking,
       };
     case 'MESSAGES_UNREAD':
@@ -358,9 +402,11 @@ function greek(input: TemplateInput): EmailContent {
         paragraphs: [
           data.reason === 'PAYMENT_TIMEOUT'
             ? `Η κράτηση για ${item} (${period}) δεν πληρώθηκε εγκαίρως, οπότε έληξε.`
-            : data.reason === 'STARTED'
-              ? `Η κράτηση για ${item} (${period}) δεν ολοκληρώθηκε πριν από την έναρξή της.`
-              : `Το αίτημα για ${item} (${period}) δεν απαντήθηκε εγκαίρως.`,
+            : data.reason === 'NO_HANDOFF'
+              ? `Κανείς δεν επιβεβαίωσε την παραλαβή για ${item} (${period}), οπότε η κράτηση έληξε. Αν είχε πληρωθεί, ο δανειζόμενος παίρνει πίσω όλα τα χρήματα.`
+              : data.reason === 'STARTED'
+                ? `Η κράτηση για ${item} (${period}) δεν ολοκληρώθηκε πριν από την έναρξή της.`
+                : `Το αίτημα για ${item} (${period}) δεν απαντήθηκε εγκαίρως.`,
         ],
         action: booking,
       };
@@ -392,6 +438,49 @@ function greek(input: TemplateInput): EmailContent {
         ...base,
         subject: `${other} έκλεισε την προσφορά σου για ${item}`,
         paragraphs: [`${period}, ενοίκιο ${rent}.`],
+        action: booking,
+      };
+    case 'HANDOFF_QUESTION': {
+      const pickup = data.phase === 'PICKUP';
+      const question = pickup
+        ? `Έγινε η παραλαβή για ${item};`
+        : `Έγινε η επιστροφή για ${item};`;
+      return {
+        ...base,
+        subject:
+          data.round === 3 ? `Τελευταία υπενθύμιση: ${question}` : question,
+        paragraphs: [
+          pickup
+            ? `Η παραλαβή για ${item} (${period}) δεν σαρώθηκε στο BorrowBox. Έγινε; Απάντησε στη σελίδα της κράτησης ή σάρωσε τον κωδικό παραλαβής, αν συναντιέστε τώρα.`
+            : `Η επιστροφή για ${item} (${period}) δεν σαρώθηκε στο BorrowBox. Έγινε; Απάντησε στη σελίδα της κράτησης ή σάρωσε τον κωδικό επιστροφής, αν συναντιέστε τώρα.`,
+          pickup
+            ? `Αν δεν το επιβεβαιώσει κανείς έως ${when(data.decideAt, 'el')}, η κράτηση λήγει και ο δανειζόμενος παίρνει πίσω όλα τα χρήματα.`
+            : `Αν ο δανειστής δεν το επιβεβαιώσει έως ${when(data.decideAt, 'el')}, η ομάδα μας θα το εξετάσει.`,
+        ],
+        action: { ...booking, label: 'Απάντησε' },
+      };
+    }
+    case 'BOOKING_RETURNED':
+      return {
+        ...base,
+        subject: `${item} επιστράφηκε`,
+        paragraphs: [
+          data.claimUntil
+            ? `Ο δανειστής μπορεί να αναφέρει ζημιά έως ${when(data.claimUntil, 'el')}. Μετά, η κράτηση ολοκληρώνεται και η εγγύηση επιστρέφεται.`
+            : 'Η κράτηση ολοκληρώθηκε. Ευχαριστούμε που χρησιμοποιείς το BorrowBox.',
+        ],
+        action: booking,
+      };
+    case 'BOOKING_IN_REVIEW':
+      return {
+        ...base,
+        subject: `Εξετάζουμε την κράτηση για ${item}`,
+        paragraphs: [
+          data.reason === 'RETURN_UNCONFIRMED'
+            ? `Η επιστροφή για ${item} (${period}) δεν επιβεβαιώθηκε και από τους δύο.`
+            : `Η παραλαβή για ${item} (${period}) δεν επιβεβαιώθηκε και από τους δύο.`,
+          'Η ομάδα μας θα επικοινωνήσει μαζί σας. Μέχρι τότε δεν μετακινούνται χρήματα. Αν συναντηθείτε για την επιστροφή, η σάρωση του κωδικού επιστροφής το διευθετεί.',
+        ],
         action: booking,
       };
     case 'MESSAGES_UNREAD':

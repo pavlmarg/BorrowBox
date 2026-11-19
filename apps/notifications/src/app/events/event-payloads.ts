@@ -1,4 +1,7 @@
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
   IsEmail,
   IsIn,
   IsInt,
@@ -7,13 +10,17 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import {
   BOOKING_CANCEL_REASONS,
   BOOKING_DECLINE_REASONS,
   BOOKING_EXPIRE_REASONS,
+  BOOKING_REVIEW_REASONS,
+  HANDOFF_PHASES,
   DISPLAY_NAME_MAX_LENGTH,
   EMAIL_MAX_LENGTH,
   ITEM_TITLE_MAX_LENGTH,
@@ -21,6 +28,11 @@ import {
   type BookingCancelReason,
   type BookingDeclineReason,
   type BookingExpireReason,
+  type BookingHandoffUnconfirmedV1Payload,
+  type BookingReturnedV1Payload,
+  type BookingReviewReason,
+  type BookingReviewRequestedV1Payload,
+  type HandoffPhase,
   type BookingSnapshotV1,
   type ConversationUnreadV1Payload,
   type Locale,
@@ -199,6 +211,48 @@ export class ExpiredPayload extends BookingPayload {
 export class CancelledPayload extends BookingPayload {
   @IsIn(BOOKING_CANCEL_REASONS)
   reason!: BookingCancelReason;
+}
+
+/** `booking.returned.v1`. */
+export class ReturnedPayload
+  extends BookingPayload
+  implements BookingReturnedV1Payload
+{
+  @ValidateIf((_, value) => value !== null)
+  @IsISO8601({ strict: true })
+  claimUntil!: string | null;
+}
+
+/** `booking.handoff_unconfirmed.v1`. */
+export class HandoffUnconfirmedPayload
+  extends BookingPayload
+  implements BookingHandoffUnconfirmedV1Payload
+{
+  @IsIn(HANDOFF_PHASES)
+  phase!: HandoffPhase;
+
+  @IsInt()
+  @Min(1)
+  @Max(3)
+  round!: 1 | 2 | 3;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(2)
+  @IsUUID('all', { each: true })
+  askUserIds!: string[];
+
+  @IsISO8601({ strict: true })
+  decideAt!: string;
+}
+
+/** `booking.review_requested.v1`. */
+export class ReviewRequestedPayload
+  extends BookingPayload
+  implements BookingReviewRequestedV1Payload
+{
+  @IsIn(BOOKING_REVIEW_REASONS)
+  reason!: BookingReviewReason;
 }
 
 /** `offer.sent.v1`. */

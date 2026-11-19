@@ -29,6 +29,10 @@ import {
 } from '@borrowbox/contracts';
 import { ProfilePhotoUrlsResponse } from '../profile-photo.api';
 import { ItemPricingBody } from '../items/items.api';
+import {
+  BookingHandoffExportResponse,
+  BookingHandoffResponse,
+} from './handoff.api';
 
 // HTTP DTOs for Bookings: validated here, validated again by Bookings, and
 // the source of the OpenAPI spec the PWA client is generated from.
@@ -240,6 +244,11 @@ export class BookingViewResponse {
     description: 'While ACCEPTED: when it expires unless paid (ADR-0019)',
   })
   payBy!: string | null;
+  @ApiProperty({
+    type: BookingHandoffResponse,
+    description: 'The pickup and return (ADR-0026)',
+  })
+  handoff!: BookingHandoffResponse;
   @ApiProperty({ format: 'date-time' }) createdAt!: string;
   @ApiProperty({ format: 'date-time' }) updatedAt!: string;
 }
@@ -271,4 +280,6 @@ export class BookingsDataExportResponse {
   asRenter!: BookingViewResponse[];
   @ApiProperty({ type: [BookingViewResponse] })
   asLender!: BookingViewResponse[];
+  @ApiProperty({ type: [BookingHandoffExportResponse] })
+  handoffs!: BookingHandoffExportResponse[];
 }

@@ -22,6 +22,7 @@ import {
 } from '@borrowbox/service-kit';
 import { cancelBookings } from '../bookings/booking-transitions';
 import { lockBookingsToCancel } from '../bookings/bookings.repository';
+import { hasActiveRentals } from '../handoff/handoff.repository';
 import { ChatPublisher, ChatPushes } from '../messaging/chat-publisher';
 import {
   eraseMessagesOf,
@@ -93,6 +94,7 @@ export class UserEventsConsumer implements OnApplicationBootstrap {
       case UserDeletionRequestedV1.routingKey: {
         const { userId } = parsePayload(envelope, UserIdPayload);
         let cancelled = 0;
+        let itemsOut = false;
         const pushes = new ChatPushes();
         const ran = await handleOnce(
           this.dataSource,
@@ -124,6 +126,9 @@ export class UserEventsConsumer implements OnApplicationBootstrap {
               pushes,
             );
             await eraseMessagesOf(tx, userId);
+            // The gateway refuses erasure while an item is out, but a scan
+            // in the same second can slip through: a person sorts it out.
+            itemsOut = await hasActiveRentals(tx, userId);
           },
         );
         if (ran) {
@@ -131,6 +136,11 @@ export class UserEventsConsumer implements OnApplicationBootstrap {
           this.logger.log(
             `Erased account data: ${cancelled} booking(s) cancelled (eventId=${envelope.eventId})`,
           );
+          if (itemsOut) {
+            this.logger.error(
+              `Erased account still has an item out on a booking; needs a person (eventId=${envelope.eventId})`,
+            );
+          }
         }
         return;
       }

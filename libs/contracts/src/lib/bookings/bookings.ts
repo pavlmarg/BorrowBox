@@ -1,5 +1,10 @@
 import type { ItemPricing, PriceUnit } from '../catalog/items';
 import type { ProfilePhotoUrls } from '../identity/photos';
+import type {
+  BookingReviewReason,
+  HandoffAnswer,
+  HandoffPhase,
+} from './handoff';
 
 /**
  * Shapes shared by Bookings, the gateway and the PWA (ADR-0015). Plain types
@@ -48,13 +53,15 @@ export type BookingCancelReason = (typeof BOOKING_CANCEL_REASONS)[number];
 
 /**
  * A request nobody answered in time (`NO_ANSWER`) or whose start came first
- * (`STARTED`), or an accepted booking not paid by its pay-by time
- * (`PAYMENT_TIMEOUT`, ADR-0019).
+ * (`STARTED`), an accepted booking not paid by its pay-by time
+ * (`PAYMENT_TIMEOUT`, ADR-0019), or a booking whose pickup nobody scanned
+ * or confirmed (`NO_HANDOFF`, ADR-0026): the renter gets everything back.
  */
 export const BOOKING_EXPIRE_REASONS = [
   'NO_ANSWER',
   'STARTED',
   'PAYMENT_TIMEOUT',
+  'NO_HANDOFF',
 ] as const;
 export type BookingExpireReason = (typeof BOOKING_EXPIRE_REASONS)[number];
 
@@ -115,8 +122,34 @@ export interface BookingView {
   expiresAt: string | null;
   /** While `ACCEPTED`: when it expires unless paid (ADR-0019). */
   payBy: string | null;
+  handoff: BookingHandoffView;
   createdAt: string;
   updatedAt: string;
+}
+
+/** The pickup and return (ARCHITECTURE.md §5, ADR-0026). */
+export interface BookingHandoffView {
+  /** When the pickup can first be scanned. */
+  pickupOpensAt: string;
+  pickedUpAt: string | null;
+  returnedAt: string | null;
+  /** While `RETURNED`: until when the lender can file a damage claim. */
+  claimUntil: string | null;
+  /**
+   * A handoff nobody scanned, while both are asked whether it happened;
+   * null otherwise. Answers are final once given.
+   */
+  question: {
+    phase: HandoffPhase;
+    /** The caller's answer, or null. */
+    myAnswer: HandoffAnswer | null;
+    /** Whether the other person answered (never what). */
+    otherAnswered: boolean;
+    /** When the outcome falls due if the answers haven't decided it. */
+    decideAt: string;
+  } | null;
+  /** Set while an admin has to decide what happened; null otherwise. */
+  review: BookingReviewReason | null;
 }
 
 export interface BookingPeriod {

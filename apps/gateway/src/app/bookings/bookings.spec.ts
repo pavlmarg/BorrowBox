@@ -207,6 +207,100 @@ describe('Booking and chat routes (integration)', () => {
       }
     });
 
+    it('hands out handoff tokens and forwards scans and answers', async () => {
+      bookings.on(BookingsRpc.handoffToken, echo);
+      const token = await gw
+        .http()
+        .get(`/api/bookings/${BOOKING}/handoff-token`)
+        .query({ phase: 'PICKUP' })
+        .set('Authorization', await gw.bearer())
+        .expect(200);
+      expect(token.body).toEqual({
+        echoed: { bookingId: BOOKING, phase: 'PICKUP' },
+      });
+
+      bookings.on(BookingsRpc.handoffScan, echo);
+      const scan = await gw
+        .http()
+        .post(`/api/bookings/${BOOKING}/handoff`)
+        .set('Authorization', await gw.bearer())
+        .send({ phase: 'RETURN', code: '048213' })
+        .expect(200);
+      expect(scan.body).toEqual({
+        echoed: { bookingId: BOOKING, phase: 'RETURN', code: '048213' },
+      });
+
+      bookings.on(BookingsRpc.handoffAnswer, echo);
+      const answer = await gw
+        .http()
+        .post(`/api/bookings/${BOOKING}/handoff/answer`)
+        .set('Authorization', await gw.bearer())
+        .send({ phase: 'PICKUP', answer: 'YES' })
+        .expect(200);
+      expect(answer.body).toEqual({
+        echoed: { bookingId: BOOKING, phase: 'PICKUP', answer: 'YES' },
+      });
+    });
+
+    it('validates handoff input before calling Bookings', async () => {
+      for (const [method, path, body] of [
+        [
+          'get',
+          `/api/bookings/${BOOKING}/handoff-token?phase=pickup`,
+          undefined,
+        ],
+        [
+          'post',
+          `/api/bookings/${BOOKING}/handoff`,
+          { phase: 'PICKUP', code: '12345' },
+        ],
+        [
+          'post',
+          `/api/bookings/${BOOKING}/handoff/answer`,
+          { phase: 'PICKUP', answer: 'MAYBE' },
+        ],
+      ] as const) {
+        const req = gw
+          .http()
+          [method](path)
+          .set('Authorization', await gw.bearer());
+        await (body ? req.send(body) : req).expect(400);
+      }
+      expect(bookings.callsTo(BookingsRpc.handoffToken)).toHaveLength(0);
+      expect(bookings.callsTo(BookingsRpc.handoffScan)).toHaveLength(0);
+      expect(bookings.callsTo(BookingsRpc.handoffAnswer)).toHaveLength(0);
+    });
+
+    it.each([
+      ['TOKEN_INVALID', 400],
+      ['TOKEN_EXPIRED', 400],
+      ['NOT_COUNTERPARTY', 409],
+      ['RATE_LIMITED', 429],
+      ['HANDOFF_UNAVAILABLE', 503],
+    ] as const)('maps the handoff error %s to %i', async (code, status) => {
+      bookings.fail(BookingsRpc.handoffScan, { code, message: 'No' });
+      const res = await gw
+        .http()
+        .post(`/api/bookings/${BOOKING}/handoff`)
+        .set('Authorization', await gw.bearer())
+        .send({ token: 'v1.a.b' })
+        .expect(status);
+      expect(res.body.code).toBe(code);
+    });
+
+    it('limits handoff scans to 10 per user per minute', async () => {
+      bookings.on(BookingsRpc.handoffScan, echo);
+      const token = await gw.bearer();
+      const scan = () =>
+        gw
+          .http()
+          .post(`/api/bookings/${BOOKING}/handoff`)
+          .set('Authorization', token)
+          .send({ token: 'v1.a.b' });
+      for (let i = 0; i < 10; i++) await scan().expect(200);
+      expect((await scan().expect(429)).body.code).toBe('RATE_LIMITED');
+    });
+
     it('lists bookings with comma-separated statuses', async () => {
       bookings.on(BookingsRpc.listMine, echo);
       const res = await gw

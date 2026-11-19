@@ -779,6 +779,10 @@
       "EXPIRED_PAYMENT_TIMEOUT": {
         "RENTER": "Expired: it wasn’t paid in time.",
         "LENDER": "Expired: {{name}} didn’t pay in time."
+      },
+      "EXPIRED_NO_HANDOFF": {
+        "RENTER": "Ended: nobody confirmed the pickup, so you get everything back.",
+        "LENDER": "Ended: nobody confirmed the pickup, so {{name}} gets everything back."
       }
     },
     "policy": {
@@ -855,6 +859,10 @@
       "BOOKING_DECLINED": "The booking request was declined.",
       "BOOKING_CANCELLED": "The booking was cancelled.",
       "BOOKING_EXPIRED": "The booking expired.",
+      "BOOKING_PICKED_UP": "The item was picked up.",
+      "BOOKING_RETURNED": "The item was returned.",
+      "BOOKING_COMPLETED": "The booking is complete.",
+      "BOOKING_IN_REVIEW": "The handoff wasn’t confirmed by both. Our team will look into it.",
       "OFFER_WITHDRAWN": "The lender withdrew the price offer."
     },
     "report": {

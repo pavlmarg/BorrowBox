@@ -71,9 +71,9 @@ The backend runs as event-driven microservices behind a single API gateway. Serv
 *   [x] **Phase 3 – Bookings:** availability, request / accept / decline, state machine, email notifications, in-app chat with price offers, and the PWA's booking, bookings, chat and email-link pages
 *   [x] **Phase 4 – Payments:** Stripe Connect onboarding, checkout, webhooks, transfers & refunds (test mode) ([ADR-0019](docs/adr/0019-payments-fees-and-policies.md)–[0022](docs/adr/0022-standard-service-agreement.md)), and the PWA's payment and payouts pages
     *   Built alongside the web pass: dark mode, profile photos ([ADR-0024](docs/adr/0024-profile-photos.md)), public profiles and bios ([ADR-0025](docs/adr/0025-public-profiles.md)), a sectioned Settings page.
-    *   Until Phase 5, nothing emits `booking.completed`, so settlement only runs when that event is published by hand (see "Live run with Stripe test mode").
+    *   ~~Until Phase 5, nothing emits `booking.completed`, so settlement only runs when that event is published by hand.~~ Phase 5's handoff emits it after the return and the 48 h claim window (ADR-0026).
 *   [ ] **Phase 5 – Handoff:** QR pickup/return protocol, condition photos, claim window
-*   [ ] **Phase 6 – Trust & Social:** chat, reviews, trust score, ID verification
+*   [ ] **Phase 6 – Trust & Social:** chat, reviews, trust score, ID verification, and the admin area (resolving damage claims, reported messages and listings, suspensions)
 *   [ ] **Phase 7 – Hardening:** observability stack, e2e tests, VPS deployment
 
 ## 🚀 Getting Started
@@ -165,7 +165,7 @@ In a deployment, register two webhook endpoints in the dashboard (`/api/webhooks
 3. The lender publishes an item, the renter requests it, the lender accepts. The accept email shows the fee and the pay-by time.
 4. The renter calls `POST /api/bookings/:id/payment`; the PaymentIntent id is the part of `clientSecret` before `_secret_`. Pay it from the CLI: `stripe payment_intents confirm <pi_…> --payment-method pm_card_visa` (or `pm_card_chargeDeclined` to see a failed attempt and its email). The booking turns `PAID`.
 5. Cancel paid bookings both ways (the renter more than 24 h ahead: all but the fee back; the lender: everything) and check the refunds in the dashboard and the emails.
-6. Settlement: Phase 5 doesn't emit `booking.completed` yet. Publish one by hand from RabbitMQ's management UI (http://localhost:15672) to `borrowbox.events` with routing key `booking.completed.v1` (a copy of the booking's `booking.paid` envelope with a new `eventId` and `type`); the lender's transfer and the deposit refund appear in the dashboard.
+6. Settlement (ADR-0026): book with a start about an hour ahead so the pickup is open. The lender calls `GET /api/bookings/:id/handoff-token?phase=PICKUP` and the renter sends its `token` to `POST /api/bookings/:id/handoff`; then the other way round with `phase=RETURN`. After the 48 h claim window the booking completes and the lender's transfer and the deposit refund appear in the dashboard. To skip the wait, set the booking's `claim_until` and `handoff_due_at` in the past (`bookings` schema) and let the 10-minute sweeper run. Bookings needs `HANDOFF_PRIVATE_KEY` in `apps/bookings/.env` (`node tools/gen-handoff-key.mjs`).
 7. Erase a lender whose connected account you first deleted in the dashboard, and note what the deletion worker logs: only Stripe's `resource_missing` counts as already gone (ADR-0019 follow-up).
 
 Tests never read these `.env` files (`NODE_ENV=test`); they set their own environment.

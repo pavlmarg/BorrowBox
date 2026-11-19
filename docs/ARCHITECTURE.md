@@ -54,7 +54,7 @@ flowchart TB
 | **Gateway** | nothing | – | Redis `chat:*` |
 | **Identity** | users, credentials, refresh tokens, email tokens, verification, profile photos and bios; its own security emails | `user.registered`, `.profile_updated`, `.email_verified`, `.verified`, `.deletion_requested` | – |
 | **Catalog** | items, categories, photos, locations | `item.created`, `.updated`, `.deleted` | `user.registered`, `.profile_updated`, `.email_verified`, `.deletion_requested`; `booking.accepted`/`.confirmed` (featured); `review.created` |
-| **Bookings** | bookings, availability, handoffs, condition photos | `booking.requested`, `.accepted`, `.confirmed`, `.paid`, `.declined`, `.expired`, `.cancelled`, `.picked_up`, `.returned`, `.completed`, `.disputed` | `item.*`, `user.registered`, `.profile_updated`, `.email_verified`, `.deletion_requested`, `payment.account_ready`/`.account_restricted`, `payment.captured` |
+| **Bookings** | bookings, availability, handoffs, condition photos | `booking.requested`, `.accepted`, `.confirmed`, `.paid`, `.declined`, `.expired`, `.cancelled`, `.picked_up`, `.returned`, `.completed`, `.disputed`, `.handoff_unconfirmed`, `.review_requested` | `item.*`, `user.registered`, `.profile_updated`, `.email_verified`, `.deletion_requested`, `payment.account_ready`/`.account_restricted`, `payment.captured` |
 | **Payments** | connected accounts, payments, money movements, `stripe_events` | `payment.account_ready`, `.account_restricted`, `.captured`, `.failed`, `.refunded`, `.settled` | `user.email_verified`, `.deletion_requested`, `booking.accepted`, `.paid`, `.expired`, `.cancelled`, `.completed`, `.disputed`, `dispute.resolved` |
 | **Messaging** (module of Bookings, [ADR-0017](adr/0017-in-app-chat.md)) | conversations, messages, offers, reports | `message.sent`, `conversation.unread`, `offer.sent`, `.withdrawn` | booking changes (in-process), `item.deleted`, `user.deletion_requested` |
 | **Notifications** | recipients, email jobs (later: preferences, push, inbox) | – | `user.registered`, `.profile_updated`, `.deletion_requested`, `booking.*`, `payment.failed`, `.refunded`, `.settled`, `offer.sent`, `conversation.unread` |
@@ -66,7 +66,7 @@ flowchart TB
 - REST under `/api`; typed clients per service extend one `ServiceClient`. Forwards the access token and `X-Request-Id`.
 - Error mapping: each service's codes map to HTTP via a table typed against its contract (unmapped = compile error; at runtime → `500 INTERNAL`, logged). No answer → `503 SERVICE_UNAVAILABLE` (service named only in logs). Timeout `RPC_TIMEOUT_MS` 5 s; slow calls get longer timeouts derived in `libs/contracts` (Google sign-in 35 s, payout onboarding 46 s, dashboard 25.5 s). No automatic retries.
 - Every error is `{ statusCode, code, message }`, never echoing the body. Malformed URL ids → `400 VALIDATION_FAILED`.
-- Security: Helmet, CORS allow-list, 100 kB body limit, `class-validator` DTOs. Redis rate limits per IP: 10/min (login, register, Google, email links, password changes), 30/min refresh, 300/min suggest, 120/min otherwise; per-user limits on bookings (30/h), messages and offers (30/min), new conversations (20/day), payment/payout links (10/min). If Redis is down each instance counts in memory and switches back by itself. Over the limit, Google's browser routes redirect with `?error=RATE_LIMITED`.
+- Security: Helmet, CORS allow-list, 100 kB body limit, `class-validator` DTOs. Redis rate limits per IP: 10/min (login, register, Google, email links, password changes), 30/min refresh, 300/min suggest, 120/min otherwise; per-user limits on bookings (30/h), messages and offers (30/min), new conversations (20/day), payment/payout links (10/min), handoff scans (10/min). If Redis is down each instance counts in memory and switches back by itself. Over the limit, Google's browser routes redirect with `?error=RATE_LIMITED`.
 - Cookies: refresh token only in `bb_refresh` (httpOnly, Secure, SameSite=Strict, `Path=/api/auth`), never in a body. Google sign-in state/nonce/PKCE in a signed 10-min `bb_oauth` cookie (SameSite=Lax).
 - OpenAPI: `apps/gateway/openapi.json` is committed (`nx run gateway:openapi`; a test fails on drift); the PWA client is generated from it (`nx run web:api-client`).
 - Live chat: Socket.IO namespace `/chat`, token in `auth.token`, Origin on the allow-list, one room per user, disconnected at token expiry. Every instance subscribes to Redis `chat:*` (also if Redis comes up later). Clients only listen; sending is REST.
@@ -74,11 +74,11 @@ flowchart TB
   - **Auth/account:** `POST /auth/register|login|refresh|logout`, `GET /auth/google` + `/google/callback`; public `POST /auth/verify-email`, `/password-reset` (always `202`), `/password-reset/confirm` (also clears the cookie); `GET|PATCH|DELETE /me` (`PATCH` also takes the bio), `GET /me/export`, `POST /me/verification-email` (`202`), `/me/password`; profile photo `POST /me/photo` (upload link), `POST /me/photo/confirm`, `DELETE /me/photo`; `GET /health`.
   - **People** ([ADR-0025](adr/0025-public-profiles.md)): public `GET /users/:id` (Identity: name, photo, bio, member since), `GET /users/:id/items` (Catalog), `POST /people/suggest` (name search, text in the body, 300/min).
   - **Catalog:** public `POST /items/search|suggest|featured|category-counts` (the point travels in the body, never in URLs or logs), `GET /items/:id`, `/items/:id/similar`; lender's `/me/items` (list, create, get, `PATCH`, `DELETE`, `PUT /:id/location`, `POST /:id/publish|pause|unpause`, photos: `POST /:id/photos`, `POST …/:photoId/confirm`, `DELETE …/:photoId`, `PUT /:id/photos/order`).
-  - **Bookings:** public `GET /items/:id/quote?start=&end=`, `/items/:id/busy`; `POST /bookings` (client picks the id), `GET /bookings/:id`, `POST /bookings/:id/accept|decline|cancel`, `GET /me/bookings?role=&statuses=&cursor=`.
+  - **Bookings:** public `GET /items/:id/quote?start=&end=`, `/items/:id/busy`; `POST /bookings` (client picks the id), `GET /bookings/:id`, `POST /bookings/:id/accept|decline|cancel`, `GET /me/bookings?role=&statuses=&cursor=`; handoff ([ADR-0026](adr/0026-handoff.md)): `GET /bookings/:id/handoff-token?phase=PICKUP|RETURN`, `POST /bookings/:id/handoff` (token, or phase + code), `POST /bookings/:id/handoff/answer`.
   - **Chat/offers:** `POST /items/:id/conversations`, `GET /me/conversations`, `/me/unread`, `GET /conversations/:id`, `GET|POST /conversations/:id/messages`, `POST /conversations/:id/read`, `/messages/:id/report`, `/conversations/:id/offers`, `/offers/:id/withdraw`, `/offers/:id/book`.
   - **Payments:** `GET /me/payouts`, `POST /me/payouts/onboarding|dashboard` (single-use Stripe links); renter `POST|GET /bookings/:id/payment`; Stripe-only `POST /webhooks/stripe` and `/webhooks/stripe-connect` (raw body + `Stripe-Signature` to Payments, no rate limit, not in OpenAPI).
   - `GET /me/export` has one section per service (identity, catalog, bookings, messaging, notifications, payments); any missing → `503`, never partial.
-- Status codes: `400` `VALIDATION_FAILED`, `INVALID_PERIOD`, `TOKEN_INVALID`, `TOKEN_EXPIRED`, `INVALID_SIGNATURE`; `403` `EMAIL_NOT_VERIFIED`; `404` `NOT_FOUND`; `409` state/limit refusals (`INVALID_STATE`, `NOT_PUBLISHABLE`, `ITEM_LIMIT_REACHED`, `PHOTO_LIMIT_REACHED`, `PASSWORD_NOT_SET`, `SLOT_TAKEN`, `DUPLICATE_REQUEST`, `REQUEST_LIMIT_REACHED`, `OWN_ITEM`, `ITEM_UNAVAILABLE`, `CONVERSATION_CLOSED`, `OFFER_UNAVAILABLE`, `PRICE_ABOVE_LIST`, `PAYOUTS_NOT_SET_UP`, `PAYMENT_WINDOW_CLOSED`), told apart by `code`; `503` `PROVIDER_UNAVAILABLE` (Stripe didn't answer).
+- Status codes: `400` `VALIDATION_FAILED`, `INVALID_PERIOD`, `TOKEN_INVALID`, `TOKEN_EXPIRED`, `INVALID_SIGNATURE`; `403` `EMAIL_NOT_VERIFIED`; `404` `NOT_FOUND`; `409` state/limit refusals (`INVALID_STATE`, `NOT_PUBLISHABLE`, `ITEM_LIMIT_REACHED`, `PHOTO_LIMIT_REACHED`, `PASSWORD_NOT_SET`, `SLOT_TAKEN`, `DUPLICATE_REQUEST`, `REQUEST_LIMIT_REACHED`, `OWN_ITEM`, `ITEM_UNAVAILABLE`, `CONVERSATION_CLOSED`, `OFFER_UNAVAILABLE`, `PRICE_ABOVE_LIST`, `PAYOUTS_NOT_SET_UP`, `PAYMENT_WINDOW_CLOSED`, `NOT_COUNTERPARTY`, `ACTIVE_RENTALS`), told apart by `code`; `429` `RATE_LIMITED`; `503` `PROVIDER_UNAVAILABLE` (Stripe didn't answer), `HANDOFF_UNAVAILABLE` (Redis down; handoffs fail closed).
 
 ### Identity
 - Passwords: 8–64 chars, ≥1 letter and digit (shared rule in `libs/contracts`); argon2id m=19 MiB, t=2, p=1, rehashed on login if parameters change; failures take the same work and error whatever the cause.
@@ -89,7 +89,7 @@ flowchart TB
 - Profile photos ([ADR-0024](adr/0024-profile-photos.md)): public like the name; the media pipeline in Identity, centre-cropped to squares (96 and 512 px WebP, shorter side ≥128 px). A new upload waits (`PENDING`/`FAILED`) while the current photo stays, then replaces it in one transaction (old files queued for deletion). Every profile change, the photo's included, emits `user.profile_updated` with all current values; its optional `photo` (URLs or null) feeds Catalog's and Bookings' read models. Erasure removes the photo and its files.
 - Public profiles and bios ([ADR-0025](adr/0025-public-profiles.md)): anyone's profile (name, photo, bio, member since; never the email), `NOT_FOUND` for unknown and erased accounts. Bio: ≤150 characters, ≤3 lines, no contact details (the chat's detector, shared in `libs/contracts`), sent with every `user.profile_updated` (optional field).
 - Lender ID verification via Stripe Identity above a deposit threshold (later).
-- GDPR: export without hashes/tokens. `DELETE /me` needs the password, or for password-less accounts a sign-in <5 min old on a live session. One transaction anonymises the user, deletes OAuth identities and refresh tokens, removes the profile photo and bio, redacts the stored `user.registered`/`.profile_updated` payloads and emits `user.deletion_requested`; every service then erases its own data (financial records kept as the law requires).
+- GDPR: export without hashes/tokens. `DELETE /me` needs the password, or for password-less accounts a sign-in <5 min old on a live session; the gateway first refuses it (`409 ACTIVE_RENTALS`) while the person has an item out (`PICKED_UP`, `RETURNED`, `DISPUTED`; [ADR-0026](adr/0026-handoff.md)). One transaction anonymises the user, deletes OAuth identities and refresh tokens, removes the profile photo and bio, redacts the stored `user.registered`/`.profile_updated` payloads and emits `user.deletion_requested`; every service then erases its own data (financial records kept as the law requires).
 
 ### Catalog
 - `items.location` (private) and `location_public` are `geography(Point, 4326)`. Search: `ST_DWithin(location_public, point, radius)` (GiST) + Greek/English `tsvector` + category/price filters.
@@ -107,14 +107,15 @@ flowchart TB
   EXCLUDE USING gist (item_id WITH =, period WITH &&)
   WHERE (status IN ('ACCEPTED','CONFIRMED','PAID','PICKED_UP'))
   ```
-- Every status change goes through one function that checks the state machine (§4) and writes the outbox event. Owns the QR handoff (§5).
+- Every status change goes through one function that checks the state machine (§4) and writes the outbox event.
+- Handoff (§5, [ADR-0026](adr/0026-handoff.md)): QR or 6-digit code; pickup from 2 h before the start, return any time after. Unscanned handoffs: both asked at +2/24/48 h (`booking.handoff_unconfirmed`, answers in the app, final), outcome at +72 h. Pickup: both yes → `PICKED_UP`; both no or nobody claims it → `EXPIRED` `NO_HANDOFF` (full refund); one yes without the other → admin review. Return: the lender's yes → `RETURNED`; their no or silence → admin review. Review keeps the status (no money moves) with `review_reason` and `booking.review_requested`, until a return scan or the admin area (Phase 6). Claim window 48 h after the return, then `COMPLETED`; without a deposit at once. One `handoff_due_at` per booking drives the timer jobs.
 - Read models: items (Catalog snapshots, newest wins, deletion final) and users (names, profile photos, verified emails). Backfill with `nx run catalog:republish-items` / `identity:republish-users`.
 - Requests: verified renter, `ACTIVE` item not their own, client-picked id. ≤10 open requests per renter, no second overlapping request for the item, held periods refused (`SLOT_TAKEN`); serialised per renter.
 - Answers: accept → `CONFIRMED` if rent and deposit are 0, else `ACCEPTED` (needs the lender's payouts ready, from `payment.account_ready`/`.account_restricted`, else `PAYOUTS_NOT_SET_UP`). Accepting declines overlapping requests (`OVERLAP`) in the same transaction; accepts serialised per item, the constraint turns races into `SLOT_TAKEN`. Renter withdraws a request; either side cancels `ACCEPTED`/`CONFIRMED`/`PAID` before the start (Payments refunds, [ADR-0021](adr/0021-refunds-and-settlement.md)).
 - Expiry: a request after 24 h or at its start, whichever first; `ACCEPTED` unpaid by its pay-by time (24 h after acceptance or the start) → `EXPIRED` `PAYMENT_TIMEOUT`. `payment.captured` moves `ACCEPTED` → `PAID` (`booking.paid` + a chat line to arrange where to meet); a payment for a closed booking is left to Payments to refund. All timers are BullMQ delayed jobs that re-check under the row lock; a 10-min sweeper catches lost jobs.
 - Public queries: a price quote, and an item's held periods (start/end only).
 - Events (`booking.*.v1`) carry ids, item title, period, rent, deposit, fees, reason; never names, emails or locations.
-- `item.deleted` / `user.deletion_requested` cancel open and paid bookings (`ITEM_DELETED`, `ACCOUNT_DELETED` with `erasedUserId`); finished bookings stay without the erased name. Pausing an item only stops new requests. Export: stored name, verification, all bookings on both sides.
+- `item.deleted` / `user.deletion_requested` cancel open and paid bookings (`ITEM_DELETED`, `ACCOUNT_DELETED` with `erasedUserId`); finished bookings stay without the erased name. Pausing an item only stops new requests; a booking already picked up finishes normally. Export: stored name, verification, all bookings on both sides, handoffs and answers.
 
 ### Payments
 Stripe test mode only (a live key stops the service). [ADR-0003](adr/0003-stripe-separate-charges-transfers.md), [ADR-0019](adr/0019-payments-fees-and-policies.md)–[0022](adr/0022-standard-service-agreement.md); see §6.
@@ -152,7 +153,7 @@ A Bookings module with tables in `bookings` until its contracts settle ([ADR-001
 
 ### Notifications
 [ADR-0016](adr/0016-notifications-and-email.md). Recipients (email, name, `el`/`en`) from `user.*` events, forgotten on deletion. Email over SMTP (`nodemailer`, Mailpit locally) from TypeScript templates in Greek and English, times in Europe/Athens.
-- Emails: new request (lender); accepted (renter, with amount and pay-by; for an offer the lender is told); confirmed/paid (both: arrange where to meet); failed payment, refund on its way, declined (renter); deposit back and lender paid at settlement; expired (renter, and lender if unanswered or unpaid); cancelled (the other side; deleted item → renter); new offer (renter); unread messages. No welcome email.
+- Emails: new request (lender); accepted (renter, with amount and pay-by; for an offer the lender is told); confirmed/paid (both: arrange where to meet); failed payment, refund on its way, declined (renter); deposit back and lender paid at settlement; expired (renter, and lender if unanswered, unpaid or never picked up); cancelled (the other side; deleted item → renter); new offer (renter); unread messages; handoffs ([ADR-0026](adr/0026-handoff.md)): "did it happen?" (those not answered, three rounds), returned (both, with the claim window), under review (both). No welcome email.
 - Sending: the consumer writes `email_jobs` with `processed_events`; a polling sender claims due jobs with a lease, renders in the recipient's language, retries with backoff up to a day. Jobs for unknown recipients wait; no SMTP host = never sent (retries); unrenderable jobs are dropped and logged. Erasure-caused cancellations wait 10 min so the erased person's copy is dropped. At least once. Sent jobs kept 30 days.
 - Jobs store ids, item title, times and amounts, never names or message text. Export and erasure cover recipient and emails.
 
@@ -171,9 +172,11 @@ stateDiagram-v2
     ACCEPTED --> CANCELLED: either side, before the start
     CONFIRMED --> CANCELLED: either side, before the start
     PAID --> CANCELLED: cancellation policy refund
-    PAID --> PICKED_UP: pickup QR scan
-    CONFIRMED --> PICKED_UP: pickup QR scan
-    PICKED_UP --> RETURNED: return QR scan
+    PAID --> PICKED_UP: pickup scan, or both confirm
+    CONFIRMED --> PICKED_UP: pickup scan, or both confirm
+    PAID --> EXPIRED: nobody confirms the pickup (NO_HANDOFF)
+    CONFIRMED --> EXPIRED: nobody confirms the pickup (NO_HANDOFF)
+    PICKED_UP --> RETURNED: return scan, or the lender confirms
     RETURNED --> COMPLETED: 48h claim window passes
     RETURNED --> DISPUTED: lender files damage claim
     DISPUTED --> COMPLETED: dispute.resolved
@@ -190,10 +193,12 @@ Happy path: request → `booking.requested` (lender emailed) → accept → `boo
 - Envelope `{ eventId, type, version, occurredAt, correlationId, causationId, payload }`, types in `libs/contracts`.
 
 ## 5. QR handoff protocol
-1. The showing party opens the handoff screen (lender at pickup, renter at return) and polls `GET /bookings/:id/handoff-token?phase=pickup` every 30 s: an Ed25519-signed `{ b, ph, n: nonce, exp: now+45s }`.
-2. The other party scans it (`BarcodeDetector`, fallback `@zxing/browser`) and sends `POST /bookings/:id/handoff { token }`.
-3. Bookings checks signature, `exp`, phase vs state, that the scanner is the counterparty, and the nonce (`SET NX` in Redis with TTL); then transitions and emits.
-4. Both upload 1–3 condition photos (server timestamps, dispute evidence). Fallback: a 6-digit code derived from the token.
+[ADR-0026](adr/0026-handoff.md).
+1. The showing party opens the handoff screen (lender at pickup, renter at return) and polls `GET /bookings/:id/handoff-token?phase=PICKUP` every 30 s: `v1.<base64url { b, ph, n: nonce, exp: now+45s }>.<Ed25519 signature>`, signed with Bookings' own key (`HANDOFF_PRIVATE_KEY`), plus a 6-digit code derived from the signature.
+2. The other party scans it (`BarcodeDetector`, fallback `@zxing/browser`) and sends `POST /bookings/:id/handoff { token }`, or types the code (`{ phase, code }`; ≤5 wrong per booking and phase in 10 min).
+3. Bookings checks signature, `exp`, phase vs state and window, that the scanner is the counterparty, and the nonce (`SET NX` in Redis with TTL; Redis down → refused, never skipped); then transitions and emits in one transaction.
+4. Nobody scanned: both are asked whether it happened, and the answers decide (ADR-0026).
+5. Both upload 1–3 condition photos (server timestamps, dispute evidence); with damage claims (Phase 5, next).
 
 ## 6. Payments (Stripe Connect, EU)
 [ADR-0003](adr/0003-stripe-separate-charges-transfers.md), [ADR-0019](adr/0019-payments-fees-and-policies.md)–[0022](adr/0022-standard-service-agreement.md).
@@ -218,7 +223,7 @@ Happy path: request → `booking.requested` (lender emailed) → accept → `boo
 - Map: MapLibre GL + MapTiler, lazy; one `MapView` (`shared/map`) in browse, area and pin modes. Never a precise pin: Explore shows price tags (orange + area circle + small card on hover; clusters until zoom 17), the item page an area circle of radius `LOCATION_OFFSET_MAX_M` (300 m) ([ADR-0014](adr/0014-price-tags-on-explore-map.md)). Style URL from `/config.json` (maps say unavailable without it); place names follow the UI language; MapLibre's worker and CSS served from `/vendor/maplibre/`.
 - Dev: `nx serve web` (4200) proxies `/api` and `/socket.io` to the gateway (3000), same-origin like Caddy in production.
 - No fonts or icons from Google's CDN (GDPR). PWA: service worker, installable, offline shell, Web Push (VAPID); email is always the fallback (iOS push only for installed PWAs).
-- Later features: `handoff` (QR, condition photos), `notifications`, `admin` (disputes).
+- Later features: `handoff` (QR, condition photos; Phase 5), `notifications`, `admin` (disputes, reports, suspensions; Phase 6).
 
 ## 8. Cross-cutting concerns
 
@@ -251,7 +256,7 @@ Side decisions (revisit after all phases unless noted):
 - **Rate limiting:** Redis uses a fixed window (≈2× burst at boundaries); the in-memory fallback a sliding log. Consider sliding window or token bucket (Lua).
 - **Gateway retries/circuit breaker (Phase 7):** maybe retry read-only calls once, and/or fail fast while a service is down; never retry commands blindly.
 - **Offsets from a secret (Phase 7):** pins moved ≥300 m and back draw new offsets, which could be averaged; derive them from a secret, the lender and a coarse area.
-- **Stripe Connect costs (before launch):** per-payout and per-active-account fees, and lost fees on full refunds; a monthly lender fee or recovery from later transfers.
+- **Stripe Connect costs (before launch):** per-payout and per-active-account fees, and lost fees on full refunds; a monthly lender fee or recovery from later transfers. Also compare quotes from EU marketplace payment providers (e.g. Mangopay, Lemonway, Adyen for Platforms, Mollie Connect, Viva.com) against expected volume; any replacement must hold funds under its own licence (PSD2), do lender KYC and IBAN payouts, and support DAC7. Deposits charged at the card rate are most of the per-booking cost.
 - **Payment record retention (before launch):** confirm the Greek period, add a setting and pruning.
 - **CDN caching of public photos (Phase 7):** short cache lifetime or purge on delete (keys are random, never reused).
 - **DLQs (Phase 7):** no alert, replay or expiry yet; add a depth alert, a replay command and a TTL matching outbox retention.

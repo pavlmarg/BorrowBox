@@ -14,5 +14,6 @@ export const BOOKING_CLOSE_REASON: BookingCloseReason[] = [
   'ACCOUNT_DELETED',
   'NO_ANSWER',
   'STARTED',
-  'PAYMENT_TIMEOUT'
+  'PAYMENT_TIMEOUT',
+  'NO_HANDOFF'
 ];

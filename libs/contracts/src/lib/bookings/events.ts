@@ -4,6 +4,7 @@ import type {
   BookingDeclineReason,
   BookingExpireReason,
 } from './bookings';
+import type { BookingReviewReason, HandoffPhase } from './handoff';
 
 /**
  * The booking as every `booking.*` event carries it (ADR-0015), so consumers
@@ -97,6 +98,57 @@ export const BookingCancelledV1 = defineEvent<BookingCancelledV1Payload>()(
   'booking.cancelled',
   1,
 );
+
+/**
+ * The renter has the item: the pickup was scanned, or both confirmed it
+ * (ADR-0026).
+ */
+export type BookingPickedUpV1Payload = BookingSnapshotV1;
+export const BookingPickedUpV1 = defineEvent<BookingPickedUpV1Payload>()(
+  'booking.picked_up',
+  1,
+);
+
+/** The item is back: the return was scanned, or confirmed (ADR-0026). */
+export interface BookingReturnedV1Payload extends BookingSnapshotV1 {
+  /**
+   * Until when the lender can file a damage claim; null when there's no
+   * deposit, and `booking.completed` follows straight away.
+   */
+  claimUntil: string | null;
+}
+export const BookingReturnedV1 = defineEvent<BookingReturnedV1Payload>()(
+  'booking.returned',
+  1,
+);
+
+/**
+ * Nobody scanned a handoff: the people listed are asked whether it
+ * happened (round 1 to 3, ADR-0026). Notifications emails them.
+ */
+export interface BookingHandoffUnconfirmedV1Payload extends BookingSnapshotV1 {
+  phase: HandoffPhase;
+  round: 1 | 2 | 3;
+  /** Those who haven't answered yet (the lender, the renter or both). */
+  askUserIds: string[];
+  /** When the outcome falls due without the answers. */
+  decideAt: string;
+}
+export const BookingHandoffUnconfirmedV1 =
+  defineEvent<BookingHandoffUnconfirmedV1Payload>()(
+    'booking.handoff_unconfirmed',
+    1,
+  );
+
+/**
+ * The answers about a handoff disagree or are missing: an admin will look
+ * into it (Phase 6). The booking keeps its status meanwhile; no money moves.
+ */
+export interface BookingReviewRequestedV1Payload extends BookingSnapshotV1 {
+  reason: BookingReviewReason;
+}
+export const BookingReviewRequestedV1 =
+  defineEvent<BookingReviewRequestedV1Payload>()('booking.review_requested', 1);
 
 /**
  * The claim window after the return passed (or a dispute was resolved):

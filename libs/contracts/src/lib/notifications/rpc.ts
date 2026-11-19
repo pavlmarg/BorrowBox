@@ -23,6 +23,10 @@ export const EMAIL_KINDS = [
   'OFFER_RECEIVED',
   'OFFER_BOOKED',
   'MESSAGES_UNREAD',
+  /** Handoffs (ADR-0026): "did it happen?", returned, under review. */
+  'HANDOFF_QUESTION',
+  'BOOKING_RETURNED',
+  'BOOKING_IN_REVIEW',
 ] as const;
 export type EmailKind = (typeof EMAIL_KINDS)[number];
 

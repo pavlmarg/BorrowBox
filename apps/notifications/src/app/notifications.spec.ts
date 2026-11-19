@@ -116,7 +116,7 @@ describe('Notifications (integration)', () => {
 
   it('migrates into the notifications schema', async () => {
     expect(await service.dataSource.showMigrations()).toBe(false);
-    expect(MIGRATIONS).toHaveLength(4);
+    expect(MIGRATIONS).toHaveLength(5);
   });
 
   it('emails the lender a new request in their language, once per event', async () => {

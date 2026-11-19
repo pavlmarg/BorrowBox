@@ -66,6 +66,7 @@ export async function startBookings(urls: {
   redisUrl: string;
 }): Promise<BookingsHarness> {
   const keys = generateTestKeys();
+  const handoffKey = generateTestKeys();
   const port = await freePort();
   const harness = await startServiceHarness<BookingsServiceContract>({
     port,
@@ -80,6 +81,7 @@ export async function startBookings(urls: {
       // `keys.privateKeyPem`, playing Identity's part.
       JWT_PUBLIC_KEY: keys.publicKeyPem,
       JWT_KEY_ID: keys.keyId,
+      HANDOFF_PRIVATE_KEY: handoffKey.privateKeyPem,
     },
     loadAppModule: async () => (await import('../app/app.module')).AppModule,
   });

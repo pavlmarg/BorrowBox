@@ -437,7 +437,7 @@
         ]
       },
       "delete": {
-        "description": "Accounts with a password must send it. Accounts without one must have signed in within the last 5 minutes.",
+        "description": "Accounts with a password must send it. Accounts without one must have signed in within the last 5 minutes. Refused while an item is out on one of my bookings (picked up, returned within its claim window, or disputed; ADR-0026).",
         "operationId": "MeController_delete",
         "parameters": [],
         "requestBody": {
@@ -466,6 +466,16 @@
           },
           "403": {
             "description": "REAUTHENTICATION_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ACTIVE_RENTALS (finish them first)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2695,6 +2705,296 @@
           }
         ],
         "summary": "Withdraw a request (renter), or cancel before the start",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/bookings/{bookingId}/handoff-token": {
+      "get": {
+        "description": "Valid 45 seconds and single use; fetch a new one every 30. The 6-digit code is the fallback for the same token (ARCHITECTURE.md §5).",
+        "operationId": "BookingsController_handoffToken",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "phase",
+            "required": true,
+            "in": "query",
+            "description": "The lender shows the PICKUP code, the renter the RETURN code",
+            "schema": {
+              "$ref": "#/components/schemas/HandoffPhase"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED, INVALID_PERIOD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE (not your code to show, or not now)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HANDOFF_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "A fresh QR code to show at pickup (lender) or return (renter)",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/bookings/{bookingId}/handoff": {
+      "post": {
+        "description": "Send `token`, or `phase` and `code`. PICKED_UP at pickup; RETURNED at return (COMPLETED straight away without a deposit).",
+        "operationId": "BookingsController_handoff",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoffScanBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingViewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED, TOKEN_INVALID, TOKEN_EXPIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE, NOT_COUNTERPARTY",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED (10 per minute; 5 wrong codes per booking in 10 minutes)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HANDOFF_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Scan the other person’s QR code, or type its code",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/bookings/{bookingId}/handoff/answer": {
+      "post": {
+        "description": "Only while asked (`handoff.question`); final once given. Both yes at pickup, or the lender’s yes at return, records it; disagreement goes to an admin.",
+        "operationId": "BookingsController_handoffAnswer",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoffAnswerBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingViewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED, INVALID_PERIOD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_STATE (nothing to confirm, or already answered)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Did an unscanned pickup or return happen? (ADR-0026)",
         "tags": [
           "bookings"
         ]
@@ -4966,7 +5266,118 @@
           "ACCOUNT_DELETED",
           "NO_ANSWER",
           "STARTED",
-          "PAYMENT_TIMEOUT"
+          "PAYMENT_TIMEOUT",
+          "NO_HANDOFF"
+        ]
+      },
+      "HandoffPhase": {
+        "type": "string",
+        "enum": [
+          "PICKUP",
+          "RETURN"
+        ]
+      },
+      "HandoffAnswer": {
+        "type": "string",
+        "enum": [
+          "YES",
+          "NO"
+        ]
+      },
+      "HandoffQuestionResponse": {
+        "type": "object",
+        "properties": {
+          "phase": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HandoffPhase"
+              }
+            ]
+          },
+          "myAnswer": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HandoffAnswer"
+              }
+            ]
+          },
+          "otherAnswered": {
+            "type": "boolean",
+            "description": "Whether the other person answered (never what)"
+          },
+          "decideAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the outcome falls due if the answers haven't decided it"
+          }
+        },
+        "required": [
+          "phase",
+          "myAnswer",
+          "otherAnswered",
+          "decideAt"
+        ]
+      },
+      "BookingReviewReason": {
+        "type": "string",
+        "enum": [
+          "PICKUP_UNCONFIRMED",
+          "RETURN_UNCONFIRMED"
+        ],
+        "description": "Set while an admin has to decide what happened"
+      },
+      "BookingHandoffResponse": {
+        "type": "object",
+        "properties": {
+          "pickupOpensAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the pickup can first be scanned"
+          },
+          "pickedUpAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "returnedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "claimUntil": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "While RETURNED: until when the lender can report damage"
+          },
+          "question": {
+            "nullable": true,
+            "description": "While both are asked whether an unscanned handoff happened",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HandoffQuestionResponse"
+              }
+            ]
+          },
+          "review": {
+            "nullable": true,
+            "description": "Set while an admin has to decide what happened",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BookingReviewReason"
+              }
+            ]
+          }
+        },
+        "required": [
+          "pickupOpensAt",
+          "pickedUpAt",
+          "returnedAt",
+          "claimUntil",
+          "question",
+          "review"
         ]
       },
       "BookingViewResponse": {
@@ -5043,6 +5454,14 @@
             "nullable": true,
             "description": "While ACCEPTED: when it expires unless paid (ADR-0019)"
           },
+          "handoff": {
+            "description": "The pickup and return (ADR-0026)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BookingHandoffResponse"
+              }
+            ]
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -5067,8 +5486,69 @@
           "reason",
           "expiresAt",
           "payBy",
+          "handoff",
           "createdAt",
           "updatedAt"
+        ]
+      },
+      "HandoffMethod": {
+        "type": "string",
+        "enum": [
+          "QR",
+          "CODE",
+          "CONFIRMED",
+          "ADMIN",
+          "RETURN_SCAN"
+        ]
+      },
+      "BookingHandoffExportResponse": {
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "phase": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HandoffPhase"
+              }
+            ]
+          },
+          "method": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HandoffMethod"
+              }
+            ]
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "answer": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HandoffAnswer"
+              }
+            ]
+          },
+          "answeredAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "bookingId",
+          "phase",
+          "method",
+          "at",
+          "answer",
+          "answeredAt"
         ]
       },
       "BookingsDataExportResponse": {
@@ -5103,6 +5583,12 @@
             "items": {
               "$ref": "#/components/schemas/BookingViewResponse"
             }
+          },
+          "handoffs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookingHandoffExportResponse"
+            }
           }
         },
         "required": [
@@ -5110,7 +5596,8 @@
           "profile",
           "emailVerifiedAt",
           "asRenter",
-          "asLender"
+          "asLender",
+          "handoffs"
         ]
       },
       "ExportedMessage": {
@@ -5376,7 +5863,10 @@
           "BOOKING_CANCELLED",
           "OFFER_RECEIVED",
           "OFFER_BOOKED",
-          "MESSAGES_UNREAD"
+          "MESSAGES_UNREAD",
+          "HANDOFF_QUESTION",
+          "BOOKING_RETURNED",
+          "BOOKING_IN_REVIEW"
         ]
       },
       "ExportedEmail": {
@@ -6652,6 +7142,79 @@
           "itemId"
         ]
       },
+      "HandoffTokenResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Goes into the QR code as it is"
+          },
+          "code": {
+            "type": "string",
+            "example": "048213",
+            "description": "The fallback code"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "refreshAfterSeconds": {
+            "type": "number",
+            "description": "Fetch the next token after this many seconds"
+          }
+        },
+        "required": [
+          "token",
+          "code",
+          "expiresAt",
+          "refreshAfterSeconds"
+        ]
+      },
+      "HandoffScanBody": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "What the QR code holds, as it is"
+          },
+          "phase": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HandoffPhase"
+              }
+            ]
+          },
+          "code": {
+            "type": "string",
+            "example": "048213",
+            "description": "The 6-digit code under the QR code, with `phase`"
+          }
+        }
+      },
+      "HandoffAnswerBody": {
+        "type": "object",
+        "properties": {
+          "phase": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HandoffPhase"
+              }
+            ]
+          },
+          "answer": {
+            "description": "Did the handoff happen? Final once given",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HandoffAnswer"
+              }
+            ]
+          }
+        },
+        "required": [
+          "phase",
+          "answer"
+        ]
+      },
       "ListBookingsResponse": {
         "type": "object",
         "properties": {
@@ -6689,6 +7252,10 @@
           "BOOKING_DECLINED",
           "BOOKING_CANCELLED",
           "BOOKING_EXPIRED",
+          "BOOKING_PICKED_UP",
+          "BOOKING_RETURNED",
+          "BOOKING_COMPLETED",
+          "BOOKING_IN_REVIEW",
           "OFFER_WITHDRAWN"
         ]
       },

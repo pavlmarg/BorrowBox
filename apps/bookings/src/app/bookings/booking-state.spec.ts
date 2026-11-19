@@ -5,7 +5,7 @@ import {
   IllegalTransitionError,
 } from './booking-state';
 
-/** Every arrow of ARCHITECTURE.md §4 with ADR-0015's changes, and no other. */
+/** Every arrow of ARCHITECTURE.md §4 with ADR-0015's and ADR-0026's changes, and no other. */
 const ALLOWED: Array<[BookingStatus, BookingStatus]> = [
   ['REQUESTED', 'ACCEPTED'],
   ['REQUESTED', 'CONFIRMED'],
@@ -17,8 +17,10 @@ const ALLOWED: Array<[BookingStatus, BookingStatus]> = [
   ['ACCEPTED', 'CANCELLED'],
   ['CONFIRMED', 'CANCELLED'],
   ['CONFIRMED', 'PICKED_UP'],
+  ['CONFIRMED', 'EXPIRED'],
   ['PAID', 'CANCELLED'],
   ['PAID', 'PICKED_UP'],
+  ['PAID', 'EXPIRED'],
   ['PICKED_UP', 'RETURNED'],
   ['RETURNED', 'COMPLETED'],
   ['RETURNED', 'DISPUTED'],

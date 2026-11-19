@@ -153,13 +153,18 @@ describe('Booking expiry (integration)', () => {
     expect(accepted.payBy).toBe(booking.start);
   });
 
-  it('never expires a paid booking', async () => {
+  it('never expires a paid booking for payment; its pickup timeline starts instead', async () => {
     const { lender, booking } = await setup();
     const accepted: BookingView = await accept(lender, booking.id);
     await bookings.pay(booking.id, accepted.price.totalCents);
+    // Before the start + 2 h: nothing to do.
+    expect(
+      await expiry.expire(booking.id, new Date(Date.now() + 26 * HOUR)),
+    ).toBe(false);
+    // After it: the first "did the pickup happen?" round (ADR-0026).
     expect(
       await expiry.expire(booking.id, new Date(Date.now() + 48 * HOUR)),
-    ).toBe(false);
+    ).toBe(true);
     expect(await status(booking.id)).toEqual({ status: 'PAID', reason: null });
   });
 

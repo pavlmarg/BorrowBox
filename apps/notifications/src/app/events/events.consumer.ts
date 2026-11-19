@@ -10,8 +10,11 @@ import {
   BookingConfirmedV1,
   BookingDeclinedV1,
   BookingExpiredV1,
+  BookingHandoffUnconfirmedV1,
   BookingPaidV1,
   BookingRequestedV1,
+  BookingReturnedV1,
+  BookingReviewRequestedV1,
   ConversationUnreadV1,
   OfferSentV1,
   PaymentFailedV1,
@@ -37,12 +40,15 @@ import {
   onConfirmed,
   onDeclined,
   onExpired,
+  onHandoffUnconfirmed,
   onOfferSent,
   onPaid,
   onPaymentFailed,
   onRefunded,
   onSettled,
   onRequested,
+  onReturned,
+  onReviewRequested,
   onUnread,
 } from '../emails/plan';
 import {
@@ -55,12 +61,15 @@ import {
   CancelledPayload,
   DeclinedPayload,
   ExpiredPayload,
+  HandoffUnconfirmedPayload,
   OfferSentPayload,
   PaymentFailedPayload,
   PaymentRefundedPayload,
   PaymentSettledPayload,
   ProfilePayload,
   RegisteredPayload,
+  ReturnedPayload,
+  ReviewRequestedPayload,
   UnreadPayload,
   UserIdPayload,
 } from './event-payloads';
@@ -94,6 +103,9 @@ export class EventsConsumer implements OnApplicationBootstrap {
         BookingExpiredV1.routingKey,
         BookingCancelledV1.routingKey,
         BookingPaidV1.routingKey,
+        BookingHandoffUnconfirmedV1.routingKey,
+        BookingReturnedV1.routingKey,
+        BookingReviewRequestedV1.routingKey,
         PaymentFailedV1.routingKey,
         PaymentRefundedV1.routingKey,
         PaymentSettledV1.routingKey,
@@ -143,6 +155,18 @@ export class EventsConsumer implements OnApplicationBootstrap {
         return queue(onCancelled(parsePayload(envelope, CancelledPayload)));
       case BookingPaidV1.routingKey:
         return queue(onPaid(parsePayload(envelope, BookingPayload)));
+      case BookingHandoffUnconfirmedV1.routingKey:
+        return queue(
+          onHandoffUnconfirmed(
+            parsePayload(envelope, HandoffUnconfirmedPayload),
+          ),
+        );
+      case BookingReturnedV1.routingKey:
+        return queue(onReturned(parsePayload(envelope, ReturnedPayload)));
+      case BookingReviewRequestedV1.routingKey:
+        return queue(
+          onReviewRequested(parsePayload(envelope, ReviewRequestedPayload)),
+        );
       case PaymentFailedV1.routingKey:
         return queue(
           onPaymentFailed(parsePayload(envelope, PaymentFailedPayload)),

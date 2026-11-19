@@ -14,6 +14,7 @@ export * from './lib/catalog/people';
 export * from './lib/bookings/periods';
 export * from './lib/bookings/bookings';
 export * from './lib/bookings/events';
+export * from './lib/bookings/handoff';
 export * from './lib/bookings/rpc';
 export * from './lib/messaging/messaging';
 export * from './lib/messaging/events';

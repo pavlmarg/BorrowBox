@@ -34,6 +34,12 @@ export const SYSTEM_MESSAGE_CODES = [
   'BOOKING_DECLINED',
   'BOOKING_CANCELLED',
   'BOOKING_EXPIRED',
+  /** Handoffs (ADR-0026). */
+  'BOOKING_PICKED_UP',
+  'BOOKING_RETURNED',
+  'BOOKING_COMPLETED',
+  /** The answers about a handoff disagree: an admin will look into it. */
+  'BOOKING_IN_REVIEW',
   'OFFER_WITHDRAWN',
 ] as const;
 export type SystemMessageCode = (typeof SYSTEM_MESSAGE_CODES)[number];

@@ -156,6 +156,8 @@ describe('Gateway (integration)', () => {
     identity.reset();
     catalog.reset();
     bookings.reset();
+    // Account deletion asks Bookings first (ADR-0026); nothing out by default.
+    bookings.on(BookingsRpc.activeRentals, () => ({ active: false }));
     notifications.reset();
     payments.reset();
     await redisClient.flushall(); // rate-limit counters
@@ -579,6 +581,19 @@ describe('Gateway (integration)', () => {
         password: 'correct horse 42',
       });
       expect(cookie(res, 'bb_refresh')).toMatch(/Expires=Thu, 01 Jan 1970/);
+    });
+
+    it('refuses with 409 ACTIVE_RENTALS while an item is out, without calling Identity', async () => {
+      bookings.on(BookingsRpc.activeRentals, () => ({ active: true }));
+      identity.on(IdentityRpc.deleteMe, () => undefined);
+      const res = await http()
+        .delete('/api/me')
+        .set('Authorization', await bearer())
+        .send({ password: 'correct horse 42' })
+        .expect(409);
+      expect(res.body.code).toBe('ACTIVE_RENTALS');
+      expect(identity.callsTo(IdentityRpc.deleteMe)).toHaveLength(0);
+      expect(cookie(res, 'bb_refresh')).toBeUndefined();
     });
 
     it('maps REAUTHENTICATION_REQUIRED to 403', async () => {
